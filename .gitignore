@@ -1,1 +1,31 @@
+<<<<<<< HEAD
 frontend/.env
+=======
+# Backend
+backend/build/
+backend/.gradle/
+backend/.env
+backend/gradle/wrapper/gradle-wrapper.jar
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Env files (keep *.example)
+.env
+.env.local
+.env.development.local
+.env.production.local
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+>>>>>>> 2e38026d22bf06106a9cca15950d877a7011c456

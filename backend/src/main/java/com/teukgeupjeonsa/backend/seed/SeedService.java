@@ -31,6 +31,7 @@ public class SeedService {
     @Transactional
     public String seedSampleData() {
         seedBase();
+        seedSampleMealsInternal();
         seedNutrition();
         seedPxProducts();
         return "샘플 데이터 시드 완료";
@@ -39,39 +40,19 @@ public class SeedService {
     @Transactional
     public String seedSampleMeals() {
         seedBase();
-        MilitaryUnit unit = militaryUnitRepository.findAll().stream().findFirst().orElseThrow();
-        if (mealDayRepository.findByUnitAndMealDate(unit, LocalDate.now()).isEmpty()) {
-            mealDayRepository.saveAll(List.of(
-                    MealDay.builder()
-                            .unit(unit)
-                            .mealDate(LocalDate.now())
-                            .breakfastRaw("쌀밥, 계란말이, 김치, 우유")
-                            .lunchRaw("쌀밥, 닭볶음탕, 두부조림, 깍두기")
-                            .dinnerRaw("쌀밥, 돼지고기볶음, 된장국, 김치")
-                            .breakfastKcal(700).lunchKcal(900).dinnerKcal(850)
-                            .sourceName("sample-seed")
-                            .build(),
-                    MealDay.builder()
-                            .unit(unit)
-                            .mealDate(LocalDate.now().plusDays(1))
-                            .breakfastRaw("쌀밥, 참치김치찌개, 계란후라이")
-                            .lunchRaw("쌀밥, 제육볶음, 콩나물무침")
-                            .dinnerRaw("쌀밥, 닭가슴살샐러드, 미역국")
-                            .breakfastKcal(680).lunchKcal(920).dinnerKcal(780)
-                            .sourceName("sample-seed")
-                            .build()
-            ));
-        }
+        seedSampleMealsInternal();
         return "샘플 식단 시드 완료";
     }
 
     private void seedBase() {
         if (militaryUnitRepository.count() == 0) {
             militaryUnitRepository.saveAll(List.of(
-                    MilitaryUnit.builder().unitCode("ARMY-001").unitName("육군 17사단").branchType(BranchType.ARMY).regionName("인천").dataSourceKey("sample-army-17").build(),
-                    MilitaryUnit.builder().unitCode("ARMY-002").unitName("육군 9사단").branchType(BranchType.ARMY).regionName("고양").dataSourceKey("sample-army-9").build(),
-                    MilitaryUnit.builder().unitCode("NAVY-001").unitName("해군 2함대").branchType(BranchType.NAVY).regionName("평택").dataSourceKey("sample-navy-2").build(),
-                    MilitaryUnit.builder().unitCode("AIR-001").unitName("공군 20전투비행단").branchType(BranchType.AIR_FORCE).regionName("서산").dataSourceKey("sample-air-20").build()
+                    MilitaryUnit.builder().unitCode("ARMY-001").unitName("육군 제1사단").branchType(BranchType.ARMY).regionName("파주").dataSourceKey("sample-army-1").build(),
+                    MilitaryUnit.builder().unitCode("ARMY-TRN").unitName("육군훈련소").branchType(BranchType.ARMY).regionName("논산").dataSourceKey("sample-army-training").build(),
+                    MilitaryUnit.builder().unitCode("AIR-EDU").unitName("공군 교육사령부").branchType(BranchType.AIR_FORCE).regionName("진주").dataSourceKey("sample-air-edu").build(),
+                    MilitaryUnit.builder().unitCode("MAR-001").unitName("해병대 제1사단").branchType(BranchType.MARINES).regionName("포항").dataSourceKey("sample-marines-1").build(),
+                    MilitaryUnit.builder().unitCode("NAVY-JH").unitName("해군 진해기지사령부").branchType(BranchType.NAVY).regionName("창원").dataSourceKey("sample-navy-jinhae").build(),
+                    MilitaryUnit.builder().unitCode("ARMY-017").unitName("육군 제17사단").branchType(BranchType.ARMY).regionName("인천").dataSourceKey("sample-army-17").build()
             ));
         }
 
@@ -86,6 +67,38 @@ public class SeedService {
                     Equipment.builder().name("레그프레스").category("MACHINE").isDefault(true).build(),
                     Equipment.builder().name("러닝머신").category("CARDIO").isDefault(true).build()
             ));
+        }
+    }
+
+    private void seedSampleMealsInternal() {
+        List<MilitaryUnit> units = militaryUnitRepository.findAll();
+        if (units.isEmpty()) {
+            return;
+        }
+
+        for (MilitaryUnit unit : units) {
+            if (mealDayRepository.findByUnitAndMealDate(unit, LocalDate.now()).isEmpty()) {
+                mealDayRepository.saveAll(List.of(
+                        MealDay.builder()
+                                .unit(unit)
+                                .mealDate(LocalDate.now())
+                                .breakfastRaw("쌀밥, 계란말이, 김치, 우유")
+                                .lunchRaw("쌀밥, 닭볶음탕, 두부조림, 깍두기")
+                                .dinnerRaw("쌀밥, 돼지고기볶음, 된장국, 김치")
+                                .breakfastKcal(700).lunchKcal(900).dinnerKcal(850)
+                                .sourceName("sample-seed")
+                                .build(),
+                        MealDay.builder()
+                                .unit(unit)
+                                .mealDate(LocalDate.now().plusDays(1))
+                                .breakfastRaw("쌀밥, 참치김치찌개, 계란후라이")
+                                .lunchRaw("쌀밥, 제육볶음, 콩나물무침")
+                                .dinnerRaw("쌀밥, 닭가슴살샐러드, 미역국")
+                                .breakfastKcal(680).lunchKcal(920).dinnerKcal(780)
+                                .sourceName("sample-seed")
+                                .build()
+                ));
+            }
         }
     }
 

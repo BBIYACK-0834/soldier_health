@@ -1,20 +1,31 @@
 .card {
   background: white;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 14px;
   border: 1px solid #e2e7f0;
+  box-shadow: 0 6px 18px rgba(16, 31, 64, 0.05);
 }
 
 .card h3 {
   margin: 0 0 8px;
   font-size: 16px;
+  color: #1a2b4d;
 }
 
 .muted {
   color: #5f6982;
   font-size: 13px;
+  margin: 0;
 }
 
 .item {
-  margin: 4px 0;
+  margin: 5px 0;
+  line-height: 1.45;
+}
+
+.logout {
+  border: 1px solid #d8dfef;
+  border-radius: 8px;
+  background: white;
+  padding: 6px 10px;
 }
