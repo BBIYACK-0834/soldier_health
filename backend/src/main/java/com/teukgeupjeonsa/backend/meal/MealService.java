@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,25 +28,44 @@ public class MealService {
 
     @Transactional(readOnly = true)
     public MealDtos.MealDayResponse getByDate(Long userId, LocalDate date) {
-        UserUnitSetting setting = getPrimaryUnit(userId);
-        MealDay mealDay = mealDayRepository.findByUnitAndMealDate(setting.getUnit(), date)
-                .orElseThrow(() -> new EntityNotFoundException("해당 날짜 식단이 없습니다."));
-        return toResponse(mealDay);
+        Optional<UserUnitSetting> settingOptional = getPrimaryUnit(userId);
+        if (settingOptional.isEmpty()) {
+            return emptyMealResponse(date);
+        }
+
+        return mealDayRepository.findByUnitAndMealDate(settingOptional.get().getUnit(), date)
+                .map(this::toResponse)
+                .orElseGet(() -> emptyMealResponse(date));
     }
 
     @Transactional(readOnly = true)
     public List<MealDtos.MealDayResponse> getWeek(Long userId, LocalDate startDate) {
-        UserUnitSetting setting = getPrimaryUnit(userId);
+        Optional<UserUnitSetting> settingOptional = getPrimaryUnit(userId);
+        if (settingOptional.isEmpty()) {
+            return List.of();
+        }
+
         return mealDayRepository.findByUnitAndMealDateBetweenOrderByMealDateAsc(
-                setting.getUnit(), startDate, startDate.plusDays(6)
+                settingOptional.get().getUnit(), startDate, startDate.plusDays(6)
         ).stream().map(this::toResponse).toList();
     }
 
-    private UserUnitSetting getPrimaryUnit(Long userId) {
+    private Optional<UserUnitSetting> getPrimaryUnit(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
-        return userUnitSettingRepository.findByUserAndIsPrimaryTrue(user)
-                .orElseThrow(() -> new EntityNotFoundException("먼저 부대를 설정해 주세요."));
+        return userUnitSettingRepository.findByUserAndIsPrimaryTrue(user);
+    }
+
+    private MealDtos.MealDayResponse emptyMealResponse(LocalDate date) {
+        return MealDtos.MealDayResponse.builder()
+                .mealDate(date)
+                .breakfastRaw(null)
+                .lunchRaw(null)
+                .dinnerRaw(null)
+                .breakfastKcal(0)
+                .lunchKcal(0)
+                .dinnerKcal(0)
+                .build();
     }
 
     private MealDtos.MealDayResponse toResponse(MealDay mealDay) {

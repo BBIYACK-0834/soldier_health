@@ -5,9 +5,6 @@ export async function signup(payload) {
     email: payload.email,
     password: payload.password,
     nickname: payload.nickname,
-    goalType: payload.goalType,
-    workoutLevel: payload.workoutLevel,
-    branchType: payload.branchType,
   });
 
   return unwrap(response);

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { login } from '../api/authApi';
+import { getMe, login } from '../api/authApi';
+import { getMyUnit } from '../api/unitApi';
 import { useAppContext } from '../app/AppContext';
 import MobileShell from '../components/layout/MobileShell';
+import { isProfileReady } from '../utils/profile';
 import styles from '../features/auth/AuthForm.module.css';
 
 function getLoginErrorMessage(error) {
@@ -40,9 +42,20 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const data = await login({ email: email.trim(), password });
-      actions.setAuth(data);
-      navigate('/');
+      const auth = await login({ email: email.trim(), password });
+      actions.setAuth(auth);
+
+      const me = await getMe();
+      let hasUnit = false;
+      try {
+        const unit = await getMyUnit();
+        hasUnit = Boolean(unit?.id);
+      } catch {
+        hasUnit = false;
+      }
+
+      actions.setUser(me);
+      navigate(isProfileReady(me, hasUnit) ? '/' : '/onboarding', { replace: true });
     } catch (err) {
       setError(getLoginErrorMessage(err));
     } finally {
@@ -53,7 +66,7 @@ export default function LoginPage() {
   return (
     <MobileShell title="특급전사 로그인">
       <form className={styles.container} onSubmit={onSubmit}>
-        {location.state?.message ? <p>{location.state.message}</p> : null}
+        {location.state?.message ? <p className={styles.info}>{location.state.message}</p> : null}
         <input
           className={styles.input}
           type="email"
@@ -72,11 +85,11 @@ export default function LoginPage() {
         />
         {error ? <p className={styles.error}>{error}</p> : null}
         <button className={styles.button} type="submit" disabled={isSubmitting}>
-          {isSubmitting ? '로그인 중...' : '로그인'}
+          {isSubmitting ? '로그인 중입니다...' : '로그인하기'}
         </button>
       </form>
       <Link to="/signup" className={styles.subButton}>
-        계정이 없다면 회원가입
+        계정이 없다면 회원가입하기
       </Link>
     </MobileShell>
   );

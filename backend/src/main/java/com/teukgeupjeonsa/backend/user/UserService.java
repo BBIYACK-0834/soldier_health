@@ -20,7 +20,6 @@ public class UserService {
     @Transactional
     public UserProfileResponse updateProfile(Long userId, UpdateProfileRequest request) {
         User user = getUser(userId);
-        user.setNickname(request.getNickname());
         user.setHeightCm(request.getHeightCm());
         user.setWeightKg(request.getWeightKg());
         return toResponse(user);
