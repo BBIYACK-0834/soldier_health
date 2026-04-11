@@ -1,0 +1,128 @@
+package com.teukgeupjeonsa.backend.seed;
+
+import com.teukgeupjeonsa.backend.equipment.Equipment;
+import com.teukgeupjeonsa.backend.equipment.EquipmentRepository;
+import com.teukgeupjeonsa.backend.meal.MealDay;
+import com.teukgeupjeonsa.backend.meal.MealDayRepository;
+import com.teukgeupjeonsa.backend.nutrition.FoodNutrition;
+import com.teukgeupjeonsa.backend.nutrition.FoodNutritionRepository;
+import com.teukgeupjeonsa.backend.px.PxProduct;
+import com.teukgeupjeonsa.backend.px.PxProductRepository;
+import com.teukgeupjeonsa.backend.unit.MilitaryUnit;
+import com.teukgeupjeonsa.backend.unit.MilitaryUnitRepository;
+import com.teukgeupjeonsa.backend.user.BranchType;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class SeedService {
+
+    private final MilitaryUnitRepository militaryUnitRepository;
+    private final EquipmentRepository equipmentRepository;
+    private final MealDayRepository mealDayRepository;
+    private final FoodNutritionRepository foodNutritionRepository;
+    private final PxProductRepository pxProductRepository;
+
+    @Transactional
+    public String seedSampleData() {
+        seedBase();
+        seedNutrition();
+        seedPxProducts();
+        return "샘플 데이터 시드 완료";
+    }
+
+    @Transactional
+    public String seedSampleMeals() {
+        seedBase();
+        MilitaryUnit unit = militaryUnitRepository.findAll().stream().findFirst().orElseThrow();
+        if (mealDayRepository.findByUnitAndMealDate(unit, LocalDate.now()).isEmpty()) {
+            mealDayRepository.saveAll(List.of(
+                    MealDay.builder()
+                            .unit(unit)
+                            .mealDate(LocalDate.now())
+                            .breakfastRaw("쌀밥, 계란말이, 김치, 우유")
+                            .lunchRaw("쌀밥, 닭볶음탕, 두부조림, 깍두기")
+                            .dinnerRaw("쌀밥, 돼지고기볶음, 된장국, 김치")
+                            .breakfastKcal(700).lunchKcal(900).dinnerKcal(850)
+                            .sourceName("sample-seed")
+                            .build(),
+                    MealDay.builder()
+                            .unit(unit)
+                            .mealDate(LocalDate.now().plusDays(1))
+                            .breakfastRaw("쌀밥, 참치김치찌개, 계란후라이")
+                            .lunchRaw("쌀밥, 제육볶음, 콩나물무침")
+                            .dinnerRaw("쌀밥, 닭가슴살샐러드, 미역국")
+                            .breakfastKcal(680).lunchKcal(920).dinnerKcal(780)
+                            .sourceName("sample-seed")
+                            .build()
+            ));
+        }
+        return "샘플 식단 시드 완료";
+    }
+
+    private void seedBase() {
+        if (militaryUnitRepository.count() == 0) {
+            militaryUnitRepository.saveAll(List.of(
+                    MilitaryUnit.builder().unitCode("ARMY-001").unitName("육군 17사단").branchType(BranchType.ARMY).regionName("인천").dataSourceKey("sample-army-17").build(),
+                    MilitaryUnit.builder().unitCode("ARMY-002").unitName("육군 9사단").branchType(BranchType.ARMY).regionName("고양").dataSourceKey("sample-army-9").build(),
+                    MilitaryUnit.builder().unitCode("NAVY-001").unitName("해군 2함대").branchType(BranchType.NAVY).regionName("평택").dataSourceKey("sample-navy-2").build(),
+                    MilitaryUnit.builder().unitCode("AIR-001").unitName("공군 20전투비행단").branchType(BranchType.AIR_FORCE).regionName("서산").dataSourceKey("sample-air-20").build()
+            ));
+        }
+
+        if (equipmentRepository.count() == 0) {
+            equipmentRepository.saveAll(List.of(
+                    Equipment.builder().name("푸쉬업 바").category("BODYWEIGHT").isDefault(true).build(),
+                    Equipment.builder().name("철봉").category("BODYWEIGHT").isDefault(true).build(),
+                    Equipment.builder().name("덤벨").category("DUMBBELL").isDefault(true).build(),
+                    Equipment.builder().name("바벨").category("BARBELL").isDefault(true).build(),
+                    Equipment.builder().name("벤치").category("BENCH").isDefault(true).build(),
+                    Equipment.builder().name("케이블 머신").category("MACHINE").isDefault(true).build(),
+                    Equipment.builder().name("레그프레스").category("MACHINE").isDefault(true).build(),
+                    Equipment.builder().name("러닝머신").category("CARDIO").isDefault(true).build()
+            ));
+        }
+    }
+
+    private void seedNutrition() {
+        if (foodNutritionRepository.count() == 0) {
+            foodNutritionRepository.saveAll(List.of(
+                    fn("쌀밥", 300, 6.0, 66.0, 1.0),
+                    fn("계란말이", 180, 12.0, 4.0, 12.0),
+                    fn("김치", 20, 1.0, 3.0, 0.3),
+                    fn("우유", 125, 6.0, 10.0, 6.0),
+                    fn("닭볶음탕", 260, 23.0, 9.0, 14.0),
+                    fn("두부조림", 170, 14.0, 8.0, 8.0),
+                    fn("돼지고기볶음", 300, 20.0, 12.0, 18.0),
+                    fn("된장국", 80, 6.0, 7.0, 3.0),
+                    fn("닭가슴살", 140, 28.0, 0.0, 2.0)
+            ));
+        }
+    }
+
+    private void seedPxProducts() {
+        if (pxProductRepository.count() == 0) {
+            pxProductRepository.saveAll(List.of(
+                    PxProduct.builder().productName("참치캔").brandName("동원").category("PROTEIN").calories(180).proteinG(25.0).carbG(0.0).fatG(8.0).isActive(true).build(),
+                    PxProduct.builder().productName("프로틴 드링크").brandName("빙그레").category("PROTEIN").calories(150).proteinG(20.0).carbG(8.0).fatG(3.0).isActive(true).build(),
+                    PxProduct.builder().productName("멸균우유").brandName("서울우유").category("DAIRY").calories(125).proteinG(6.0).carbG(10.0).fatG(6.0).isActive(true).build()
+            ));
+        }
+    }
+
+    private FoodNutrition fn(String name, int calories, double protein, double carb, double fat) {
+        return FoodNutrition.builder()
+                .foodName(name)
+                .servingUnit("1인분")
+                .calories(calories)
+                .proteinG(protein)
+                .carbG(carb)
+                .fatG(fat)
+                .build();
+    }
+}
