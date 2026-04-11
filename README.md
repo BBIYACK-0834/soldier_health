@@ -151,57 +151,51 @@ docker run -d \
 
 ---
 
-## 11) Frontend (현재 추가된 MVP 기본 골격)
+## 11) Frontend (Codespaces 실행 가이드)
 
-### 폴더 구조
+### 11-1. 환경변수 파일 생성
 
-```text
-frontend/
-├─ index.html
-├─ package.json
-├─ vite.config.js
-└─ src/
-   ├─ main.jsx
-   ├─ api/
-   │  ├─ httpClient.js
-   │  ├─ authApi.js
-   │  ├─ userApi.js
-   │  ├─ unitApi.js
-   │  └─ equipmentApi.js
-   ├─ app/
-   │  ├─ AppContext.jsx
-   │  └─ AppRouter.jsx
-   ├─ components/layout/
-   │  ├─ MobileShell.jsx
-   │  └─ MobileShell.module.css
-   ├─ features/
-   │  ├─ auth/AuthForm.module.css
-   │  ├─ onboarding/OnboardingForm.module.css
-   │  └─ home/HomeCards.module.css
-   ├─ pages/
-   │  ├─ LoginPage.jsx
-   │  ├─ SignupPage.jsx
-   │  ├─ OnboardingPage.jsx
-   │  └─ HomePage.jsx
-   └─ styles/global.css
+```bash
+cd frontend
+cp .env.example .env
 ```
 
-### 프론트 실행
+`frontend/.env.example` 기본값:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+Codespaces에서 파일 생성 대신 export로도 실행할 수 있습니다.
+
+```bash
+cd frontend
+export VITE_API_BASE_URL='http://localhost:8080'
+```
+
+### 11-2. 프론트 실행
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-### 프론트 환경변수 예시
+- Codespaces Ports 탭에서 `5173` 포트를 Public/Private 정책에 맞게 열어주세요.
+- 브라우저에서 프론트 접속 후 로그인/회원가입 API를 호출하면 백엔드(`8080`)로 요청됩니다.
 
-```bash
-# frontend/.env
-VITE_API_BASE_URL=http://localhost:8080
-```
+### 11-3. 로그인/회원가입 동작 확인
 
----
+1. 회원가입: `/signup`
+2. 로그인: `/login`
+3. 로그인 성공 시 `localStorage['tg_access_token']`에 토큰 저장
+4. 이후 API 요청은 axios interceptor가 `Authorization: Bearer <token>` 자동 첨부
+
+### 11-4. 프론트 인증 에러 처리 기준
+
+- 네트워크/CORS: "서버 연결에 실패했습니다..."
+- 인증 실패(401/403): "이메일 또는 비밀번호가 올바르지 않습니다."
+- 중복 이메일/유효성 실패(400): 백엔드 `error` 메시지 표시
 
 ## 12) 2단계 추가 구현(식단/영양/운동/알람)
 
