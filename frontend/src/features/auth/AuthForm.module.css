@@ -1,7 +1,12 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+  border: 1px solid #dfe6f3;
+  box-shadow: 0 8px 24px rgba(24, 50, 110, 0.06);
 }
 
 .input,
@@ -9,17 +14,29 @@
 .button {
   width: 100%;
   box-sizing: border-box;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #d9dce5;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid #d2d9e8;
   font-size: 14px;
+  background: #fff;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: #1b4fd6;
+  box-shadow: 0 0 0 3px rgba(27, 79, 214, 0.12);
 }
 
 .button {
   border: none;
-  background: #1b4fd6;
+  background: linear-gradient(135deg, #2b5ce1, #1b4fd6);
   color: white;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.button:disabled {
+  opacity: 0.6;
 }
 
 .subButton {
@@ -27,9 +44,20 @@
   background: transparent;
   color: #1b4fd6;
   font-size: 14px;
+  text-align: center;
+  margin-top: 8px;
+  text-decoration: none;
+}
+
+.guide,
+.info {
+  color: #44506a;
+  font-size: 13px;
+  margin: 0;
 }
 
 .error {
   color: #d52a2a;
   font-size: 13px;
+  margin: 0;
 }
