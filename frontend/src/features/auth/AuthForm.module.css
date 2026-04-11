@@ -1,0 +1,35 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.input,
+.select,
+.button {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #d9dce5;
+  font-size: 14px;
+}
+
+.button {
+  border: none;
+  background: #1b4fd6;
+  color: white;
+  font-weight: 600;
+}
+
+.subButton {
+  border: none;
+  background: transparent;
+  color: #1b4fd6;
+  font-size: 14px;
+}
+
+.error {
+  color: #d52a2a;
+  font-size: 13px;
+}

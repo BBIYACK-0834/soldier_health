@@ -1,0 +1,20 @@
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid #e2e7f0;
+}
+
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.muted {
+  color: #5f6982;
+  font-size: 13px;
+}
+
+.item {
+  margin: 4px 0;
+}
