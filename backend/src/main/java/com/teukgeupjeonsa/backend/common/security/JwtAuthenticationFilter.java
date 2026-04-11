@@ -12,7 +12,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -27,27 +26,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
 
     @Override
-<<<<<<< HEAD
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        // OPTIONS 요청은 바로 통과
         if (HttpMethod.OPTIONS.matches(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
-=======
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        return HttpMethod.OPTIONS.matches(request.getMethod());
-    }
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
->>>>>>> 2e38026d22bf06106a9cca15950d877a7011c456
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
         if (header != null && header.startsWith("Bearer ")) {
@@ -58,7 +48,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 Long userId = jwtTokenProvider.getUserId(token);
                 User user = userRepository.findById(userId).orElse(null);
-<<<<<<< HEAD
 
                 if (user != null) {
                     UsernamePasswordAuthenticationToken authentication =
@@ -68,16 +57,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     List.of(new SimpleGrantedAuthority("ROLE_USER"))
                             );
 
-                    authentication.setDetails(user);
-=======
-                if (user != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            user,
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_USER"))
-                    );
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
->>>>>>> 2e38026d22bf06106a9cca15950d877a7011c456
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
