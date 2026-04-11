@@ -1,6 +1,7 @@
 package com.teukgeupjeonsa.backend.common.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +37,12 @@ public class JwtTokenProvider {
     }
 
     public boolean validate(String token) {
-        parse(token);
-        return true;
+        try {
+            parse(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private Claims parse(String token) {
