@@ -1,3 +1,24 @@
+.hero {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.hero h2 {
+  margin: 6px 0;
+  font-size: 18px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  font-size: 12px;
+  margin: 0;
+}
+
 .card {
   background: white;
   border-radius: 14px;
@@ -7,13 +28,19 @@
 }
 
 .card h3 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 16px;
   color: #1a2b4d;
 }
 
+.subtitle {
+  margin: 0 0 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
 .muted {
-  color: #5f6982;
+  color: #64748b;
   font-size: 13px;
   margin: 0;
 }
@@ -23,9 +50,124 @@
   line-height: 1.45;
 }
 
+.workoutHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.startButton {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.progressWrap {
+  margin: 10px 0;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #22c55e);
+}
+
+.progressText {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #475569;
+}
+
+.exerciseList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+
+.subInfoBox {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #dbe4f3;
+  background: #f8fafc;
+}
+
+.subInfoTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #334155;
+  font-weight: 700;
+}
+
+.exerciseCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.exerciseDone {
+  border-color: #22c55e;
+  background: #f0fdf4;
+}
+
+.exerciseTitle {
+  margin: 0;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.exerciseMeta {
+  margin: 2px 0;
+  font-size: 12px;
+  color: #334155;
+}
+
+.exerciseAlt {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.todoButton,
+.doneButton {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.todoButton {
+  background: #334155;
+}
+
+.doneButton {
+  background: #16a34a;
+}
+
 .logout {
   border: 1px solid #d8dfef;
   border-radius: 8px;
   background: white;
   padding: 6px 10px;
+  font-weight: 700;
 }

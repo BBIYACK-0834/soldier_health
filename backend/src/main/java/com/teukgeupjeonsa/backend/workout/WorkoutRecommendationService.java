@@ -68,7 +68,8 @@ public class WorkoutRecommendationService {
     }
 
     private WorkoutDtos.WorkoutExercise ex(String name, GoalType goal, String alt) {
-        String reps = switch (goal) {
+        GoalType safeGoal = goal == null ? GoalType.GENERAL_FITNESS : goal;
+        String reps = switch (safeGoal) {
             case BULK -> "6-12회";
             case CUT, FITNESS_TEST -> "12-20회";
             case MAINTAIN, GENERAL_FITNESS -> "8-15회";

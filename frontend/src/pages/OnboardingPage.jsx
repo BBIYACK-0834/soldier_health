@@ -6,9 +6,10 @@ import { getUnits, setMyUnit } from '../api/unitApi';
 import { getEquipments, saveMyEquipments } from '../api/equipmentApi';
 import { updateGoals, updateProfile } from '../api/userApi';
 import {
+  BRANCH_TYPE_LABELS,
   GOAL_TYPE_LABELS,
-  WORKOUT_LEVEL_LABELS,
   WEEKDAY_LABELS,
+  WORKOUT_LEVEL_LABELS,
   toLabel,
 } from '../constants/labels';
 
@@ -44,7 +45,7 @@ export default function OnboardingPage() {
         setUnits(unitRows || []);
         setEquipments(equipmentRows || []);
         if (unitRows?.length) {
-          setForm((prev) => ({ ...prev, unitId: unitRows[0].id }));
+          setForm((prev) => ({ ...prev, unitId: String(unitRows[0].id) }));
           setUnitLoadError('');
         } else {
           setUnitLoadError('선택 가능한 부대가 없습니다. 관리자에게 문의해주세요.');
@@ -72,7 +73,9 @@ export default function OnboardingPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.heightCm || !form.weightKg || !form.unitId) return;
+    if (!form.heightCm || !form.weightKg || !form.unitId || selectedDays.length === 0) {
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -80,14 +83,17 @@ export default function OnboardingPage() {
         heightCm: Number(form.heightCm),
         weightKg: Number(form.weightKg),
       });
+
+      const selectedUnit = units.find((unit) => Number(unit.id) === Number(form.unitId));
+
       await updateGoals({
         goalType: form.goalType,
         workoutLevel: form.workoutLevel,
-        branchType: units.find((unit) => Number(unit.id) === Number(form.unitId))?.branchType || 'ARMY',
+        branchType: selectedUnit?.branchType || 'ARMY',
         workoutDaysPerWeek: Number(form.workoutDaysPerWeek),
         preferredWorkoutMinutes: Number(form.preferredWorkoutMinutes),
-        workoutAvailableDays: selectedDays,
       });
+
       await setMyUnit(Number(form.unitId));
       await saveMyEquipments({ equipmentIds: selectedEquipmentIds, customEquipmentNames: [] });
       navigate('/', { replace: true });
@@ -98,6 +104,7 @@ export default function OnboardingPage() {
 
   return (
     <MobileShell title="초기 설정">
+      <p className={styles.banner}>지금 설정하면 오늘부터 바로 강한 루틴으로 운동을 시작할 수 있습니다.</p>
       <form className={styles.section} onSubmit={onSubmit}>
         <h2 className={styles.title}>1) 신체 정보</h2>
         <div className={styles.row}>
@@ -117,7 +124,7 @@ export default function OnboardingPage() {
           />
         </div>
 
-        <h2 className={styles.title}>2) 운동 설정</h2>
+        <h2 className={styles.title}>2) 목표 및 난이도</h2>
         <div className={styles.row}>
           <select
             className={styles.select}
@@ -125,7 +132,9 @@ export default function OnboardingPage() {
             onChange={(e) => setForm((prev) => ({ ...prev, goalType: e.target.value }))}
           >
             {goalOptions.map((goal) => (
-              <option key={goal} value={goal}>{toLabel(GOAL_TYPE_LABELS, goal)}</option>
+              <option key={goal} value={goal}>
+                {toLabel(GOAL_TYPE_LABELS, goal)}
+              </option>
             ))}
           </select>
           <select
@@ -134,7 +143,9 @@ export default function OnboardingPage() {
             onChange={(e) => setForm((prev) => ({ ...prev, workoutLevel: e.target.value }))}
           >
             {levelOptions.map((level) => (
-              <option key={level} value={level}>{toLabel(WORKOUT_LEVEL_LABELS, level)}</option>
+              <option key={level} value={level}>
+                {toLabel(WORKOUT_LEVEL_LABELS, level)}
+              </option>
             ))}
           </select>
         </div>
@@ -160,7 +171,7 @@ export default function OnboardingPage() {
           />
         </div>
 
-        <h2 className={styles.title}>운동 가능 요일</h2>
+        <h2 className={styles.title}>3) 운동 가능 요일</h2>
         <div className={styles.chips}>
           {weekDays.map((day) => (
             <button
@@ -174,7 +185,7 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <h2 className={styles.title}>3) 부대 선택</h2>
+        <h2 className={styles.title}>4) 부대 선택</h2>
         {loadingUnit ? <p className={styles.info}>부대 목록을 불러오는 중입니다.</p> : null}
         {unitLoadError ? <p className={styles.error}>{unitLoadError}</p> : null}
         <select
@@ -186,12 +197,13 @@ export default function OnboardingPage() {
           {units.length === 0 ? <option value="">선택 가능한 부대가 없습니다.</option> : null}
           {units.map((unit) => (
             <option value={unit.id} key={unit.id}>
-              {unit.unitName} ({unit.regionName || '지역 미상'})
+              [{toLabel(BRANCH_TYPE_LABELS, unit.branchType, '기타')}] {unit.unitName}
+              {unit.regionName ? ` · ${unit.regionName}` : ''}
             </option>
           ))}
         </select>
 
-        <h2 className={styles.title}>4) 보유 기구 선택</h2>
+        <h2 className={styles.title}>5) 보유 기구 선택</h2>
         <div className={styles.chips}>
           {equipments.map((eq) => (
             <button
@@ -205,7 +217,11 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <button className={styles.submit} type="submit" disabled={isSubmitting || loadingUnit || units.length === 0}>
+        <button
+          className={styles.submit}
+          type="submit"
+          disabled={isSubmitting || loadingUnit || units.length === 0}
+        >
           {isSubmitting ? '저장 중입니다...' : '초기 설정 저장 후 홈으로 이동'}
         </button>
       </form>

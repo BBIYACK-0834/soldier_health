@@ -1,8 +1,18 @@
+.banner {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: #111827;
+  color: #f9fafb;
+  font-weight: 700;
+  font-size: 13px;
+}
+
 .section {
   background: white;
   border-radius: 16px;
   padding: 16px;
-  border: 1px solid #e4e8f0;
+  border: 1px solid #d9dfec;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -10,9 +20,9 @@
 }
 
 .title {
-  margin: 4px 0;
+  margin: 6px 0 2px;
   font-size: 16px;
-  color: #1e2d4f;
+  color: #101828;
 }
 
 .row {
@@ -25,14 +35,15 @@
 .select {
   padding: 11px;
   border-radius: 11px;
-  border: 1px solid #d9dce5;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
 }
 
 .input:focus,
 .select:focus {
   outline: none;
-  border-color: #1b4fd6;
-  box-shadow: 0 0 0 3px rgba(27, 79, 214, 0.1);
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
 }
 
 .chips {
@@ -42,17 +53,18 @@
 }
 
 .chip {
-  padding: 7px 11px;
+  padding: 8px 12px;
   border-radius: 20px;
-  border: 1px solid #c9cfe0;
+  border: 1px solid #cbd5e1;
   background: #fff;
-  font-weight: 600;
+  font-weight: 700;
+  color: #334155;
 }
 
 .active {
-  background: #1b4fd6;
+  background: #1d4ed8;
   color: white;
-  border-color: #1b4fd6;
+  border-color: #1d4ed8;
 }
 
 .submit {
@@ -60,20 +72,20 @@
   border: none;
   border-radius: 12px;
   padding: 13px;
-  background: linear-gradient(135deg, #2b5ce1, #1b4fd6);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: white;
-  font-weight: 700;
+  font-weight: 800;
   margin-top: 8px;
 }
 
 .info {
   margin: 0;
-  color: #44506a;
+  color: #475569;
   font-size: 13px;
 }
 
 .error {
   margin: 0;
-  color: #c62828;
+  color: #b91c1c;
   font-size: 13px;
 }

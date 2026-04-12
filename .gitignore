@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-frontend/.env
-=======
 # Backend
 backend/build/
 backend/.gradle/
@@ -28,4 +25,3 @@ frontend/.env
 # OS
 .DS_Store
 Thumbs.db
->>>>>>> 2e38026d22bf06106a9cca15950d877a7011c456

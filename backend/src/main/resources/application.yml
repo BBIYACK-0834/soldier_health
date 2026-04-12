@@ -23,3 +23,9 @@ jwt:
 logging:
   level:
     org.hibernate.SQL: debug
+
+public-meal:
+  api:
+    base-url: ${PUBLIC_MEAL_API_BASE_URL:}
+    service-key: ${PUBLIC_MEAL_API_SERVICE_KEY:}
+    rows: ${PUBLIC_MEAL_API_ROWS:200}

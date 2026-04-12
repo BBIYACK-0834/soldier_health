@@ -15,13 +15,26 @@ public class NutritionDtos {
         private double targetProteinG;
         private double targetCarbG;
         private double targetFatG;
+
         private int intakeCalories;
         private double intakeProteinG;
         private double intakeCarbG;
         private double intakeFatG;
+
+        private int remainingCalories;
+        private double remainingProteinG;
+        private double remainingCarbG;
+        private double remainingFatG;
+
+        private double calorieProgressPct;
+        private double proteinProgressPct;
+        private double carbProgressPct;
+        private double fatProgressPct;
+
         private double deficitProteinG;
         private double deficitCarbG;
         private double deficitFatG;
+
         private String note;
     }
 
