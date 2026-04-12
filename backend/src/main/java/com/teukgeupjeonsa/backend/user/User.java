@@ -32,11 +32,11 @@ public class User {
     private Double weightKg;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column(length = 30)
     private GoalType goalType;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private WorkoutLevel workoutLevel;
 
     private Integer workoutDaysPerWeek;
@@ -44,7 +44,7 @@ public class User {
     private Integer preferredWorkoutMinutes;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private BranchType branchType;
 
     @Column(nullable = false)

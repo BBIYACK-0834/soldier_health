@@ -4,7 +4,6 @@ import com.teukgeupjeonsa.backend.meal.MealDay;
 import com.teukgeupjeonsa.backend.meal.MealDayRepository;
 import com.teukgeupjeonsa.backend.px.PxProduct;
 import com.teukgeupjeonsa.backend.px.PxProductRepository;
-import com.teukgeupjeonsa.backend.unit.UserUnitSetting;
 import com.teukgeupjeonsa.backend.unit.UserUnitSettingRepository;
 import com.teukgeupjeonsa.backend.user.GoalType;
 import com.teukgeupjeonsa.backend.user.User;
@@ -31,12 +30,12 @@ public class NutritionService {
     @Transactional(readOnly = true)
     public NutritionDtos.NutritionSummaryResponse getTodaySummary(Long userId) {
         User user = getUser(userId);
-        MealDay mealDay = getTodayMeal(user);
+        Optional<MealDay> mealDay = getTodayMealOptional(user);
 
         Macro target = calculateTarget(user);
-        Macro intake = estimateMealNutrition(mealDay);
+        Macro intake = mealDay.map(this::estimateMealNutrition).orElseGet(() -> new Macro(0, 0, 0, 0));
 
-        return toSummary(target, intake);
+        return toSummary(target, intake, mealDay.isPresent());
     }
 
     @Transactional(readOnly = true)
@@ -61,9 +60,14 @@ public class NutritionService {
             }
         }
 
-        String text = proteinDeficit <= 0
-                ? "오늘 단백질은 목표를 충족했습니다. 수분 보충과 규칙적인 식사를 유지하세요."
-                : String.format("단백질 %.1fg 부족 예상. 보유식품 우선 사용 후 PX 보충을 권장합니다.", proteinDeficit);
+        String text;
+        if (summary.getIntakeCalories() <= 0) {
+            text = "오늘 식단 데이터가 없어 섭취량을 0으로 계산했습니다. 부대 식단을 먼저 동기화해주세요.";
+        } else if (proteinDeficit <= 0) {
+            text = "단백질 목표를 충족했습니다. 남은 탄수화물/지방 비율만 맞추면 좋습니다.";
+        } else {
+            text = String.format("단백질 %.1fg 부족. 보유식품 우선 사용 후 PX 보충을 권장합니다.", proteinDeficit);
+        }
 
         return NutritionDtos.RecommendationResponse.builder()
                 .summary(summary)
@@ -127,31 +131,54 @@ public class NutritionService {
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
     }
 
-    private MealDay getTodayMeal(User user) {
-        UserUnitSetting setting = userUnitSettingRepository.findByUserAndIsPrimaryTrue(user)
-                .orElseThrow(() -> new EntityNotFoundException("부대 설정이 필요합니다."));
-        return mealDayRepository.findByUnitAndMealDate(setting.getUnit(), LocalDate.now())
-                .orElseThrow(() -> new EntityNotFoundException("오늘 식단이 없습니다."));
+    private Optional<MealDay> getTodayMealOptional(User user) {
+        return userUnitSettingRepository.findByUserAndIsPrimaryTrue(user)
+                .flatMap(setting -> mealDayRepository.findByUnitAndMealDate(setting.getUnit(), LocalDate.now()));
     }
 
     private Macro calculateTarget(User user) {
-        double weight = user.getWeightKg() == null ? 70.0 : user.getWeightKg();
-        double proteinPerKg = switch (user.getGoalType()) {
+        GoalType goal = user.getGoalType() == null ? GoalType.GENERAL_FITNESS : user.getGoalType();
+
+        double weight = Optional.ofNullable(user.getWeightKg()).orElse(70.0);
+        double height = Optional.ofNullable(user.getHeightCm()).orElse(172.0);
+
+        // 나이/성별 정보가 없어 군인 기본값(남성 22세) 기반 Mifflin-St Jeor 근사 사용
+        double bmr = 10 * weight + 6.25 * height - 5 * 22 + 5;
+
+        int workoutDays = Optional.ofNullable(user.getWorkoutDaysPerWeek()).orElse(3);
+        double activityFactor = workoutDays <= 2 ? 1.35 : workoutDays <= 4 ? 1.5 : 1.65;
+        double tdee = bmr * activityFactor;
+
+        double targetCalories = switch (goal) {
+            case BULK -> tdee + 300;
+            case CUT -> tdee - 400;
+            case FITNESS_TEST -> tdee;
+            case MAINTAIN, GENERAL_FITNESS -> tdee;
+        };
+
+        if (targetCalories < 1500) {
+            targetCalories = 1500;
+        }
+
+        double proteinPerKg = switch (goal) {
             case BULK -> 2.0;
             case CUT -> 2.2;
+            case FITNESS_TEST -> 1.8;
             case MAINTAIN, GENERAL_FITNESS -> 1.8;
-            case FITNESS_TEST -> 1.6;
         };
+
+        double fatPerKg = switch (goal) {
+            case BULK -> 0.9;
+            case CUT -> 0.7;
+            case FITNESS_TEST -> 0.8;
+            case MAINTAIN, GENERAL_FITNESS -> 0.8;
+        };
+
         double protein = weight * proteinPerKg;
-        int calories = switch (user.getGoalType()) {
-            case BULK -> (int) (weight * 36);
-            case CUT -> (int) (weight * 30);
-            case MAINTAIN, GENERAL_FITNESS -> (int) (weight * 33);
-            case FITNESS_TEST -> (int) (weight * 32);
-        };
-        double fat = weight * 0.8;
-        double carb = (calories - (protein * 4 + fat * 9)) / 4;
-        return new Macro(calories, protein, carb, fat);
+        double fat = weight * fatPerKg;
+        double carb = Math.max(0, (targetCalories - (protein * 4 + fat * 9)) / 4);
+
+        return new Macro((int) Math.round(targetCalories), protein, carb, fat);
     }
 
     private Macro estimateMealNutrition(MealDay mealDay) {
@@ -198,7 +225,12 @@ public class NutritionService {
         return new Macro(calories, protein, carb, fat);
     }
 
-    private NutritionDtos.NutritionSummaryResponse toSummary(Macro target, Macro intake) {
+    private NutritionDtos.NutritionSummaryResponse toSummary(Macro target, Macro intake, boolean hasMealData) {
+        int remainingCalories = Math.max(0, target.calories - intake.calories);
+        double remainingProtein = Math.max(0, target.protein - intake.protein);
+        double remainingCarb = Math.max(0, target.carb - intake.carb);
+        double remainingFat = Math.max(0, target.fat - intake.fat);
+
         return NutritionDtos.NutritionSummaryResponse.builder()
                 .targetCalories(target.calories)
                 .targetProteinG(round1(target.protein))
@@ -208,11 +240,29 @@ public class NutritionService {
                 .intakeProteinG(round1(intake.protein))
                 .intakeCarbG(round1(intake.carb))
                 .intakeFatG(round1(intake.fat))
-                .deficitProteinG(round1(Math.max(0, target.protein - intake.protein)))
-                .deficitCarbG(round1(Math.max(0, target.carb - intake.carb)))
-                .deficitFatG(round1(Math.max(0, target.fat - intake.fat)))
-                .note("식단 텍스트 기반 추정치입니다.")
+                .remainingCalories(remainingCalories)
+                .remainingProteinG(round1(remainingProtein))
+                .remainingCarbG(round1(remainingCarb))
+                .remainingFatG(round1(remainingFat))
+                .calorieProgressPct(percent(intake.calories, target.calories))
+                .proteinProgressPct(percent(intake.protein, target.protein))
+                .carbProgressPct(percent(intake.carb, target.carb))
+                .fatProgressPct(percent(intake.fat, target.fat))
+                .deficitProteinG(round1(remainingProtein))
+                .deficitCarbG(round1(remainingCarb))
+                .deficitFatG(round1(remainingFat))
+                .note(hasMealData
+                        ? "당일 식단 + 보유 영양 DB 기반 추정치입니다."
+                        : "당일 식단 데이터가 없어 섭취량은 0으로 계산되었습니다.")
                 .build();
+    }
+
+    private double percent(double intake, double target) {
+        if (target <= 0) {
+            return 0;
+        }
+        double pct = (intake / target) * 100.0;
+        return round1(Math.min(100, Math.max(0, pct)));
     }
 
     private NutritionDtos.OwnedFoodResponse toOwnedResponse(UserOwnedFood food) {
@@ -231,5 +281,6 @@ public class NutritionService {
         return Math.round(value * 10.0) / 10.0;
     }
 
-    private record Macro(int calories, double protein, double carb, double fat) {}
+    private record Macro(int calories, double protein, double carb, double fat) {
+    }
 }

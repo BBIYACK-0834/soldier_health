@@ -50,10 +50,10 @@ public class UnitService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
 
-        UserUnitSetting setting = userUnitSettingRepository.findByUserAndIsPrimaryTrue(user)
-                .orElseThrow(() -> new EntityNotFoundException("설정된 부대가 없습니다."));
-
-        return toResponse(setting.getUnit());
+        return userUnitSettingRepository.findByUserAndIsPrimaryTrue(user)
+                .map(UserUnitSetting::getUnit)
+                .map(this::toResponse)
+                .orElse(null);
     }
 
     private UnitResponse toResponse(MilitaryUnit unit) {

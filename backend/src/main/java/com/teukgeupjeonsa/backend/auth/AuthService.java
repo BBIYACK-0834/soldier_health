@@ -1,10 +1,7 @@
 package com.teukgeupjeonsa.backend.auth;
 
-import com.teukgeupjeonsa.backend.user.BranchType;
-import com.teukgeupjeonsa.backend.user.GoalType;
 import com.teukgeupjeonsa.backend.user.User;
 import com.teukgeupjeonsa.backend.user.UserRepository;
-import com.teukgeupjeonsa.backend.user.WorkoutLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -32,9 +29,6 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
-                .goalType(GoalType.GENERAL_FITNESS)
-                .workoutLevel(WorkoutLevel.BEGINNER)
-                .branchType(BranchType.ARMY)
                 .build();
 
         User saved = userRepository.save(user);

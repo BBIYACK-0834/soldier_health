@@ -1,24 +1,27 @@
-# 특급전사 (Teukgeupjeonsa)
+# 특급전사 (soldier_health)
 
-군인을 위한 운동/영양 관리 앱 MVP입니다. 현재 문서는 **Codespaces에서 backend를 즉시 실행하고 회원가입/로그인/JWT 확인**하는 데 집중합니다.
-
-## 1. Backend 빠른 실행 (Codespaces 기준)
-
-### 1) 요구사항
-- Java 17
-- Docker (MySQL 실행용)
-
-Java 확인:
-
-```bash
-java -version
-```
-
-출력에 `17`이 포함되어야 합니다.
+군인을 위한 운동/영양 관리 앱입니다.  
+이 문서는 **GitHub Codespaces 기준으로 회원가입 → 로그인 → 초기 설정 → 홈 화면 흐름을 바로 확인**할 수 있게 정리했습니다.
 
 ---
 
-### 2) MySQL 실행
+## 1) 필수 요구사항
+
+- Java 17
+- Node.js 20+
+- Docker (MySQL용)
+
+확인 명령어:
+
+```bash
+java -version
+node -v
+docker -v
+```
+
+---
+
+## 2) MySQL 실행 (Docker)
 
 ```bash
 docker run -d \
@@ -29,7 +32,7 @@ docker run -d \
   mysql:8.4
 ```
 
-컨테이너 상태 확인:
+상태 확인:
 
 ```bash
 docker ps
@@ -37,16 +40,16 @@ docker ps
 
 ---
 
-### 3) backend 환경변수 설정
+## 3) Backend 설정 및 실행
 
-#### 방법 A: `.env.example` 복사
+### 3-1. 환경변수 파일 준비
 
 ```bash
 cd backend
 cp .env.example .env
 ```
 
-`.env` 예시 값:
+`backend/.env.example`
 
 ```env
 DB_URL=jdbc:mysql://localhost:3306/teukgeupjeonsa?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
@@ -57,9 +60,7 @@ JWT_ACCESS_TOKEN_VALIDITY_SECONDS=86400
 SERVER_PORT=8080
 ```
 
-> 참고: Spring Boot는 기본적으로 `.env`를 자동 로드하지 않습니다. Codespaces에서는 아래 export 방식이 가장 확실합니다.
-
-#### 방법 B: export 방식 (권장)
+> 참고: `.env` 자동 로딩 대신, 필요 시 아래처럼 export 방식 사용 가능
 
 ```bash
 export DB_URL='jdbc:mysql://localhost:3306/teukgeupjeonsa?serverTimezone=Asia/Seoul&characterEncoding=UTF-8'
@@ -70,67 +71,40 @@ export JWT_ACCESS_TOKEN_VALIDITY_SECONDS='86400'
 export SERVER_PORT='8080'
 ```
 
----
+### 3-2. Backend 실행
 
-### 4) backend 실행 (Gradle Wrapper 사용)
-
-이 저장소는 PR 시스템의 바이너리 파일 제한 때문에 `gradle-wrapper.jar`를 커밋하지 않습니다.
-대신 아래 한 번만 실행해서 wrapper 파일을 생성하세요.
+처음 실행에서 `gradle-wrapper.jar`가 없으면 아래를 1회 실행하세요.
 
 ```bash
 cd backend
 ./scripts/bootstrap-wrapper.sh
 ```
 
-생성 후 실행:
+그 다음 실행:
 
 ```bash
 cd backend
 ./gradlew bootRun
 ```
 
-Wrapper 관련 파일:
-
-- `backend/gradlew` (커밋됨)
-- `backend/gradlew.bat` (커밋됨)
-- `backend/gradle/wrapper/gradle-wrapper.properties` (커밋됨)
-- `backend/gradle/wrapper/gradle-wrapper.jar` (로컬 생성 파일, 커밋 제외)
-
 ---
 
-### 5) seed 데이터 입력
+## 4) Frontend 설정 및 실행
 
-서버 실행 후:
-
-```bash
-curl -X POST http://localhost:8080/api/dev/seed/sample-data
-```
-
----
-
-## 11) Frontend (Codespaces 실행 가이드)
-
-### 11-1. 환경변수 파일 생성
+### 4-1. 환경변수 파일 준비
 
 ```bash
 cd frontend
 cp .env.example .env
 ```
 
-`frontend/.env.example` 기본값:
+`frontend/.env.example`
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
-Codespaces에서 파일 생성 대신 export로도 실행할 수 있습니다.
-
-```bash
-cd frontend
-export VITE_API_BASE_URL='http://localhost:8080'
-```
-
-### 11-2. 프론트 실행
+### 4-2. Frontend 실행
 
 ```bash
 cd frontend
@@ -138,52 +112,112 @@ npm install
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-- Codespaces Ports 탭에서 `5173` 포트를 Public/Private 정책에 맞게 열어주세요.
-- 브라우저에서 프론트 접속 후 로그인/회원가입 API를 호출하면 백엔드(`8080`)로 요청됩니다.
+---
 
-### 11-3. 로그인/회원가입 동작 확인
+## 5) Codespaces 포트 URL 사용법
 
-1. 회원가입: `/signup`
-2. 로그인: `/login`
-3. 로그인 성공 시 `localStorage['tg_access_token']`에 토큰 저장
-4. 이후 API 요청은 axios interceptor가 `Authorization: Bearer <token>` 자동 첨부
+Codespaces에서는 `localhost` 대신 공개 URL이 필요할 수 있습니다.
 
-### 11-4. 프론트 인증 에러 처리 기준
+예시:
 
-- 네트워크/CORS: "서버 연결에 실패했습니다..."
-- 인증 실패(401/403): "이메일 또는 비밀번호가 올바르지 않습니다."
-- 중복 이메일/유효성 실패(400): 백엔드 `error` 메시지 표시
+```env
+VITE_API_BASE_URL=https://<codespace-name>-8080.app.github.dev
+```
 
-## 2. CORS/JWT 동작 기준
+- 프론트: `https://<codespace-name>-5173.app.github.dev`
+- 백엔드: `https://<codespace-name>-8080.app.github.dev`
+- Ports 탭에서 5173/8080 포트를 열고 접근 권한(Private/Public)을 설정하세요.
 
-- 허용 Origin: `http://localhost:5173`
-- 허용 Method: `GET, POST, PUT, DELETE, OPTIONS`
+---
+
+## 6) Seed 데이터 넣기
+
+백엔드 실행 후 아래 중 하나 실행:
+
+```bash
+curl -X POST http://localhost:8080/api/dev/seed/sample-data
+```
+
+또는 식단만 다시 넣기:
+
+```bash
+curl -X POST http://localhost:8080/api/dev/seed/sample-meals
+```
+
+기본 시드에는 부대(6개+), 기구, 샘플 식단, 영양 데이터, PX 데이터가 포함됩니다.
+
+공공데이터 API에서 식단 수집(권장):
+
+```bash
+# backend/.env 에 API 정보 설정 후
+curl -X POST "http://localhost:8080/api/dev/seed/public-meals?startDate=2026-01-01&endDate=2026-12-31"
+
+# 특정 부대명 키워드로만 수집
+curl -X POST "http://localhost:8080/api/dev/seed/public-meals?startDate=2026-01-01&endDate=2026-12-31&unitKeyword=%EC%9C%A1%EA%B5%B0"
+```
+
+환경변수(`backend/.env`):
+
+```env
+PUBLIC_MEAL_API_BASE_URL=https://<공공데이터-식단-api-endpoint>
+PUBLIC_MEAL_API_SERVICE_KEY=<발급받은-서비스키>
+PUBLIC_MEAL_API_ROWS=200
+```
+
+---
+
+## 7) 기능 테스트 순서 (권장)
+
+1. `/signup`에서 회원가입 (이메일/비밀번호/닉네임)
+2. `/login`에서 로그인
+3. 최초 로그인 시 `/onboarding`으로 이동
+4. 초기 설정 입력 후 저장
+   - 키/몸무게
+   - 목표/운동수준
+   - 주당 운동 횟수/운동 시간
+   - 운동 가능 요일
+   - 부대 선택
+   - 보유 기구 선택
+5. 홈(`/`)에서 식단/운동추천/영양정보 확인
+
+---
+
+## 8) 인증/CORS 동작 기준
+
+- `Authorization: Bearer <token>` 방식 사용
 - `OPTIONS /**` preflight 허용
-- `/api/auth/signup`, `/api/auth/login`은 인증 없이 접근
-- `/api/auth/me`는 Bearer 토큰 필요
-- JWT는 `Authorization: Bearer <token>` 헤더로 전달
+- 허용 Origin 패턴:
+  - `http://localhost:*`
+  - `http://127.0.0.1:*`
+  - `https://localhost:*`
+  - `https://*.app.github.dev`
+- 허용 Method: `GET, POST, PUT, DELETE, PATCH, OPTIONS`
 
 ---
 
-## 3. 자주 발생하는 오류 해결
+## 9) 흔한 오류 해결
 
-### CORS 에러
-- 프론트 주소가 `http://localhost:5173`인지 확인
-- 백엔드 재시작 후 preflight(`OPTIONS`)가 200/204로 처리되는지 확인
+### (1) CORS 오류
+- 프론트의 `VITE_API_BASE_URL`이 실제 백엔드 주소와 동일한지 확인
+- 백엔드 재시작 후 브라우저 새로고침
 
-### DB 연결 실패
-- `docker ps`로 MySQL 컨테이너 상태 확인
-- `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` 값 확인
+### (2) 부대 목록이 안 뜰 때
+- `/api/dev/seed/sample-data` 재실행
+- `/api/units` 응답이 비어있는지 확인
 
-### 포트 충돌
-- 8080 사용 중이면 `SERVER_PORT`를 다른 포트로 변경
-- 3306 충돌 시 Docker 포트 매핑 변경
+### (3) 홈에서 식단이 비어 있을 때
+- 데이터가 없으면 정상적으로 빈 상태 문구가 표시됨
+- 샘플 식단 필요 시 `/api/dev/seed/sample-meals` 실행
 
-### Java 버전 문제
-- `java -version`이 17이 아니면 Java 17로 전환
+### (4) Java 버전 문제
+- `java -version`이 17인지 확인
+
+### (5) 포트 충돌
+- 8080/5173/3306 충돌 시 포트를 변경하고 `.env` 값도 함께 수정
 
 ---
 
-## 4. 프론트엔드 실행 (다음 단계)
+## 10) 참고
 
-프론트엔드 `.env.example`, axios/JWT 흐름 정리는 다음 작업에서 반영합니다.
+- 백엔드 Gradle Wrapper 스크립트 포함: `backend/gradlew`, `backend/gradlew.bat`, `backend/gradle/wrapper/gradle-wrapper.properties`
+- 바이너리(wrapper jar)는 저장소에 포함하지 않았습니다. 네트워크 제한이 있으면 Gradle 배포본 다운로드가 실패할 수 있습니다.

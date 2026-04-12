@@ -4,6 +4,7 @@ import { getMe, login } from '../api/authApi';
 import { getMyUnit } from '../api/unitApi';
 import { useAppContext } from '../app/AppContext';
 import MobileShell from '../components/layout/MobileShell';
+import { ACCESS_TOKEN_KEY } from '../api/httpClient';
 import { isProfileReady } from '../utils/profile';
 import styles from '../features/auth/AuthForm.module.css';
 
@@ -43,7 +44,10 @@ export default function LoginPage() {
 
     try {
       const auth = await login({ email: email.trim(), password });
-      actions.setAuth(auth);
+      const immediateToken = auth?.accessToken || auth?.token;
+      if (immediateToken) {
+        localStorage.setItem(ACCESS_TOKEN_KEY, immediateToken);
+      }
 
       const me = await getMe();
       let hasUnit = false;
@@ -54,6 +58,7 @@ export default function LoginPage() {
         hasUnit = false;
       }
 
+      actions.setAuth(auth);
       actions.setUser(me);
       navigate(isProfileReady(me, hasUnit) ? '/' : '/onboarding', { replace: true });
     } catch (err) {

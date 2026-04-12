@@ -69,7 +69,10 @@ export function AppProvider({ children }) {
         dispatch({ type: 'SET_AUTH', payload: normalized });
       },
       setUser: (user) => dispatch({ type: 'SET_USER', payload: user }),
-      logout: () => dispatch({ type: 'LOGOUT' }),
+      logout: () => {
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        dispatch({ type: 'LOGOUT' });
+      },
     }),
     []
   );
