@@ -1,263 +1,185 @@
 .hero {
-  background: linear-gradient(135deg, #0f172a, #1e293b);
-  color: #f8fafc;
-  border-radius: 14px;
-  padding: 14px;
-}
-
-.hero h2 {
-  margin: 6px 0;
-  font-size: 18px;
-}
-
-.badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #2563eb;
-  font-size: 12px;
-  margin: 0;
-}
-
-.goalSuccess,
-.goalDanger {
-  margin-top: 10px;
+  background: linear-gradient(180deg, #202b21 0%, #1b241c 100%);
   border-radius: 12px;
-  padding: 10px;
+  border: 1px solid #334235;
+  padding: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-.goalSuccess {
-  background: rgba(34, 197, 94, 0.18);
-  border: 1px solid rgba(34, 197, 94, 0.38);
-}
-
-.goalDanger {
-  background: rgba(239, 68, 68, 0.18);
-  border: 1px solid rgba(239, 68, 68, 0.38);
-}
-
-.goalTitle {
+.heroTitle {
   margin: 0;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.goalHint {
-  margin: 4px 0 0;
-  font-size: 12px;
-}
-
-.heartRow {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.heartOn,
-.heartOff,
-.medal {
-  font-size: 18px;
-}
-
-.card {
-  background: white;
-  border-radius: 14px;
-  padding: 14px;
-  border: 1px solid #e2e7f0;
-  box-shadow: 0 6px 18px rgba(16, 31, 64, 0.05);
-}
-
-.card h3 {
-  margin: 0 0 6px;
   font-size: 16px;
-  color: #1a2b4d;
-}
-
-.subtitle {
-  margin: 0 0 8px;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.muted {
-  color: #64748b;
-  font-size: 13px;
-  margin: 0;
-}
-
-.item {
-  margin: 5px 0;
-  line-height: 1.45;
-}
-
-.workoutHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.startButton {
-  border: none;
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: #1d4ed8;
-  color: #fff;
-  font-size: 12px;
+  color: #f3f5ef;
   font-weight: 700;
 }
 
-.progressWrap {
-  margin: 10px 0;
+.heroSub {
+  margin: 6px 0 12px;
+  color: #a9b5a3;
+  font-size: 13px;
+}
+
+.metricRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.metricMain {
+  margin: 0;
+  font-size: 32px;
+  color: #f3f5ef;
+  font-weight: 800;
+}
+
+.metricLabel {
+  margin: 0;
+  color: #a9b5a3;
+  font-size: 13px;
+}
+
+.heroHint {
+  margin: 10px 0 0;
+  color: #d6dfd1;
+  font-size: 13px;
+}
+
+.card {
+  background: #1b241c;
+  border: 1px solid #334235;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.card h3 {
+  margin: 0;
+  color: #f3f5ef;
+  font-size: 16px;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: #a9b5a3;
+  font-size: 12px;
+}
+
+.item {
+  margin: 7px 0;
+  color: #f3f5ef;
+  font-size: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.label {
+  min-width: 76px;
+  color: #a9b5a3;
+  font-size: 12px;
+}
+
+.strongNumber {
+  font-size: 22px;
+  font-weight: 800;
+  color: #7ea35a;
+}
+
+.subText {
+  margin: 4px 0;
+  color: #c4cec0;
+  font-size: 12px;
 }
 
 .progressBar {
   width: 100%;
-  height: 8px;
+  height: 10px;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: #2c382f;
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #2563eb, #22c55e);
+  background: linear-gradient(90deg, #4f7a3d, #7ea35a);
 }
 
-.progressText {
-  margin: 6px 0 0;
+.primaryButton,
+.secondaryButton {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-weight: 700;
   font-size: 12px;
-  color: #475569;
+}
+
+.primaryButton {
+  background: #5e8f47;
+  color: #f3f5ef;
+}
+
+.secondaryButton {
+  background: #2a342c;
+  color: #d7dfd3;
+  border: 1px solid #3b4a3d;
 }
 
 .exerciseList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.exerciseRow {
+  display: flex;
+  justify-content: space-between;
+  border: 1px solid #334235;
+  background: #202b21;
+  color: #e3e9df;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.exerciseDone {
+  border-color: #5e8f47;
+  color: #cfe2c4;
 }
 
 .subInfoBox {
-  margin-top: 10px;
+  margin-top: 8px;
   padding: 10px;
   border-radius: 10px;
-  border: 1px solid #dbe4f3;
-  background: #f8fafc;
+  background: #202b21;
+  border: 1px solid #334235;
 }
 
 .subInfoTitle {
   margin: 0 0 6px;
   font-size: 12px;
-  color: #334155;
-  font-weight: 700;
+  color: #a9b5a3;
 }
 
-.exerciseCard {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
-}
-
-.exerciseDone {
-  border-color: #22c55e;
-  background: #f0fdf4;
-}
-
-.exerciseTitle {
-  margin: 0;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.exerciseMeta {
-  margin: 2px 0;
-  font-size: 12px;
-  color: #334155;
-}
-
-.exerciseAlt {
-  margin: 0;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.todoButton,
-.doneButton {
+.inlineLink {
+  margin-top: 8px;
   border: none;
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.todoButton {
-  background: #334155;
-}
-
-.doneButton {
-  background: #16a34a;
-}
-
-.headerActions {
-  display: flex;
-  gap: 6px;
-}
-
-.profileButton,
-.logout {
-  border: 1px solid #d8dfef;
-  border-radius: 8px;
-  background: white;
-  padding: 6px 10px;
-  font-weight: 700;
-}
-
-.datePager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.dateButton {
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  background: #fff;
-  padding: 4px 10px;
+  background: transparent;
+  color: #7ea35a;
+  padding: 0;
   font-size: 12px;
 }
 
-.dateLabel {
+.muted {
   margin: 0;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-
-.inlineRow {
-  display: flex;
-  gap: 6px;
-}
-
-.inlineInput,
-.inlineInputSmall {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-size: 12px;
-  margin: 2px 0;
-}
-
-.inlineInput {
-  width: 100%;
-}
-
-.inlineInputSmall {
-  width: 56px;
+  color: #a9b5a3;
+  font-size: 13px;
 }

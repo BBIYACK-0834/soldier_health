@@ -2,8 +2,8 @@
   margin: 0;
   padding: 12px;
   border-radius: 12px;
-  background: #111827;
-  color: #f9fafb;
+  background: linear-gradient(140deg, #43a9eb, #2f8ed8);
+  color: #f6fbff;
   font-weight: 700;
   font-size: 13px;
 }
@@ -12,11 +12,11 @@
   background: white;
   border-radius: 16px;
   padding: 16px;
-  border: 1px solid #d9dfec;
+  border: 1px solid #d2e8fb;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 8px 24px rgba(24, 50, 110, 0.06);
+  box-shadow: 0 8px 24px rgba(19, 94, 152, 0.08);
 }
 
 .title {
@@ -42,8 +42,8 @@
 .input:focus,
 .select:focus {
   outline: none;
-  border-color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+  border-color: #2e96e6;
+  box-shadow: 0 0 0 3px rgba(61, 161, 239, 0.18);
 }
 
 .chips {
@@ -62,9 +62,9 @@
 }
 
 .active {
-  background: #1d4ed8;
+  background: #1f88d8;
   color: white;
-  border-color: #1d4ed8;
+  border-color: #1f88d8;
 }
 
 .submit {
@@ -72,7 +72,7 @@
   border: none;
   border-radius: 12px;
   padding: 13px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #2e96e6, #1f7fcf);
   color: white;
   font-weight: 800;
   margin-top: 8px;

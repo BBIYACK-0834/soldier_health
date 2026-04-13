@@ -2,29 +2,36 @@
   min-height: 100vh;
   max-width: 480px;
   margin: 0 auto;
-  background: #f5f7fb;
+  background: #121814;
 }
 
 .header {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: white;
+  background: rgba(18, 24, 20, 0.95);
+  border-bottom: 1px solid #2a362d;
   padding: 16px;
-  border-bottom: 1px solid #e6e8ee;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
 .header h1 {
-  font-size: 20px;
   margin: 0;
+  color: #f3f5ef;
+  font-size: 20px;
+  letter-spacing: 0.2px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
 }
 
 .main {
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }

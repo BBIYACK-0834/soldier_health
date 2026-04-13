@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <rect width="1200" height="700" fill="#121814"/>
+  <text x="60" y="70" font-size="36" fill="#F3F5EF" font-family="Inter, sans-serif" font-weight="700">특급전사 UI Palette (Tactical Calm)</text>
+  <g font-family="Inter, sans-serif" fill="#F3F5EF">
+    <rect x="70" y="120" rx="24" ry="24" width="300" height="200" fill="#1B241C" stroke="#334235" stroke-width="3"/>
+    <text x="95" y="170" font-size="28" font-weight="700">Card Base</text><text x="95" y="215" font-size="24">#1B241C</text>
+    <rect x="450" y="120" rx="24" ry="24" width="300" height="200" fill="#202B21" stroke="#334235" stroke-width="3"/>
+    <text x="475" y="170" font-size="28" font-weight="700">Card 2</text><text x="475" y="215" font-size="24">#202B21</text>
+    <rect x="830" y="120" rx="24" ry="24" width="300" height="200" fill="#4F7A3D" stroke="#334235" stroke-width="3"/>
+    <text x="855" y="170" font-size="28" font-weight="700">Primary</text><text x="855" y="215" font-size="24">#4F7A3D</text>
+    <rect x="70" y="380" rx="24" ry="24" width="300" height="200" fill="#5E8F47" stroke="#334235" stroke-width="3"/>
+    <text x="95" y="430" font-size="28" font-weight="700">Primary Strong</text><text x="95" y="475" font-size="24">#5E8F47</text>
+    <rect x="450" y="380" rx="24" ry="24" width="300" height="200" fill="#D65C4A" stroke="#334235" stroke-width="3"/>
+    <text x="475" y="430" font-size="28" font-weight="700">Danger</text><text x="475" y="475" font-size="24">#D65C4A</text>
+    <rect x="830" y="380" rx="24" ry="24" width="300" height="200" fill="#7EA35A" stroke="#334235" stroke-width="3"/>
+    <text x="855" y="430" font-size="28" font-weight="700">Success</text><text x="855" y="475" font-size="24">#7EA35A</text>
+  </g>
+</svg>
