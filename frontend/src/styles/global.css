@@ -1,7 +1,7 @@
 :root {
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  color: #111827;
-  background: #f5f7fb;
+  color: #0f2742;
+  background: #eef7ff;
 }
 
 * {
@@ -10,8 +10,17 @@
 
 body {
   margin: 0;
+  background: linear-gradient(180deg, #f3faff 0%, #e9f4ff 100%);
 }
 
 button {
   cursor: pointer;
+  font-family: inherit;
+}
+
+input,
+select,
+button,
+textarea {
+  font: inherit;
 }
