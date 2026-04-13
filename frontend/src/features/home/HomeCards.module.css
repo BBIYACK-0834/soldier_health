@@ -19,6 +19,47 @@
   margin: 0;
 }
 
+.goalSuccess,
+.goalDanger {
+  margin-top: 10px;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.goalSuccess {
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.38);
+}
+
+.goalDanger {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.38);
+}
+
+.goalTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.goalHint {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.heartRow {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heartOn,
+.heartOff,
+.medal {
+  font-size: 18px;
+}
+
 .card {
   background: white;
   border-radius: 14px;
@@ -96,7 +137,6 @@
   gap: 8px;
 }
 
-
 .subInfoBox {
   margin-top: 10px;
   padding: 10px;
@@ -164,10 +204,60 @@
   background: #16a34a;
 }
 
+.headerActions {
+  display: flex;
+  gap: 6px;
+}
+
+.profileButton,
 .logout {
   border: 1px solid #d8dfef;
   border-radius: 8px;
   background: white;
   padding: 6px 10px;
   font-weight: 700;
+}
+
+.datePager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dateButton {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.dateLabel {
+  margin: 0;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+
+.inlineRow {
+  display: flex;
+  gap: 6px;
+}
+
+.inlineInput,
+.inlineInputSmall {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  margin: 2px 0;
+}
+
+.inlineInput {
+  width: 100%;
+}
+
+.inlineInputSmall {
+  width: 56px;
 }

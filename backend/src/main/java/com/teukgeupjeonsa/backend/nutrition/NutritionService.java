@@ -146,7 +146,9 @@ public class NutritionService {
         double bmr = 10 * weight + 6.25 * height - 5 * 22 + 5;
 
         int workoutDays = Optional.ofNullable(user.getWorkoutDaysPerWeek()).orElse(3);
-        double activityFactor = workoutDays <= 2 ? 1.35 : workoutDays <= 4 ? 1.5 : 1.65;
+        int preferredMinutes = Optional.ofNullable(user.getPreferredWorkoutMinutes()).orElse(50);
+        double durationBoost = preferredMinutes >= 70 ? 0.08 : preferredMinutes >= 50 ? 0.04 : 0.0;
+        double activityFactor = (workoutDays <= 2 ? 1.35 : workoutDays <= 4 ? 1.5 : 1.65) + durationBoost;
         double tdee = bmr * activityFactor;
 
         double targetCalories = switch (goal) {
@@ -164,7 +166,7 @@ public class NutritionService {
             case BULK -> 2.0;
             case CUT -> 2.2;
             case FITNESS_TEST -> 1.8;
-            case MAINTAIN, GENERAL_FITNESS -> 1.8;
+            case MAINTAIN, GENERAL_FITNESS -> user.getWorkoutLevel() == com.teukgeupjeonsa.backend.user.WorkoutLevel.INTERMEDIATE ? 2.0 : 1.8;
         };
 
         double fatPerKg = switch (goal) {

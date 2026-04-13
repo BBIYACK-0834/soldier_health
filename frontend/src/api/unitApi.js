@@ -5,6 +5,13 @@ export async function getUnits() {
   return unwrap(response);
 }
 
+export async function searchUnits(keyword) {
+  const response = await httpClient.get('/api/units/search', {
+    params: { keyword },
+  });
+  return unwrap(response);
+}
+
 export async function setMyUnit(unitId) {
   const response = await httpClient.post('/api/users/me/unit', { unitId });
   return unwrap(response);
