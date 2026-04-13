@@ -3,6 +3,8 @@ import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
 import OnboardingPage from '../pages/OnboardingPage';
 import HomePage from '../pages/HomePage';
+import ProfilePage from '../pages/ProfilePage';
+import CommunityPage from '../pages/CommunityPage';
 import { useAppContext } from './AppContext';
 
 function ProtectedRoute({ children }) {
@@ -32,6 +34,22 @@ export default function AppRouter() {
         element={
           <ProtectedRoute>
             <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/community"
+        element={
+          <ProtectedRoute>
+            <CommunityPage />
           </ProtectedRoute>
         }
       />

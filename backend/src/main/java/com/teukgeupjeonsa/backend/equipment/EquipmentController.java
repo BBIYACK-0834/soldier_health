@@ -31,4 +31,35 @@ public class EquipmentController {
     public ApiResponse<List<EquipmentResponse>> getMyEquipments(@AuthenticationPrincipal User user) {
         return ApiResponse.ok(equipmentService.getMyEquipments(user.getId()));
     }
+
+    @GetMapping("/api/units/{unitId}/gym-datasets")
+    public ApiResponse<List<UnitGymDatasetDtos.DatasetResponse>> getUnitGymDatasets(@PathVariable Long unitId) {
+        return ApiResponse.ok(equipmentService.getUnitGymDatasets(unitId));
+    }
+
+    @PostMapping("/api/units/{unitId}/gym-datasets")
+    public ApiResponse<UnitGymDatasetDtos.DatasetResponse> createUnitGymDataset(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long unitId,
+            @RequestBody UnitGymDatasetDtos.SaveDatasetRequest request
+    ) {
+        return ApiResponse.ok(equipmentService.saveUnitGymDataset(user.getId(), unitId, request));
+    }
+
+    @PutMapping("/api/gym-datasets/{datasetId}")
+    public ApiResponse<UnitGymDatasetDtos.DatasetResponse> updateUnitGymDataset(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long datasetId,
+            @RequestBody UnitGymDatasetDtos.SaveDatasetRequest request
+    ) {
+        return ApiResponse.ok(equipmentService.updateUnitGymDataset(user.getId(), datasetId, request));
+    }
+
+    @PostMapping("/api/users/me/equipments/apply-dataset/{datasetId}")
+    public ApiResponse<List<EquipmentResponse>> applyDatasetToMe(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long datasetId
+    ) {
+        return ApiResponse.ok(equipmentService.applyUnitGymDatasetToMe(user.getId(), datasetId));
+    }
 }
