@@ -41,8 +41,8 @@ public class WorkoutRecommendationService {
         DayOfWeek today = LocalDate.now().getDayOfWeek();
         WorkoutLevel level = user.getWorkoutLevel() == null ? WorkoutLevel.BEGINNER : user.getWorkoutLevel();
         String focus = switch (today) {
-            case MON, THU -> "하체/코어";
-            case TUE, FRI -> "가슴/등/어깨";
+            case MONDAY, THURSDAY -> "하체/코어";
+            case TUESDAY, FRIDAY -> "가슴/등/어깨";
             default -> "전신 컨디셔닝";
         };
 
