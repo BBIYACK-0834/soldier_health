@@ -1,7 +1,7 @@
 package com.teukgeupjeonsa.backend.collector.crawler;
 
 import com.teukgeupjeonsa.backend.collector.config.MealCollectorProperties;
-import com.teukgeupjeonsa.backend.collector.dto.CrawledDataset;
+import com.teukgeupjeonsa.backend.collector.dto.CollectedDatasetItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -20,84 +20,158 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class MealDatasetCrawlerService {
 
+    private static final String USER_AGENT = "Mozilla/5.0 (compatible; MealCollectorBot/1.0)";
+
     private final MealCollectorProperties properties;
 
-    public List<CrawledDataset> crawlSearchPages() {
-        List<CrawledDataset> all = new ArrayList<>();
-        for (int page = properties.getStartPage(); page < properties.getStartPage() + properties.getMaxPages(); page++) {
-            String url = String.format(properties.getSearchUrlTemplate(), page);
+    public List<CollectedDatasetItem> collectCandidates() {
+        return applyFilters(crawlSearchPages());
+    }
+
+    public List<CollectedDatasetItem> crawlSearchPages() {
+        List<CollectedDatasetItem> allItems = new ArrayList<>();
+
+        int start = properties.getStartPage();
+        int end = start + Math.max(properties.getMaxPages(), 1) - 1;
+
+        for (int page = start; page <= end; page++) {
+            String searchUrl = String.format(properties.getSearchUrlTemplate(), page);
             try {
-                Document doc = Jsoup.connect(url).timeout(properties.getTimeoutMillis()).get();
-                all.addAll(parseList(doc));
+                log.info("검색 결과 페이지 요청 page={}, url={}", page, searchUrl);
+                Document document = Jsoup.connect(searchUrl)
+                        .userAgent(USER_AGENT)
+                        .timeout(properties.getTimeoutMillis())
+                        .get();
+
+                allItems.addAll(parseSearchPage(document, searchUrl));
             } catch (Exception e) {
-                log.warn("검색 페이지 크롤링 실패 page={}, url={}", page, url, e);
+                log.warn("검색 결과 페이지 파싱 실패 page={}, url={}", page, searchUrl, e);
             }
         }
-        log.info("검색 결과 탐색 건수={}", all.size());
-        return all;
+
+        log.info("검색 결과 전체 건수={} (필터 전)", allItems.size());
+        return allItems;
     }
 
-    public List<CrawledDataset> filterMealDatasets(List<CrawledDataset> items) {
+    public List<CollectedDatasetItem> applyFilters(List<CollectedDatasetItem> allItems) {
         Pattern includePattern = Pattern.compile(properties.getIncludeTitleRegex());
-        return items.stream()
-                .filter(i -> includePattern.matcher(i.title().trim()).matches())
-                .filter(i -> properties.getDenyKeywords().stream().noneMatch(k -> i.title().contains(k)))
-                .toList();
-    }
+        List<CollectedDatasetItem> matchedItems = new ArrayList<>();
 
-    public String findCsvDownloadUrl(String detailPageUrl) {
-        try {
-            Document doc = Jsoup.connect(detailPageUrl).timeout(properties.getTimeoutMillis()).get();
-            Elements links = doc.select(PublicDataPortalSelectors.DETAIL_DOWNLOAD_LINKS);
-            for (Element link : links) {
-                String href = link.attr("abs:href");
-                if (href == null || href.isBlank()) {
-                    href = toAbsolute(detailPageUrl, link.attr("href"));
-                }
-                String label = (link.text() + " " + link.attr("title") + " " + href).toLowerCase();
-                if (label.contains("csv") || label.contains("download") || label.contains("다운로드") || href.toLowerCase().endsWith(".csv")) {
-                    return href;
-                }
-            }
-        } catch (Exception e) {
-            log.warn("상세 페이지 접근 실패 url={}", detailPageUrl, e);
-        }
-        return null;
-    }
-
-    private List<CrawledDataset> parseList(Document doc) {
-        List<CrawledDataset> result = new ArrayList<>();
-        Elements rows = doc.select(PublicDataPortalSelectors.DATASET_ITEM);
-        for (Element row : rows) {
-            Element titleLink = row.selectFirst(PublicDataPortalSelectors.TITLE_LINK);
-            if (titleLink == null) {
+        for (CollectedDatasetItem item : allItems) {
+            if (!includePattern.matcher(item.title().trim()).matches()) {
                 continue;
             }
-            String title = titleLink.text().trim();
-            String sourceUrl = titleLink.attr("abs:href");
-            String provider = row.select(PublicDataPortalSelectors.PROVIDER).text();
-            String description = row.select(PublicDataPortalSelectors.DESCRIPTION).text();
-            String format = row.text().contains("CSV") ? "CSV" : null;
-            result.add(CrawledDataset.builder()
-                    .title(title)
-                    .sourceUrl(sourceUrl)
-                    .provider(provider)
-                    .description(description)
-                    .format(format)
-                    .build());
+            boolean denied = properties.getDenyKeywords().stream()
+                    .filter(keyword -> keyword != null && !keyword.isBlank())
+                    .anyMatch(keyword -> item.title().contains(keyword));
+            if (denied) {
+                log.info("deny-keyword로 제외 title={}", item.title());
+                continue;
+            }
+            matchedItems.add(item);
         }
-        return result;
+
+        log.info("제목 정규식/deny-keyword 필터 통과 건수={}", matchedItems.size());
+        return matchedItems;
     }
 
-    private String toAbsolute(String baseUrl, String maybeRelative) {
-        if (maybeRelative == null || maybeRelative.isBlank()) return maybeRelative;
-        if (maybeRelative.startsWith("http://") || maybeRelative.startsWith("https://")) return maybeRelative;
-        if (maybeRelative.startsWith("//")) return "https:" + maybeRelative;
+    private List<CollectedDatasetItem> parseSearchPage(Document document, String searchUrl) {
+        List<CollectedDatasetItem> result = new ArrayList<>();
+
+        Elements titleLinks = document.select("a[href*='selectDataSetDetail'], a[href*='/data/'], .result-list a[href], .search-result a[href]");
+        for (Element link : titleLinks) {
+            String title = link.text() == null ? "" : link.text().trim();
+            if (title.isBlank()) {
+                continue;
+            }
+
+            String href = link.attr("abs:href");
+            if (href == null || href.isBlank()) {
+                href = toAbsoluteUrl(searchUrl, link.attr("href"));
+            }
+            if (href == null || href.isBlank()) {
+                continue;
+            }
+
+            Element container = nearestContainer(link);
+            String provider = extractProvider(container);
+            String modifiedAt = extractModifiedAt(container);
+
+            result.add(new CollectedDatasetItem(title, href, provider, modifiedAt));
+        }
+
+        return deduplicate(result);
+    }
+
+    private Element nearestContainer(Element element) {
+        Element li = element.closest("li");
+        if (li != null) {
+            return li;
+        }
+        Element article = element.closest("article");
+        if (article != null) {
+            return article;
+        }
+        Element div = element.closest("div");
+        return div != null ? div : element;
+    }
+
+    private String extractProvider(Element container) {
+        if (container == null) {
+            return "";
+        }
+        Element providerEl = container.selectFirst(".org, .provider, .result-info, .data-info, [class*='기관']");
+        return providerEl != null ? providerEl.text().trim() : "";
+    }
+
+    private String extractModifiedAt(Element container) {
+        if (container == null) {
+            return "";
+        }
+        Element modifiedEl = container.selectFirst(".update, .modified, .date, [class*='수정']");
+        if (modifiedEl != null) {
+            return modifiedEl.text().trim();
+        }
+        String text = container.text();
+        int idx = text.indexOf("수정");
+        if (idx >= 0) {
+            int end = Math.min(text.length(), idx + 20);
+            return text.substring(idx, end).trim();
+        }
+        return "";
+    }
+
+    private List<CollectedDatasetItem> deduplicate(List<CollectedDatasetItem> rawItems) {
+        List<CollectedDatasetItem> deduplicated = new ArrayList<>();
+        for (CollectedDatasetItem item : rawItems) {
+            boolean exists = deduplicated.stream()
+                    .anyMatch(existing -> existing.title().equals(item.title())
+                            && existing.detailUrl().equals(item.detailUrl()));
+            if (!exists) {
+                deduplicated.add(item);
+            }
+        }
+        return deduplicated;
+    }
+
+    private String toAbsoluteUrl(String baseUrl, String maybeRelative) {
+        if (maybeRelative == null || maybeRelative.isBlank()) {
+            return maybeRelative;
+        }
+        if (maybeRelative.startsWith("http://") || maybeRelative.startsWith("https://")) {
+            return maybeRelative;
+        }
+        if (maybeRelative.startsWith("//")) {
+            return "https:" + maybeRelative;
+        }
         try {
             URI base = URI.create(baseUrl);
             return base.resolve(maybeRelative).toString();
         } catch (Exception e) {
-            return properties.getBaseDomain() + (maybeRelative.startsWith("/") ? maybeRelative : "/" + maybeRelative);
+            if (maybeRelative.startsWith("/")) {
+                return properties.getBaseDomain() + maybeRelative;
+            }
+            return properties.getBaseDomain() + "/" + maybeRelative;
         }
     }
 }

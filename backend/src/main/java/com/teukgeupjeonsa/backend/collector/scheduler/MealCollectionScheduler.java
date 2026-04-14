@@ -20,6 +20,6 @@ public class MealCollectionScheduler {
     @Scheduled(cron = "${meal-collector.scheduler-cron:0 0 4 * * *}")
     public void scheduledCollect() {
         log.info("스케줄 수집 시작 cron={}", properties.getSchedulerCron());
-        mealCollectionService.collectAll();
+        mealCollectionService.collectAndDownload();
     }
 }
