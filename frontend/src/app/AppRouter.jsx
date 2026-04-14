@@ -5,6 +5,8 @@ import OnboardingPage from '../pages/OnboardingPage';
 import HomePage from '../pages/HomePage';
 import ProfilePage from '../pages/ProfilePage';
 import CommunityPage from '../pages/CommunityPage';
+import WorkoutPage from '../pages/WorkoutPage';
+import NutritionPage from '../pages/NutritionPage';
 import { useAppContext } from './AppContext';
 
 function ProtectedRoute({ children }) {
@@ -23,35 +25,51 @@ export default function AppRouter() {
       <Route path="/signup" element={<SignupPage />} />
       <Route
         path="/onboarding"
-        element={
+        element={(
           <ProtectedRoute>
             <OnboardingPage />
           </ProtectedRoute>
-        }
+        )}
       />
       <Route
         path="/"
-        element={
+        element={(
           <ProtectedRoute>
             <HomePage />
           </ProtectedRoute>
-        }
+        )}
+      />
+      <Route
+        path="/workout"
+        element={(
+          <ProtectedRoute>
+            <WorkoutPage />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/nutrition"
+        element={(
+          <ProtectedRoute>
+            <NutritionPage />
+          </ProtectedRoute>
+        )}
       />
       <Route
         path="/profile"
-        element={
+        element={(
           <ProtectedRoute>
             <ProfilePage />
           </ProtectedRoute>
-        }
+        )}
       />
       <Route
         path="/community"
-        element={
+        element={(
           <ProtectedRoute>
             <CommunityPage />
           </ProtectedRoute>
-        }
+        )}
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
