@@ -3,6 +3,7 @@
   max-width: 480px;
   margin: 0 auto;
   background: #121814;
+  padding-bottom: 74px;
 }
 
 .header {
@@ -34,4 +35,30 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, 100%);
+  background: rgba(18, 24, 20, 0.97);
+  border-top: 1px solid #2a362d;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  z-index: 20;
+}
+
+.tabItem {
+  padding: 12px 4px;
+  text-align: center;
+  color: #9ea99a;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.activeTab {
+  color: #7ea35a;
 }

@@ -121,10 +121,10 @@ export default function OnboardingPage() {
     );
   };
 
-  const handleApplyDataset = async () => {
-    if (!selectedDatasetId) return;
+  const handleApplyDataset = async (datasetId = selectedDatasetId) => {
+    if (!datasetId) return;
 
-    const applied = await applyGymDataset(Number(selectedDatasetId)).catch(() => []);
+    const applied = await applyGymDataset(Number(datasetId)).catch(() => []);
     const matchingIds = (applied || [])
       .map((item) => item.id)
       .filter((id) => equipments.some((eq) => eq.id === id));
@@ -155,6 +155,11 @@ export default function OnboardingPage() {
     setGymDatasets(refreshed || []);
     setDatasetNotice('현재 선택한 기구로 부대 공용 데이터셋을 저장했습니다.');
     setNewDatasetName('');
+  };
+
+  const handleDatasetSelect = async (datasetId) => {
+    setSelectedDatasetId(datasetId);
+    await handleApplyDataset(datasetId);
   };
 
   const onSubmit = async (e) => {
@@ -195,7 +200,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <MobileShell title="초기 설정">
+    <MobileShell title="초기 설정" tabs={[]}>
       <p className={styles.banner}>지금 설정하면 오늘부터 바로 강한 루틴으로 운동을 시작할 수 있습니다.</p>
       <form className={styles.section} onSubmit={onSubmit}>
         <h2 className={styles.title}>1) 신체 정보</h2>
@@ -246,8 +251,9 @@ export default function OnboardingPage() {
           ))}
         </select>
 
-        <h2 className={styles.title}>5) 부대별 헬스장 데이터셋</h2>
-        <select className={styles.select} value={selectedDatasetId} onChange={(e) => setSelectedDatasetId(e.target.value)} disabled={!gymDatasets.length}>
+        <h2 className={styles.title}>5) 기구 선택 (데이터셋 연동)</h2>
+        <p className={styles.info}>기구를 직접 고르거나, 데이터셋을 고르면 해당 기구가 자동 반영됩니다.</p>
+        <select className={styles.select} value={selectedDatasetId} onChange={(e) => handleDatasetSelect(e.target.value)} disabled={!gymDatasets.length}>
           {gymDatasets.length === 0 ? <option value="">아직 등록된 데이터셋이 없습니다.</option> : null}
           {gymDatasets.map((dataset) => (
             <option key={dataset.id} value={dataset.id}>
@@ -256,13 +262,12 @@ export default function OnboardingPage() {
           ))}
         </select>
         <div className={styles.row}>
-          <button className={styles.submit} type="button" onClick={handleApplyDataset} disabled={!selectedDatasetId}>선택 데이터셋 적용</button>
           <button className={styles.submit} type="button" onClick={handleSaveDataset}>현재 선택으로 데이터셋 저장</button>
+          <button className={styles.submit} type="button" onClick={() => { setSelectedEquipmentIds([]); setCustomEquipmentText(''); }}>기구 선택 초기화</button>
         </div>
         <input className={styles.input} value={newDatasetName} onChange={(e) => setNewDatasetName(e.target.value)} placeholder="새 데이터셋 이름(예: 1사단 실내체력단련장)" />
         {datasetNotice ? <p className={styles.info}>{datasetNotice}</p> : null}
 
-        <h2 className={styles.title}>6) 보유 기구 선택</h2>
         <div className={styles.chips}>
           {equipments.map((eq) => (
             <button key={eq.id} type="button" className={`${styles.chip} ${selectedEquipmentIds.includes(eq.id) ? styles.active : ''}`} onClick={() => toggleEquipment(eq.id)}>
