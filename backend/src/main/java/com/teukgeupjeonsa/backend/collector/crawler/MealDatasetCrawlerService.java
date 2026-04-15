@@ -49,8 +49,18 @@ public class MealDatasetCrawlerService {
             }
         }
 
-        log.info("검색 결과 전체 건수={} (필터 전)", allItems.size());
-        return allItems;
+        List<CollectedDatasetItem> deduplicated = deduplicate(allItems);
+        log.info("검색 결과 전체 건수={} (필터 전)", deduplicated.size());
+
+        if (deduplicated.isEmpty()) {
+            List<CollectedDatasetItem> fallbackItems = buildAllowlistFallbackItems();
+            if (!fallbackItems.isEmpty()) {
+                log.warn("검색 결과가 0건이어서 detail-page-allowlist를 후보 목록으로 사용합니다. allowlistCount={}", fallbackItems.size());
+                return fallbackItems;
+            }
+        }
+
+        return deduplicated;
     }
 
     public List<CollectedDatasetItem> applyFilters(List<CollectedDatasetItem> allItems) {
@@ -76,10 +86,29 @@ public class MealDatasetCrawlerService {
     }
 
     private List<CollectedDatasetItem> parseSearchPage(Document document, String searchUrl) {
-        List<CollectedDatasetItem> result = new ArrayList<>();
+        log.info("검색 페이지 디버그 title='{}', totalLinks={}", document.title(), document.select("a[href]").size());
 
-        Elements titleLinks = document.select("a[href*='selectDataSetDetail'], a[href*='/data/'], .result-list a[href], .search-result a[href]");
-        for (Element link : titleLinks) {
+        String[] selectors = {
+                "a[href*='fileData.do']",
+                "a[href*='/data/']",
+                "a[href*='selectDataSetDetail']",
+                ".data-set a[href]",
+                ".result-list a[href]",
+                ".search-result a[href]"
+        };
+
+        Elements candidateLinks = new Elements();
+        for (String selector : selectors) {
+            Elements selected = document.select(selector);
+            candidateLinks.addAll(selected);
+            log.info("검색 페이지 디버그 selector='{}' matches={}", selector, selected.size());
+        }
+        log.info("검색 페이지 디버그 candidate selector 총 매칭 수={}", candidateLinks.size());
+
+        List<CollectedDatasetItem> preferred = new ArrayList<>();
+        List<CollectedDatasetItem> secondary = new ArrayList<>();
+
+        for (Element link : candidateLinks) {
             String title = link.text() == null ? "" : link.text().trim();
             if (title.isBlank()) {
                 continue;
@@ -93,14 +122,52 @@ public class MealDatasetCrawlerService {
                 continue;
             }
 
-            Element container = nearestContainer(link);
-            String provider = extractProvider(container);
-            String modifiedAt = extractModifiedAt(container);
+            CollectedDatasetItem item = new CollectedDatasetItem(
+                    title,
+                    href,
+                    extractProvider(nearestContainer(link)),
+                    extractModifiedAt(nearestContainer(link))
+            );
 
-            result.add(new CollectedDatasetItem(title, href, provider, modifiedAt));
+            if (isPreferredDetailPageUrl(href)) {
+                preferred.add(item);
+            } else {
+                secondary.add(item);
+            }
         }
 
-        return deduplicate(result);
+        List<CollectedDatasetItem> selectedItems = !preferred.isEmpty() ? preferred : secondary;
+        List<CollectedDatasetItem> deduplicated = deduplicate(selectedItems);
+        log.info("검색 페이지 디버그 preferred={}, secondary={}, 최종 deduplicated={}", preferred.size(), secondary.size(), deduplicated.size());
+        return deduplicated;
+    }
+
+    private boolean isPreferredDetailPageUrl(String href) {
+        return href.contains("/data/") || href.contains("fileData.do");
+    }
+
+    private List<CollectedDatasetItem> buildAllowlistFallbackItems() {
+        List<CollectedDatasetItem> fallbackItems = new ArrayList<>();
+
+        for (String url : properties.getDetailPageAllowlist()) {
+            if (url == null || url.isBlank()) {
+                continue;
+            }
+
+            String trimmedUrl = url.trim();
+            if (!isPreferredDetailPageUrl(trimmedUrl)) {
+                continue;
+            }
+
+            fallbackItems.add(new CollectedDatasetItem(
+                    "국방부_식단정보_allowlist",
+                    trimmedUrl,
+                    "",
+                    ""
+            ));
+        }
+
+        return deduplicate(fallbackItems);
     }
 
     private Element nearestContainer(Element element) {
