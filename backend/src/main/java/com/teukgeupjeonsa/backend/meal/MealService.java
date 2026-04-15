@@ -1,5 +1,7 @@
 package com.teukgeupjeonsa.backend.meal;
 
+import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
+import com.teukgeupjeonsa.backend.meal.repository.MealMenuRepository;
 import com.teukgeupjeonsa.backend.unit.UserUnitSetting;
 import com.teukgeupjeonsa.backend.unit.UserUnitSettingRepository;
 import com.teukgeupjeonsa.backend.user.User;
@@ -17,7 +19,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class MealService {
 
-    private final MealDayRepository mealDayRepository;
+    private final MealMenuRepository mealMenuRepository;
     private final UserRepository userRepository;
     private final UserUnitSettingRepository userUnitSettingRepository;
 
@@ -33,8 +35,13 @@ public class MealService {
             return emptyMealResponse(date);
         }
 
-        return mealDayRepository.findByUnitAndMealDate(settingOptional.get().getUnit(), date)
-                .map(this::toResponse)
+        String serviceCode = settingOptional.get().getUnit().getDataSourceKey();
+        if (serviceCode == null || serviceCode.isBlank()) {
+            return emptyMealResponse(date);
+        }
+
+        return mealMenuRepository.findTopByServiceCodeAndMealDateOrderByUpdatedAtDesc(serviceCode, date)
+                .map(mealMenu -> toResponse(settingOptional.get(), mealMenu))
                 .orElseGet(() -> emptyMealResponse(date));
     }
 
@@ -45,9 +52,16 @@ public class MealService {
             return List.of();
         }
 
-        return mealDayRepository.findByUnitAndMealDateBetweenOrderByMealDateAsc(
-                settingOptional.get().getUnit(), startDate, startDate.plusDays(6)
-        ).stream().map(this::toResponse).toList();
+        String serviceCode = settingOptional.get().getUnit().getDataSourceKey();
+        if (serviceCode == null || serviceCode.isBlank()) {
+            return List.of();
+        }
+
+        return mealMenuRepository.findByServiceCodeAndMealDateBetweenOrderByMealDateAsc(
+                        serviceCode, startDate, startDate.plusDays(6)
+                ).stream()
+                .map(mealMenu -> toResponse(settingOptional.get(), mealMenu))
+                .toList();
     }
 
     private Optional<UserUnitSetting> getPrimaryUnit(Long userId) {
@@ -62,23 +76,27 @@ public class MealService {
                 .breakfastRaw(null)
                 .lunchRaw(null)
                 .dinnerRaw(null)
-                .breakfastKcal(0)
-                .lunchKcal(0)
-                .dinnerKcal(0)
+                .breakfastKcal(null)
+                .lunchKcal(null)
+                .dinnerKcal(null)
+                .totalKcal(null)
                 .build();
     }
 
-    private MealDtos.MealDayResponse toResponse(MealDay mealDay) {
+    private MealDtos.MealDayResponse toResponse(UserUnitSetting setting, MealMenu mealMenu) {
         return MealDtos.MealDayResponse.builder()
-                .id(mealDay.getId())
-                .mealDate(mealDay.getMealDate())
-                .unitName(mealDay.getUnit().getUnitName())
-                .breakfastRaw(mealDay.getBreakfastRaw())
-                .lunchRaw(mealDay.getLunchRaw())
-                .dinnerRaw(mealDay.getDinnerRaw())
-                .breakfastKcal(mealDay.getBreakfastKcal())
-                .lunchKcal(mealDay.getLunchKcal())
-                .dinnerKcal(mealDay.getDinnerKcal())
+                .id(mealMenu.getId())
+                .mealDate(mealMenu.getMealDate())
+                .unitName(setting.getUnit().getUnitName())
+                .sourceName(mealMenu.getSourceName())
+                .serviceCode(mealMenu.getServiceCode())
+                .breakfastRaw(mealMenu.getBreakfast())
+                .lunchRaw(mealMenu.getLunch())
+                .dinnerRaw(mealMenu.getDinner())
+                .breakfastKcal(mealMenu.getBreakfastKcal())
+                .lunchKcal(mealMenu.getLunchKcal())
+                .dinnerKcal(mealMenu.getDinnerKcal())
+                .totalKcal(mealMenu.getTotalKcal())
                 .build();
     }
 }

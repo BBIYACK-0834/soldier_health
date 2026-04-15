@@ -23,27 +23,14 @@ jwt:
 logging:
   level:
     org.hibernate.SQL: debug
-    com.teukgeupjeonsa.backend.collector: info
+    com.teukgeupjeonsa.backend.meal: info
 
-public-meal:
+mnd:
   api:
-    base-url: ${PUBLIC_MEAL_API_BASE_URL:}
-    service-key: ${PUBLIC_MEAL_API_SERVICE_KEY:}
-    rows: ${PUBLIC_MEAL_API_ROWS:200}
-
-meal-collector:
-  base-domain: ${MEAL_COLLECTOR_BASE_DOMAIN:https://www.data.go.kr}
-  search-url-template: ${MEAL_COLLECTOR_SEARCH_URL_TEMPLATE:https://www.data.go.kr/tcs/dss/selectDataSetList.do?dType=FILE&keyword=%%EA%%B5%%AD%%EB%%B0%%A9%%EB%%B6%%80_+%%EC%%8B%%9D%%EB%%8B%%A8%%EC%%A0%%95%%EB%%B3%%B4&detailKeyword=&publicDataPk=&recmSe=&detailText=&relatedKeyword=&commaNotInData=&commaAndData=&commaOrData=&must_not=&tabId=&dataSetCoreTf=&coreDataNm=&sort=_score&relRadio=&orgFullName=&orgFilter=&org=&orgSearch=&currentPage=%d&perPage=10&brm=&instt=&svcType=&kwrdArray=&extsn=&coreDataNmArray=&operator=AND&pblonsipScopeCode=PBDE07}
-  max-pages: ${MEAL_COLLECTOR_MAX_PAGES:1}
-  timeout-millis: ${MEAL_COLLECTOR_TIMEOUT:10000}
-  include-title-regex: ${MEAL_COLLECTOR_INCLUDE_REGEX:^국방부_.*식단정보.*$}
-  deny-keywords: ["PX", "표준단어목록", "국간사후보", "사전", "학보"]
-  detail-page-allowlist:
-    - ${MEAL_COLLECTOR_ALLOWLIST_1:https://www.data.go.kr/data/15069402/fileData.do}
-    - ${MEAL_COLLECTOR_ALLOWLIST_2:https://www.data.go.kr/data/15099669/fileData.do}
-    - ${MEAL_COLLECTOR_ALLOWLIST_3:https://www.data.go.kr/data/15069430/fileData.do}
-  confidence-keywords: ["일별 병영 표준 식단 정보", "식단", "급식", "조식", "중식", "석식"]
-  download-directory: ${MEAL_COLLECTOR_DOWNLOAD_DIR:./data/meal-csv}
-  skip-redownload-hours: ${MEAL_COLLECTOR_SKIP_REDOWNLOAD_HOURS:8760}
-  scheduler-enabled: ${MEAL_COLLECTOR_SCHEDULER_ENABLED:false}
-  scheduler-cron: ${MEAL_COLLECTOR_SCHEDULER_CRON:0 0 4 * * *}
+    base-url: ${MND_OPENAPI_BASE_URL:https://openapi.mnd.go.kr}
+    key: ${MND_OPENAPI_KEY:}
+    service-codes:
+      - ${MND_OPENAPI_SERVICE_CODE_1:DS_TB_MNDT_DATEBYMLSVC_1570}
+  meal-import:
+    scheduler-enabled: ${MND_MEAL_IMPORT_SCHEDULER_ENABLED:false}
+    scheduler-cron: ${MND_MEAL_IMPORT_SCHEDULER_CRON:0 0 5,17 * * *}
