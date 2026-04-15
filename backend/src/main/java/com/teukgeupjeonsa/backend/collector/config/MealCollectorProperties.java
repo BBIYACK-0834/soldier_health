@@ -19,8 +19,9 @@ public class MealCollectorProperties {
     private int startPage = 1;
     private int maxPages = 1;
     private int timeoutMillis = 10000;
-    private String includeTitleRegex = "^국방부_.*식단정보$";
+    private String includeTitleRegex = "^국방부_.*식단정보.*$";
     private List<String> denyKeywords = new ArrayList<>(List.of("PX", "표준단어목록", "국간사후보", "사전", "학보"));
+    private List<String> detailPageAllowlist = new ArrayList<>();
     private String downloadDirectory = "./data/meal-csv";
     private int skipRedownloadHours = 24 * 365;
     private boolean schedulerEnabled = false;
