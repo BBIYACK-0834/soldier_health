@@ -44,9 +44,11 @@ PUBLIC_MEAL_API_BASE_URL=https://openapi.mnd.go.kr
 PUBLIC_MEAL_API_SERVICE_KEY=<MND_OPENAPI_SERVICE_KEY>
 PUBLIC_MEAL_API_ROWS=200
 PUBLIC_MEAL_API_TYPE=json
-MEAL_COLLECTOR_OPENAPI_LIST_URL_TEMPLATE=https://www.data.mil.kr/openapi/list.do?apiType=OPEN_API&search=%EC%8B%9D%EB%8B%A8&page={page}
-MEAL_COLLECTOR_MAX_PAGES=4
+
 MEAL_COLLECTOR_TIMEOUT=10000
+MEAL_COLLECTOR_FIXED_SERVICES=1570,5861,1691,3182,8623,7296,1862,2171,7021,9030,ATC,5397,3296,8902,2621,3389,5021,6176,3007,5322,5067,7162,1575,6335,7369,2136,1968,6685,2291,7652,7461,STANDARD
+MEAL_COLLECTOR_ATC_SERVICE_CODE=DS_TB_MNDT_DATEBYMLSVC_ATC
+MEAL_COLLECTOR_STANDARD_SERVICE_CODE=DS_TB_MNDT_DATEBYMLSVC_STANDARD
 ```
 
 ## 4) Frontend 실행
@@ -68,26 +70,36 @@ curl -X POST http://localhost:8080/api/dev/seed/sample-data
 curl -X POST http://localhost:8080/api/dev/seed/sample-meals
 ```
 
-## 6) 국방부 OpenAPI 식단 수집(신규 파이프라인)
+## 6) 국방부 OpenAPI 식단 수집 (고정 서비스 코드 방식)
 
 ### 수집 구조
-1. OpenAPI 목록 페이지에서 `식단` 관련 항목 수집
-2. 상세 페이지에서 `SERVICE`, `OPENAPI URL`, 부대명 추출
-3. `https://openapi.mnd.go.kr/{KEY}/{TYPE}/{SERVICE}/{START}/{END}` 형식으로 API 호출
-4. 응답 정규화 후 `meal_menus`에 upsert
-5. `unit_api_sources`에 부대↔서비스 매핑 저장
+1. `meal-collector.fixed-services`의 고정 서비스 목록을 순회
+2. 각 서비스에 대해 `https://openapi.mnd.go.kr/{KEY}/{TYPE}/{SERVICE}/1/{ROWS}` 호출
+3. 응답 JSON 파싱/정규화
+4. `meal_menus(service_code, meal_date)` 기준 upsert
+
+### 서비스 코드 규칙
+- 숫자 코드(예: `3389`)는 `DS_TB_MNDT_DATEBYMLSVC_3389`로 자동 변환
+- `ATC`, `STANDARD`는 별칭이며 아래 설정값으로 실제 서비스 코드로 치환
+  - `meal-collector.atc-service-code`
+  - `meal-collector.standard-service-code`
+
+### 조회 구조와 연결
+- 사용자 식단 조회는 `user -> primary unit -> unit.dataSourceKey -> meal_menus.serviceCode` 경로를 사용
+- 따라서 각 부대의 `dataSourceKey`는 OpenAPI 실제 서비스 코드와 일치해야 함
 
 ### 관리자 수동 실행 API
 ```bash
-# 전체 수집: 목록 크롤링 + 상세 파싱 + OpenAPI 호출 + DB 저장
+# 전체 수집: 고정 서비스 목록 전체 순회
 curl -X POST http://localhost:8080/api/admin/collect/meals/openapi \
   -H "Authorization: Bearer <TOKEN>"
 
-# 부대명 기준 단건 수집 (unit_api_sources 기준)
-curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/%EC%A0%9C3389%EB%B6%80%EB%8C%80" \
+# 서비스 코드 기준 단건 수집
+# (숫자/별칭/전체 서비스 코드 모두 허용)
+curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/3389" \
   -H "Authorization: Bearer <TOKEN>"
-
-# serviceName 기준 단건 수집 (unit_api_sources 기준)
+curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/ATC" \
+  -H "Authorization: Bearer <TOKEN>"
 curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/DS_TB_MNDT_DATEBYMLSVC_3389" \
   -H "Authorization: Bearer <TOKEN>"
 ```
@@ -97,9 +109,10 @@ curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/DS_T
 - `public-meal.api.service-key`
 - `public-meal.api.rows`
 - `public-meal.api.type`
-- `meal-collector.openapi-list-url-template`
-- `meal-collector.max-pages`
 - `meal-collector.timeout-millis`
+- `meal-collector.fixed-services`
+- `meal-collector.atc-service-code`
+- `meal-collector.standard-service-code`
 
 ## 7) 인증/CORS
 - `Authorization: Bearer <token>`

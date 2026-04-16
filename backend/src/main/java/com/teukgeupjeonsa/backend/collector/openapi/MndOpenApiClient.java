@@ -21,17 +21,13 @@ public class MndOpenApiClient {
     private final MealCollectorProperties collectorProperties;
     private final WebClient.Builder webClientBuilder;
 
-    public Map<String, Object> fetchMeals(String serviceName, String overrideBaseUrl) {
+    public Map<String, Object> fetchMeals(String serviceName) {
         String serviceKey = apiProperties.getServiceKey();
         if (serviceKey == null || serviceKey.isBlank()) {
             throw new IllegalStateException("public-meal.api.service-key 값이 비어 있습니다.");
         }
 
-        String baseUrl = (overrideBaseUrl != null && !overrideBaseUrl.isBlank())
-                ? overrideBaseUrl
-                : apiProperties.getBaseUrl();
-
-        String requestUrl = UriComponentsBuilder.fromUriString(baseUrl)
+        String requestUrl = UriComponentsBuilder.fromUriString(apiProperties.getBaseUrl())
                 .pathSegment(
                         serviceKey,
                         apiProperties.getType(),

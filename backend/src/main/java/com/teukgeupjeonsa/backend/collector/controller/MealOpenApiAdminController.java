@@ -19,13 +19,7 @@ public class MealOpenApiAdminController {
 
     @PostMapping
     public ApiResponse<MealApiCollectResponse> collectAll() {
-        MealCollectionSummary summary = mealOpenApiCollectionService.collectAllFromList();
-        return MealApiCollectResponse.from(summary);
-    }
-
-    @PostMapping("/{unitName}")
-    public ApiResponse<MealApiCollectResponse> collectByUnitName(@PathVariable String unitName) {
-        MealCollectionSummary summary = mealOpenApiCollectionService.collectByUnitName(unitName);
+        MealCollectionSummary summary = mealOpenApiCollectionService.collectAllFromFixedServices();
         return MealApiCollectResponse.from(summary);
     }
 
