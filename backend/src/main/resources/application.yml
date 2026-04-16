@@ -25,12 +25,14 @@ logging:
     org.hibernate.SQL: debug
     com.teukgeupjeonsa.backend.meal: info
 
-mnd:
+public-meal:
   api:
-    base-url: ${MND_OPENAPI_BASE_URL:https://openapi.mnd.go.kr}
-    key: ${MND_OPENAPI_KEY:}
-    service-codes:
-      - ${MND_OPENAPI_SERVICE_CODE_1:DS_TB_MNDT_DATEBYMLSVC_1570}
-  meal-import:
-    scheduler-enabled: ${MND_MEAL_IMPORT_SCHEDULER_ENABLED:false}
-    scheduler-cron: ${MND_MEAL_IMPORT_SCHEDULER_CRON:0 0 5,17 * * *}
+    base-url: ${PUBLIC_MEAL_API_BASE_URL:https://openapi.mnd.go.kr}
+    service-key: ${PUBLIC_MEAL_API_SERVICE_KEY:}
+    rows: ${PUBLIC_MEAL_API_ROWS:200}
+    type: ${PUBLIC_MEAL_API_TYPE:json}
+
+meal-collector:
+  openapi-list-url-template: ${MEAL_COLLECTOR_OPENAPI_LIST_URL_TEMPLATE:https://www.data.mil.kr/openapi/list.do?apiType=OPEN_API&search=%EC%8B%9D%EB%8B%A8&page={page}}
+  max-pages: ${MEAL_COLLECTOR_MAX_PAGES:4}
+  timeout-millis: ${MEAL_COLLECTOR_TIMEOUT:10000}
