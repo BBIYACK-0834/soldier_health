@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class MndOpenApiDetailCrawlerService {
 
-    private static final Pattern SERVICE_PATTERN = Pattern.compile("(DS_TB_MNDT_[A-Z0-9_]+)");
+    private static final Pattern SERVICE_PATTERN = Pattern.compile("(DS_TB_MNDT_DATEBYMLSVC_[0-9]+)");
     private static final Pattern OPENAPI_URL_PATTERN = Pattern.compile("https?://openapi\\.mnd\\.go\\.kr");
 
     private final MealCollectorProperties properties;
@@ -36,6 +36,8 @@ public class MndOpenApiDetailCrawlerService {
                 log.warn("상세 페이지 SERVICE 추출 실패 detailUrl={}, title={}", item.detailUrl(), item.title());
                 return Optional.empty();
             }
+
+            log.info("SERVICE 추출 성공 detailUrl={}, serviceName={}", item.detailUrl(), service);
 
             String openApiBaseUrl = findOpenApiBaseUrl(doc.html(), pageText);
             String unitName = sanitizeUnitName(item.unitNameCandidate() != null ? item.unitNameCandidate() : item.title());
@@ -64,7 +66,7 @@ public class MndOpenApiDetailCrawlerService {
             return serviceMatcher.group(1);
         }
 
-        serviceMatcher = Pattern.compile("SERVICE[^A-Z0-9]*(DS_TB_MNDT_[A-Z0-9_]+)").matcher(html);
+        serviceMatcher = Pattern.compile("SERVICE[^A-Z0-9]*(DS_TB_MNDT_DATEBYMLSVC_[0-9]+)").matcher(html);
         if (serviceMatcher.find()) {
             return serviceMatcher.group(1);
         }

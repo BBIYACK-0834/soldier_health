@@ -13,6 +13,8 @@ import java.util.*;
 @Component
 public class MndMealResponseParser {
 
+    private static final java.util.regex.Pattern KCAL_PATTERN = java.util.regex.Pattern.compile("([0-9]{2,5})\\s*(kcal|KCAL|㎉)?");
+
     private static final List<String> DATE_KEYS = List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜");
     private static final List<String> BREAKFAST_KEYS = List.of("BRKFST", "조식", "breakfast", "조식메뉴");
     private static final List<String> LUNCH_KEYS = List.of("LUNCH", "중식", "lunch", "중식메뉴");
@@ -69,6 +71,21 @@ public class MndMealResponseParser {
         String lunchRaw = blankToNull(firstText(row, LUNCH_KEYS));
         String dinnerRaw = blankToNull(firstText(row, DINNER_KEYS));
 
+        Integer breakfastKcal = parseKcal(firstText(row, BREAKFAST_KCAL_KEYS));
+        if (breakfastKcal == null) {
+            breakfastKcal = parseKcalFromMealText(breakfastRaw);
+        }
+
+        Integer lunchKcal = parseKcal(firstText(row, LUNCH_KCAL_KEYS));
+        if (lunchKcal == null) {
+            lunchKcal = parseKcalFromMealText(lunchRaw);
+        }
+
+        Integer dinnerKcal = parseKcal(firstText(row, DINNER_KCAL_KEYS));
+        if (dinnerKcal == null) {
+            dinnerKcal = parseKcalFromMealText(dinnerRaw);
+        }
+
         return new ParsedMealRow(
                 detailInfo.unitName(),
                 detailInfo.serviceName(),
@@ -76,9 +93,9 @@ public class MndMealResponseParser {
                 breakfastRaw,
                 lunchRaw,
                 dinnerRaw,
-                parseKcal(firstText(row, BREAKFAST_KCAL_KEYS)),
-                parseKcal(firstText(row, LUNCH_KCAL_KEYS)),
-                parseKcal(firstText(row, DINNER_KCAL_KEYS))
+                breakfastKcal,
+                lunchKcal,
+                dinnerKcal
         );
     }
 
@@ -144,6 +161,25 @@ public class MndMealResponseParser {
 
     private String blankToNull(String text) {
         return text == null || text.isBlank() ? null : text;
+    }
+
+    private Integer parseKcalFromMealText(String mealText) {
+        if (mealText == null || mealText.isBlank()) {
+            return null;
+        }
+
+        java.util.regex.Matcher matcher = KCAL_PATTERN.matcher(mealText);
+        Integer maxValue = null;
+        while (matcher.find()) {
+            Integer kcal = parseKcal(matcher.group(1));
+            if (kcal == null) {
+                continue;
+            }
+            if (maxValue == null || kcal > maxValue) {
+                maxValue = kcal;
+            }
+        }
+        return maxValue;
     }
 
     public record ParsedMealRow(
