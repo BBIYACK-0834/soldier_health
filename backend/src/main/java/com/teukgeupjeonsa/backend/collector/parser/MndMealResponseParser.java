@@ -1,13 +1,15 @@
 package com.teukgeupjeonsa.backend.collector.parser;
 
-import com.teukgeupjeonsa.backend.collector.dto.MndOpenApiDetailInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -24,14 +26,14 @@ public class MndMealResponseParser {
     private static final List<String> DINNER_KCAL_KEYS = List.of("DINNER_KCAL", "DINNER_CAL", "석식열량", "dinnerKcal");
 
     @SuppressWarnings("unchecked")
-    public List<ParsedMealRow> parseRows(MndOpenApiDetailInfo detailInfo, Map<String, Object> responseBody) {
+    public List<ParsedMealRow> parseRows(String serviceName, Map<String, Object> responseBody) {
         if (responseBody == null || responseBody.isEmpty()) {
             return List.of();
         }
 
-        Object serviceRoot = responseBody.get(detailInfo.serviceName());
+        Object serviceRoot = responseBody.get(serviceName);
         if (!(serviceRoot instanceof List<?> serviceRootList) || serviceRootList.size() < 2) {
-            log.warn("서비스 루트 파싱 실패 serviceName={}", detailInfo.serviceName());
+            log.warn("서비스 루트 파싱 실패 serviceName={}", serviceName);
             return List.of();
         }
 
@@ -51,7 +53,7 @@ public class MndMealResponseParser {
                 continue;
             }
 
-            ParsedMealRow parsed = parseSingleRow((Map<String, Object>) map, detailInfo);
+            ParsedMealRow parsed = parseSingleRow((Map<String, Object>) map, serviceName);
             if (parsed != null) {
                 result.add(parsed);
             }
@@ -60,7 +62,7 @@ public class MndMealResponseParser {
         return result;
     }
 
-    private ParsedMealRow parseSingleRow(Map<String, Object> row, MndOpenApiDetailInfo detailInfo) {
+    private ParsedMealRow parseSingleRow(Map<String, Object> row, String serviceName) {
         LocalDate mealDate = parseDate(firstText(row, DATE_KEYS));
         if (mealDate == null) {
             log.warn("날짜 파싱 실패 row={}", row);
@@ -87,8 +89,7 @@ public class MndMealResponseParser {
         }
 
         return new ParsedMealRow(
-                detailInfo.unitName(),
-                detailInfo.serviceName(),
+                serviceName,
                 mealDate,
                 breakfastRaw,
                 lunchRaw,
@@ -183,7 +184,6 @@ public class MndMealResponseParser {
     }
 
     public record ParsedMealRow(
-            String unitName,
             String serviceName,
             LocalDate mealDate,
             String breakfastRaw,

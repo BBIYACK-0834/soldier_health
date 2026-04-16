@@ -16,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -50,14 +52,15 @@ public class SeedService {
     private void seedBase() {
         if (militaryUnitRepository.count() == 0) {
             militaryUnitRepository.saveAll(List.of(
-                    MilitaryUnit.builder().unitCode("ARMY-001").unitName("육군 제1사단").branchType(BranchType.ARMY).regionName("파주").dataSourceKey("sample-army-1").build(),
-                    MilitaryUnit.builder().unitCode("ARMY-TRN").unitName("육군훈련소").branchType(BranchType.ARMY).regionName("논산").dataSourceKey("sample-army-training").build(),
-                    MilitaryUnit.builder().unitCode("AIR-EDU").unitName("공군 교육사령부").branchType(BranchType.AIR_FORCE).regionName("진주").dataSourceKey("sample-air-edu").build(),
-                    MilitaryUnit.builder().unitCode("MAR-001").unitName("해병대 제1사단").branchType(BranchType.MARINES).regionName("포항").dataSourceKey("sample-marines-1").build(),
-                    MilitaryUnit.builder().unitCode("NAVY-JH").unitName("해군 진해기지사령부").branchType(BranchType.NAVY).regionName("창원").dataSourceKey("sample-navy-jinhae").build(),
-                    MilitaryUnit.builder().unitCode("ARMY-017").unitName("육군 제17사단").branchType(BranchType.ARMY).regionName("인천").dataSourceKey("sample-army-17").build()
+                    MilitaryUnit.builder().unitCode("ARMY-001").unitName("육군 제1사단").branchType(BranchType.ARMY).regionName("파주").dataSourceKey("DS_TB_MNDT_DATEBYMLSVC_1570").build(),
+                    MilitaryUnit.builder().unitCode("ARMY-TRN").unitName("육군훈련소").branchType(BranchType.ARMY).regionName("논산").dataSourceKey("DS_TB_MNDT_DATEBYMLSVC_ATC").build(),
+                    MilitaryUnit.builder().unitCode("AIR-EDU").unitName("공군 교육사령부").branchType(BranchType.AIR_FORCE).regionName("진주").dataSourceKey("DS_TB_MNDT_DATEBYMLSVC_5861").build(),
+                    MilitaryUnit.builder().unitCode("MAR-001").unitName("해병대 제1사단").branchType(BranchType.MARINES).regionName("포항").dataSourceKey("DS_TB_MNDT_DATEBYMLSVC_3389").build(),
+                    MilitaryUnit.builder().unitCode("NAVY-JH").unitName("해군 진해기지사령부").branchType(BranchType.NAVY).regionName("창원").dataSourceKey("DS_TB_MNDT_DATEBYMLSVC_1691").build(),
+                    MilitaryUnit.builder().unitCode("ARMY-017").unitName("육군 제17사단").branchType(BranchType.ARMY).regionName("인천").dataSourceKey("DS_TB_MNDT_DATEBYMLSVC_STANDARD").build()
             ));
         }
+        synchronizeUnitDataSourceKeys();
 
         if (equipmentRepository.count() == 0) {
             equipmentRepository.saveAll(List.of(
@@ -132,6 +135,28 @@ public class SeedService {
                 }
             }
             unitGymDatasetItemRepository.saveAll(items);
+        }
+    }
+
+    private void synchronizeUnitDataSourceKeys() {
+        Map<String, String> unitCodeToServiceCode = new HashMap<>();
+        unitCodeToServiceCode.put("ARMY-001", "DS_TB_MNDT_DATEBYMLSVC_1570");
+        unitCodeToServiceCode.put("ARMY-TRN", "DS_TB_MNDT_DATEBYMLSVC_ATC");
+        unitCodeToServiceCode.put("AIR-EDU", "DS_TB_MNDT_DATEBYMLSVC_5861");
+        unitCodeToServiceCode.put("MAR-001", "DS_TB_MNDT_DATEBYMLSVC_3389");
+        unitCodeToServiceCode.put("NAVY-JH", "DS_TB_MNDT_DATEBYMLSVC_1691");
+        unitCodeToServiceCode.put("ARMY-017", "DS_TB_MNDT_DATEBYMLSVC_STANDARD");
+
+        List<MilitaryUnit> units = militaryUnitRepository.findAll();
+        for (MilitaryUnit unit : units) {
+            String mappedServiceCode = unitCodeToServiceCode.get(unit.getUnitCode());
+            if (mappedServiceCode == null) {
+                continue;
+            }
+            if (!mappedServiceCode.equals(unit.getDataSourceKey())) {
+                unit.setDataSourceKey(mappedServiceCode);
+                militaryUnitRepository.save(unit);
+            }
         }
     }
 
