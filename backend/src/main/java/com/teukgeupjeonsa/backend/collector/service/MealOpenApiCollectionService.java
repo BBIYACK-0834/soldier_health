@@ -48,7 +48,6 @@ public class MealOpenApiCollectionService {
                 updatedRows += persistResult.updated();
                 apiSucceeded++;
 
-<<<<<<< HEAD
                 log.info("OpenAPI 응답 성공 serviceCode={}, parsedRows={}", serviceCode, parsedRows.size());
                 log.info("서비스 적재 완료 serviceCode={}, inserted={}, updated={}, skipped={}",
                         serviceCode, persistResult.inserted(), persistResult.updated(), persistResult.skipped());
@@ -57,17 +56,6 @@ public class MealOpenApiCollectionService {
                 failedServices.add(serviceCode);
                 log.warn("OpenAPI 응답 실패 serviceCode={}", serviceCode);
                 log.error("서비스 수집 실패 serviceCode={}", serviceCode, e);
-=======
-                log.info("OpenAPI 응답 성공 unitName={}, serviceName={}, parsedRows={}",
-                        detailInfo.unitName(), detailInfo.serviceName(), parsedRows.size());
-                log.info("부대 적재 완료 unitName={}, serviceName={}, inserted={}, updated={}, skipped={}",
-                        detailInfo.unitName(), detailInfo.serviceName(), persistResult.inserted(), persistResult.updated(), persistResult.skipped());
-            } catch (Exception e) {
-                apiFailed++;
-                failedUnits.add(detailInfo.unitName() + "(" + detailInfo.serviceName() + ")");
-                log.warn("OpenAPI 응답 실패 unitName={}, serviceName={}", detailInfo.unitName(), detailInfo.serviceName());
-                log.error("부대 수집 실패 unitName={}, serviceName={}", detailInfo.unitName(), detailInfo.serviceName(), e);
->>>>>>> origin/main
             }
         }
 
@@ -148,24 +136,19 @@ public class MealOpenApiCollectionService {
         int updated = 0;
         int skipped = 0;
 
-        String sourceName = SOURCE_NAME + ":" + detailInfo.unitName();
         for (MndMealResponseParser.ParsedMealRow row : rows) {
             if (row.mealDate() == null) {
                 skipped++;
                 continue;
             }
 
-            MealMenu entity = mealMenuRepository.findBySourceNameAndMealDate(sourceName, row.mealDate())
+            MealMenu entity = mealMenuRepository.findBySourceNameAndMealDate(SOURCE_NAME, row.mealDate())
                     .or(() -> mealMenuRepository.findByServiceCodeAndMealDate(row.serviceName(), row.mealDate()))
                     .orElseGet(MealMenu::new);
 
             boolean isInsert = entity.getId() == null;
             entity.setServiceCode(row.serviceName());
-<<<<<<< HEAD
             entity.setSourceName(SOURCE_NAME);
-=======
-            entity.setSourceName(sourceName);
->>>>>>> origin/main
             entity.setMealDate(row.mealDate());
             entity.setBreakfast(row.breakfastRaw());
             entity.setLunch(row.lunchRaw());
