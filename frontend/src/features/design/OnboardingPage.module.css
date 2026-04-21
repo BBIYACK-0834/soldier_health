@@ -1,0 +1,5 @@
+.hero { min-height: calc(100vh - 80px); border-radius: 18px; background: linear-gradient(160deg, rgba(46,62,34,.85), rgba(61,76,47,.88)), url('https://images.unsplash.com/photo-1588612572511-1abf3a4fef31?auto=format&fit=crop&w=900&q=60') center/cover; }
+.overlay { min-height: calc(100vh - 80px); display: flex; flex-direction: column; justify-content: flex-end; padding: 24px; color: #f2f4ec; }
+.overlay h1 { margin: 0; font-size: 38px; line-height: 1.22; }
+.overlay p { margin: 10px 0 20px; color: #dbe4d0; }
+.overlay button { border: 0; border-radius: 12px; padding: 14px; background: #5b7141; color: #fff; font-weight: 800; }

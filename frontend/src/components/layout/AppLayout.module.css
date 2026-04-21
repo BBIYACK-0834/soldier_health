@@ -1,0 +1,37 @@
+.viewport {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 16px 12px;
+  background: #e9e6df;
+}
+
+.phone {
+  width: 100%;
+  max-width: 420px;
+  min-height: calc(100vh - 32px);
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid #d4d0c6;
+  background: #f4f2ec;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 22px 18px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header h1 { margin: 0; font-size: 32px; line-height: 1.2; font-weight: 800; }
+.header p { margin: 8px 0 0; color: #617057; font-size: 14px; }
+
+.content {
+  flex: 1;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

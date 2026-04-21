@@ -1,0 +1,5 @@
+.tabWrap { display: grid; grid-template-columns: repeat(3,1fr); background: #ebe7dd; border: 1px solid #d4d0c5; border-radius: 999px; padding: 4px; gap: 4px; }
+.tab { border: 0; background: transparent; border-radius: 999px; padding: 8px 0; font-weight: 800; color: #46583a; }
+.active { background: #556a3b; color: #fff; }
+.user { margin: 0 0 8px; font-weight: 800; }
+.meta { margin: 10px 0 0; color: #596355; font-weight: 700; }
