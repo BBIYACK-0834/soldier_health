@@ -32,4 +32,10 @@ public class MealCollectorProperties {
 
     /** 별칭 STANDARD의 실제 OpenAPI 서비스 코드. */
     private String standardServiceCode = "DS_TB_MNDT_DATEBYMLSVC_STANDARD";
+
+    /** 월간 자동 수집 cron. 기본값: 매월 1일 03:00 */
+    private String autoCollectCron = "0 0 3 1 * *";
+
+    /** 자동 수집 타임존 */
+    private String autoCollectZone = "Asia/Seoul";
 }

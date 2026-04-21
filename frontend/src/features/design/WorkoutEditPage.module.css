@@ -1,7 +1,12 @@
+.search { width: 100%; border: 1px solid #d1cdbf; border-radius: 10px; padding: 10px; margin-bottom: 10px; background: #f8f7f2; }
 .muted { margin: 0 0 12px; color: #5d6756; font-weight: 700; }
 .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-.eq { border: 1px solid #c9c4b8; border-radius: 10px; background: #f8f5ee; padding: 11px 6px; font-weight: 700; color: #3f4c37; }
+.eq { border: 1px solid #c9c4b8; border-radius: 10px; background: #f8f5ee; padding: 12px 6px; font-weight: 700; color: #3f4c37; min-height: 56px; }
 .active { background: #556a3b; color: #fff; border-color: #556a3b; }
+.selected { border: 1px solid #d8d4c9; border-radius: 12px; padding: 10px; background: #efede7; }
+.selected p { margin: 6px 0 0; color: #657060; font-weight: 700; }
 .datasetList { display: flex; flex-direction: column; gap: 10px; }
+.tag { display: inline-block; margin: 0 0 6px; border-radius: 999px; background: #d28a2c; color: #fff; font-size: 12px; padding: 2px 8px; font-weight: 700; }
+.meta { margin: 6px 0; color: #6b7260; }
 .loadBtn { width: 100%; border: 0; border-radius: 10px; padding: 11px; background: #556a3b; color: #fff; font-weight: 700; margin-top: 8px; }
-.save { border: 0; border-radius: 12px; padding: 14px; background: #556a3b; color: #fff; font-weight: 800; margin-top: auto; }
+.save { border: 0; border-radius: 12px; padding: 14px; background: #556a3b; color: #fff; font-weight: 800; margin-top: auto; width: 100%; }

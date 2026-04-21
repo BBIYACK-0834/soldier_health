@@ -1,3 +1,29 @@
-.nav { display: grid; grid-template-columns: repeat(5,1fr); border-top: 1px solid #d5d0c5; background: #f6f3ed; }
-.item { text-align: center; text-decoration: none; color: #6a6f62; font-size: 12px; font-weight: 700; padding: 12px 2px; }
-.active { color: #556a3b; }
+.nav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-top: 1px solid #d5d0c5;
+  background: #f4f2ed;
+}
+
+.item {
+  text-align: center;
+  text-decoration: none;
+  color: #6a6f62;
+  font-weight: 700;
+  padding: 8px 2px 10px;
+  display: grid;
+  gap: 2px;
+}
+
+.item span {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.item small {
+  font-size: 11px;
+}
+
+.active {
+  color: #556a3b;
+}

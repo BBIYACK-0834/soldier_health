@@ -1,7 +1,67 @@
-.form { display: flex; flex-direction: column; gap: 12px; }
-.form label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; color: #3a4532; }
-.form input { border: 1px solid #d1cdbf; border-radius: 10px; padding: 11px; background: #f8f7f2; }
-.form button { border: 0; border-radius: 10px; padding: 12px; background: #556a3b; color: #fff; font-weight: 800; margin-top: 8px; }
-.form p { text-align: center; color: #666f5f; }
-.form a { color: #405c2b; font-weight: 800; text-decoration: none; }
-.check { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #d9dccf;
+  display: grid;
+  place-items: center;
+  font-size: 44px;
+  margin: 6px auto 8px;
+}
+
+.heroText {
+  margin: 0 0 14px;
+  text-align: center;
+  font-size: 44px;
+  line-height: 1.2;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+  color: #3a4532;
+}
+
+.form input {
+  border: 1px solid #d1cdbf;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8f7f2;
+}
+
+.form button {
+  border: 0;
+  border-radius: 11px;
+  padding: 13px;
+  background: #556a3b;
+  color: #fff;
+  font-weight: 800;
+  margin-top: 8px;
+}
+
+.form p {
+  text-align: center;
+  color: #666f5f;
+  margin: 0;
+}
+
+.form a {
+  color: #405c2b;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  font-size: 14px;
+}
