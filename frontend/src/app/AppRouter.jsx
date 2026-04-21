@@ -1,77 +1,28 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import OnboardingPage from '../pages/OnboardingPage';
 import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
-import OnboardingPage from '../pages/OnboardingPage';
 import HomePage from '../pages/HomePage';
-import ProfilePage from '../pages/ProfilePage';
-import CommunityPage from '../pages/CommunityPage';
-import WorkoutPage from '../pages/WorkoutPage';
 import NutritionPage from '../pages/NutritionPage';
-import { useAppContext } from './AppContext';
-
-function ProtectedRoute({ children }) {
-  const {
-    state: { token },
-  } = useAppContext();
-
-  if (!token) return <Navigate to="/login" replace />;
-  return children;
-}
+import WorkoutPage from '../pages/WorkoutPage';
+import WorkoutEditPage from '../pages/WorkoutEditPage';
+import CommunityPage from '../pages/CommunityPage';
+import ProfilePage from '../pages/ProfilePage';
 
 export default function AppRouter() {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/onboarding" replace />} />
+      <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
-      <Route
-        path="/onboarding"
-        element={(
-          <ProtectedRoute>
-            <OnboardingPage />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="/"
-        element={(
-          <ProtectedRoute>
-            <HomePage />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="/workout"
-        element={(
-          <ProtectedRoute>
-            <WorkoutPage />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="/nutrition"
-        element={(
-          <ProtectedRoute>
-            <NutritionPage />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="/profile"
-        element={(
-          <ProtectedRoute>
-            <ProfilePage />
-          </ProtectedRoute>
-        )}
-      />
-      <Route
-        path="/community"
-        element={(
-          <ProtectedRoute>
-            <CommunityPage />
-          </ProtectedRoute>
-        )}
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/home" element={<HomePage />} />
+      <Route path="/diet" element={<NutritionPage />} />
+      <Route path="/workout" element={<WorkoutPage />} />
+      <Route path="/workout/edit" element={<WorkoutEditPage />} />
+      <Route path="/community" element={<CommunityPage />} />
+      <Route path="/mypage" element={<ProfilePage />} />
+      <Route path="*" element={<Navigate to="/onboarding" replace />} />
     </Routes>
   );
 }

@@ -1,98 +1,43 @@
-import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MobileShell from '../components/layout/MobileShell';
-import { useAppContext } from '../app/AppContext';
-import { getMe } from '../api/authApi';
-import { getMyUnit } from '../api/unitApi';
-import { getTodayMeal } from '../api/mealApi';
-import { getTodayNutritionRecommendation } from '../api/nutritionApi';
-import { getTodayWorkoutRecommendation } from '../api/workoutApi';
-import { isProfileReady } from '../utils/profile';
-import styles from '../features/home/HomeCards.module.css';
+import AppLayout from '../components/layout/AppLayout';
+import Card from '../components/ui/Card';
+import ProgressBar from '../components/ui/ProgressBar';
+import MacroBox from '../components/ui/MacroBox';
+import WorkoutCheckCircle from '../components/ui/WorkoutCheckCircle';
+import styles from '../features/design/HomePage.module.css';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { state, actions } = useAppContext();
-  const [nickname, setNickname] = useState(state.user?.nickname || '전사');
-  const [meal, setMeal] = useState(null);
-  const [nutrition, setNutrition] = useState(null);
-  const [workout, setWorkout] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const me = await getMe();
-        const unit = await getMyUnit().catch(() => null);
-
-        if (!isProfileReady(me, Boolean(unit?.id))) {
-          navigate('/onboarding', { replace: true });
-          return;
-        }
-
-        const [mealData, nutritionData, workoutData] = await Promise.all([
-          getTodayMeal().catch(() => null),
-          getTodayNutritionRecommendation().catch(() => null),
-          getTodayWorkoutRecommendation().catch(() => null),
-        ]);
-
-        setNickname(me.nickname || '전사');
-        actions.setUser(me);
-        setMeal(mealData);
-        setNutrition(nutritionData);
-        setWorkout(workoutData);
-      } catch {
-        actions.logout();
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [actions, navigate]);
-
-  const summary = nutrition?.summary;
-  const caloriesText = useMemo(
-    () => `${summary?.intakeCalories ?? 0} / ${summary?.targetCalories ?? 0} kcal`,
-    [summary?.intakeCalories, summary?.targetCalories]
-  );
-
-  if (isLoading) {
-    return (
-      <MobileShell title="특급전사">
-        <p className={styles.muted}>로딩 중입니다...</p>
-      </MobileShell>
-    );
-  }
 
   return (
-    <MobileShell title="특급전사">
-      <section className={styles.hero}>
-        <p className={styles.heroTitle}>메인 대시보드</p>
-        <p className={styles.heroSub}>{nickname}님의 오늘 핵심 정보만 모아봤어요.</p>
-      </section>
-
-      <section className={styles.card}>
-        <h3>그날 식단</h3>
-        <div className={styles.subInfoBox}>
-          <p className={styles.subText}>조식: {meal?.breakfastRaw || '정보 없음'}</p>
-          <p className={styles.subText}>중식: {meal?.lunchRaw || '정보 없음'}</p>
-          <p className={styles.subText}>석식: {meal?.dinnerRaw || '정보 없음'}</p>
+    <AppLayout title="이병 김다이어트님," subtitle="오늘도 수고 많으셨습니다!">
+      <Card className={styles.mainDietCard}>
+        <div className={styles.rowBetween}><span className={styles.pill}>오늘의 식단</span><button type="button" className={styles.smallBtn} onClick={() => navigate('/diet')}>식단 보기</button></div>
+        <p className={styles.title}>총 섭취 칼로리</p>
+        <p className={styles.kcal}>1,520 <span>/ 2,000 kcal</span></p>
+        <ProgressBar value={1520} max={2000} />
+        <div className={styles.macroGrid}>
+          <MacroBox label="탄수화물" intake={180} target={300} color="#50739a" tone="#dfe5ef" />
+          <MacroBox label="단백질" intake={88} target={120} color="#6f8f55" tone="#e4e9de" />
+          <MacroBox label="지방" intake={38} target={60} color="#d28a2c" tone="#efe2cf" />
         </div>
-      </section>
+      </Card>
 
-      <section className={styles.card}>
-        <h3>칼로리 현황</h3>
-        <p className={styles.item}><span className={styles.label}>내가 먹은 칼로리</span>{summary?.intakeCalories ?? 0}kcal</p>
-        <p className={styles.item}><span className={styles.label}>먹어야 할 칼로리</span>{summary?.targetCalories ?? 0}kcal</p>
-        <p className={styles.item}><span className={styles.label}>진행</span><span className={styles.strongNumber}>{caloriesText}</span></p>
-      </section>
+      <Card>
+        <div className={styles.rowBetween}><h3>운동</h3><button type="button" className={styles.smallBtn} onClick={() => navigate('/workout')}>운동 기록</button></div>
+        <p className={styles.meta}>이번 주 운동 3회 / 목표 4회</p>
+        <div className={styles.checkGrid}>
+          {[1, 2, 3, 4].map((i) => <WorkoutCheckCircle key={i} checked={i <= 3} label={`${i}회차`} />)}
+        </div>
+      </Card>
 
-      <section className={styles.card}>
-        <h3>오늘의 운동 루틴</h3>
-        <p className={styles.item}><span className={styles.label}>포커스</span>{workout?.todayFocus || workout?.routineType || '루틴 정보 없음'}</p>
-        <button type="button" className={styles.primaryButton} onClick={() => navigate('/workout')}>
-          운동 상세로 이동
-        </button>
-      </section>
-    </MobileShell>
+      <Card className={styles.tipCard}>
+        <div className={styles.avatar}>🪖</div>
+        <div>
+          <strong>오늘의 팁</strong>
+          <p>수분 섭취는 군 생활의 기본!</p>
+        </div>
+      </Card>
+    </AppLayout>
   );
 }

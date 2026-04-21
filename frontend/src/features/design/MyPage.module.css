@@ -1,0 +1,10 @@
+.profileTop { text-align: center; }
+.avatar { width: 84px; height: 84px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: #d9d4c7; font-size: 44px; }
+.profileTop h2 { margin: 10px 0 4px; }
+.profileTop p { margin: 0; color: #586253; font-weight: 700; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stats p { margin: 0; color: #667061; font-weight: 700; }
+.stats strong { font-size: 28px; }
+.menu { list-style: none; margin: 0; padding: 0; }
+.menu li { display: flex; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid #ddd7cb; font-weight: 700; }
+.menu li:last-child { border-bottom: 0; }

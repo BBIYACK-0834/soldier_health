@@ -1,0 +1,7 @@
+.muted { margin: 0 0 12px; color: #5d6756; font-weight: 700; }
+.grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.eq { border: 1px solid #c9c4b8; border-radius: 10px; background: #f8f5ee; padding: 11px 6px; font-weight: 700; color: #3f4c37; }
+.active { background: #556a3b; color: #fff; border-color: #556a3b; }
+.datasetList { display: flex; flex-direction: column; gap: 10px; }
+.loadBtn { width: 100%; border: 0; border-radius: 10px; padding: 11px; background: #556a3b; color: #fff; font-weight: 700; margin-top: 8px; }
+.save { border: 0; border-radius: 12px; padding: 14px; background: #556a3b; color: #fff; font-weight: 800; margin-top: auto; }

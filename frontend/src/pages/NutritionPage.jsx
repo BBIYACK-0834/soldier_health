@@ -1,67 +1,65 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import MobileShell from '../components/layout/MobileShell';
-import { getTodayMeal } from '../api/mealApi';
-import { getTodayNutritionRecommendation } from '../api/nutritionApi';
-import styles from '../features/home/HomeCards.module.css';
+import { useState } from 'react';
+import AppLayout from '../components/layout/AppLayout';
+import Card from '../components/ui/Card';
+import ProgressBar from '../components/ui/ProgressBar';
+import MacroBox from '../components/ui/MacroBox';
+import styles from '../features/design/DietPage.module.css';
+
+const baseMeals = {
+  breakfast: ['쌀밥', '쇠고기미역국', '계란말이', '김치'],
+  lunch: ['잡곡밥', '닭가슴살 샐러드', '오이무침', '깍두기'],
+  dinner: ['쌀밥', '두부 샐러드', '방울토마토', '김치'],
+};
+
+const mealOrder = [
+  ['breakfast', '아침 07:30 · 360 kcal'],
+  ['lunch', '점심 12:10 · 650 kcal'],
+  ['dinner', '저녁 18:00 · 510 kcal'],
+];
 
 export default function NutritionPage() {
-  const navigate = useNavigate();
-  const [meal, setMeal] = useState(null);
-  const [nutrition, setNutrition] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [extras, setExtras] = useState({ breakfast: ['프로틴바 1개 (120 kcal)'], lunch: [], dinner: [], snack: ['견과류 1봉 (150 kcal)'] });
 
-  useEffect(() => {
-    (async () => {
-      const [mealData, nutritionData] = await Promise.all([
-        getTodayMeal().catch(() => null),
-        getTodayNutritionRecommendation().catch(() => null),
-      ]);
-      setMeal(mealData);
-      setNutrition(nutritionData);
-      setIsLoading(false);
-    })();
-  }, []);
+  const addFood = (key) => {
+    const value = window.prompt('추가 음식 입력');
+    if (!value) return;
+    setExtras((prev) => ({ ...prev, [key]: [...prev[key], value] }));
+  };
 
-  const summary = nutrition?.summary;
-  const proteinGap = summary?.remainingProteinG ?? 0;
-  const recommendedSupplement = nutrition?.pxSuggestions?.[0] || '프로틴바';
+  const removeFood = (key, idx) => setExtras((prev) => ({ ...prev, [key]: prev[key].filter((_, i) => i !== idx) }));
 
   return (
-    <MobileShell title="식단">
-      <section className={styles.card}>
-        <h3>오늘 식단</h3>
-        {isLoading ? <p className={styles.muted}>식단 정보를 불러오는 중입니다...</p> : null}
-        {!isLoading ? (
-          <div className={styles.subInfoBox}>
-            <p className={styles.subText}>조식: {meal?.breakfastRaw || '정보 없음'}</p>
-            <p className={styles.subText}>중식: {meal?.lunchRaw || '정보 없음'}</p>
-            <p className={styles.subText}>석식: {meal?.dinnerRaw || '정보 없음'}</p>
-          </div>
-        ) : null}
-      </section>
-
-      <section className={styles.card}>
-        <h3>칼로리/영양 현황</h3>
-        <p className={styles.item}><span className={styles.label}>섭취 칼로리</span>{summary?.intakeCalories ?? 0}kcal</p>
-        <p className={styles.item}><span className={styles.label}>목표 칼로리</span>{summary?.targetCalories ?? 0}kcal</p>
-        <p className={styles.item}><span className={styles.label}>남은 칼로리</span>{summary?.remainingCalories ?? 0}kcal</p>
-        <p className={styles.item}><span className={styles.label}>단백질 부족</span><span className={styles.strongNumber}>{proteinGap}g</span></p>
-      </section>
-
-      <section className={styles.card}>
-        <div className={styles.sectionHead}>
-          <div>
-            <h3>추천 보충</h3>
-            <p className={styles.subtitle}>부족 영양 기준 추천</p>
-          </div>
-          <button type="button" className={styles.secondaryButton} onClick={() => navigate('/community')}>
-            전우 추천 보기
-          </button>
+    <AppLayout title="식단 기록" subtitle="부대 기본 식단 + 추가 음식">
+      <Card>
+        <p className={styles.total}>총 섭취 칼로리 <strong>1,520 kcal</strong></p>
+        <div className={styles.macroGrid}>
+          <MacroBox label="탄수화물" intake={180} target={300} color="#50739a" tone="#dfe5ef" />
+          <MacroBox label="단백질" intake={88} target={120} color="#6f8f55" tone="#e4e9de" />
+          <MacroBox label="지방" intake={38} target={60} color="#d28a2c" tone="#efe2cf" />
         </div>
-        <p className={styles.item}><span className={styles.label}>추천</span>{recommendedSupplement}</p>
-        <p className={styles.subText}>{nutrition?.recommendationText || '추천 정보가 없습니다.'}</p>
-      </section>
-    </MobileShell>
+        <ProgressBar value={1520} max={2000} />
+      </Card>
+
+      {mealOrder.map(([key, title]) => (
+        <Card key={key}>
+          <div className={styles.row}><h3>{title}</h3><button type="button" onClick={() => addFood(key)}>+ 추가</button></div>
+          <p className={styles.fixed}>고정 식단: {baseMeals[key].join(', ')}</p>
+          <div className={styles.list}>
+            {extras[key].map((item, idx) => (
+              <div key={`${item}-${idx}`} className={styles.item}><span>{item}</span><button type="button" onClick={() => removeFood(key, idx)}>×</button></div>
+            ))}
+          </div>
+        </Card>
+      ))}
+
+      <Card>
+        <div className={styles.row}><h3>간식</h3><button type="button" onClick={() => addFood('snack')}>+ 간식 추가</button></div>
+        {extras.snack.map((item, idx) => (
+          <div key={`${item}-${idx}`} className={styles.item}><span>{item}</span><button type="button" onClick={() => removeFood('snack', idx)}>×</button></div>
+        ))}
+      </Card>
+
+      <button type="button" className={styles.save}>오늘 식단 저장</button>
+    </AppLayout>
   );
 }

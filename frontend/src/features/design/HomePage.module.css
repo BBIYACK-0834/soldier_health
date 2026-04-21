@@ -1,0 +1,13 @@
+.mainDietCard { padding: 16px; }
+.rowBetween { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pill { background: #556a3b; color: #fff; padding: 6px 14px; border-radius: 999px; font-weight: 800; }
+.smallBtn { border: 0; border-radius: 10px; padding: 9px 14px; background: #556a3b; color: #fff; font-weight: 700; }
+.title { margin: 14px 0 4px; color: #5d6955; font-weight: 700; }
+.kcal { margin: 0 0 10px; font-size: 42px; font-weight: 800; color: #2f3c25; }
+.kcal span { font-size: 30px; color: #20261d; }
+.macroGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.checkGrid { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 10px; }
+.meta { margin: 0; color: #4e5a46; font-weight: 700; }
+.tipCard { display: flex; align-items: center; gap: 10px; }
+.avatar { font-size: 48px; }
+.tipCard p { margin: 6px 0 0; color: #2d3728; font-weight: 700; }

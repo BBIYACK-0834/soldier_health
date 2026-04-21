@@ -1,0 +1,3 @@
+.nav { display: grid; grid-template-columns: repeat(5,1fr); border-top: 1px solid #d5d0c5; background: #f6f3ed; }
+.item { text-align: center; text-decoration: none; color: #6a6f62; font-size: 12px; font-weight: 700; padding: 12px 2px; }
+.active { color: #556a3b; }

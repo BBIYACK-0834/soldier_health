@@ -1,0 +1,6 @@
+.wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
+.circle {
+  width: 52px; height: 52px; border-radius: 50%; border: 2px solid #bdb8ad;
+  display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 28px;
+}
+.checked { background: #556a3b; border-color: #556a3b; }
