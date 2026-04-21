@@ -1,11 +1,21 @@
+import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import Card from '../components/ui/Card';
+import { useAppContext } from '../app/AppContext';
 import styles from '../features/design/MyPage.module.css';
 
 const menus = ['목표 설정', '알림 설정', '데이터 관리', '문의하기'];
 const myPosts = ['다음 PT 몇 세트 하세요?', '부대 식단으로 -3kg 성공!'];
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
+  const { actions } = useAppContext();
+
+  const handleLogout = () => {
+    actions.logout();
+    navigate('/login');
+  };
+
   return (
     <AppLayout>
       <Card className={styles.profileTop}>
@@ -26,6 +36,7 @@ export default function ProfilePage() {
           {menus.map((item) => <li key={item}>{item}<span>›</span></li>)}
         </ul>
       </Card>
+      <button type="button" className={styles.logoutButton} onClick={handleLogout}>로그아웃</button>
     </AppLayout>
   );
 }
