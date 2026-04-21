@@ -1,22 +1,78 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import Card from '../components/ui/Card';
+import { getTodayMeal } from '../api/mealApi';
+import { getUnits, setMyUnit } from '../api/unitApi';
 import styles from '../features/design/SetupPage.module.css';
-
-const units = [
-  { id: 'u1', branch: '육군', region: '경기', name: '제1보병사단 · 보병대대' },
-  { id: 'u2', branch: '육군', region: '강원', name: '제7기동군단 · 포병대대' },
-  { id: 'u3', branch: '해병', region: '김포', name: '해병대 2사단' },
-  { id: 'u4', branch: '공군', region: '청주', name: '17전투비행단' },
-];
 
 export default function UnitSelectPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [selectedId, setSelectedId] = useState('u1');
+  const [selectedId, setSelectedId] = useState(null);
+  const [units, setUnits] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const filtered = units.filter((item) => item.name.includes(query) || item.branch.includes(query) || item.region.includes(query));
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadInitialData() {
+      try {
+        const [unitList, todayMeal] = await Promise.all([
+          getUnits(),
+          getTodayMeal().catch(() => null),
+        ]);
+
+        if (!isMounted) return;
+        setUnits(unitList ?? []);
+
+        const matchedUnit = (unitList ?? []).find((unit) => unit.unitName === todayMeal?.unitName);
+        if (matchedUnit?.id) {
+          setSelectedId(matchedUnit.id);
+          return;
+        }
+
+        if ((unitList ?? []).length > 0) {
+          setSelectedId(unitList[0].id);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setErrorMessage(error.message || '부대 목록을 불러오지 못했습니다.');
+      }
+    }
+
+    loadInitialData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const filtered = useMemo(
+    () =>
+      units.filter((item) => {
+        const branch = item.branchType ?? '';
+        const region = item.regionName ?? '';
+        const name = item.unitName ?? '';
+        return name.includes(query) || branch.includes(query) || region.includes(query);
+      }),
+    [query, units]
+  );
+
+  const handleSelectUnit = async () => {
+    if (!selectedId) return;
+
+    try {
+      setSubmitting(true);
+      setErrorMessage('');
+      await setMyUnit(selectedId);
+      navigate('/setup/equipment');
+    } catch (error) {
+      setErrorMessage(error.message || '부대 선택 저장에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <AppLayout title="부대 식단 선택" subtitle="소속 부대를 선택해주세요." showBottomNav={false}>
@@ -25,12 +81,15 @@ export default function UnitSelectPage() {
       {filtered.map((unit) => (
         <Card key={unit.id} className={`${styles.selectCard} ${selectedId === unit.id ? styles.selected : ''}`}>
           <button type="button" onClick={() => setSelectedId(unit.id)}>
-            <p>{unit.name}</p>
-            <small>{unit.branch} · {unit.region}</small>
+            <p>{unit.unitName}</p>
+            <small>{unit.branchType} · {unit.regionName}</small>
           </button>
         </Card>
       ))}
-      <button type="button" className={styles.primary} onClick={() => navigate('/setup/equipment')}>이 식단으로 부대 선택</button>
+      {errorMessage ? <p>{errorMessage}</p> : null}
+      <button type="button" className={styles.primary} onClick={handleSelectUnit} disabled={!selectedId || submitting}>
+        {submitting ? '저장 중...' : '이 식단으로 부대 선택'}
+      </button>
     </AppLayout>
   );
 }
