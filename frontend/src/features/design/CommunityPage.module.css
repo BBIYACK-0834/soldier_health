@@ -1,5 +1,10 @@
+.edit { font-size: 22px; }
 .tabWrap { display: grid; grid-template-columns: repeat(3,1fr); background: #ebe7dd; border: 1px solid #d4d0c5; border-radius: 999px; padding: 4px; gap: 4px; }
 .tab { border: 0; background: transparent; border-radius: 999px; padding: 8px 0; font-weight: 800; color: #46583a; }
 .active { background: #556a3b; color: #fff; }
+.notice strong { color: #4b5b3d; }
+.notice p { margin: 8px 0 0; font-weight: 700; }
 .user { margin: 0 0 8px; font-weight: 800; }
+.user span { color: #666f5f; font-weight: 600; font-size: 13px; }
+.content { margin: 0; line-height: 1.5; font-weight: 700; }
 .meta { margin: 10px 0 0; color: #596355; font-weight: 700; }

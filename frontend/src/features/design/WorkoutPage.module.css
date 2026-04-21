@@ -1,4 +1,8 @@
+.calendar { font-size: 22px; }
 .row { display: flex; justify-content: space-between; align-items: center; }
 .row button { border: 0; border-radius: 10px; padding: 8px 12px; background: #556a3b; color: #fff; font-weight: 700; }
-.kcal { margin: 8px 0 0; font-size: 42px; font-weight: 800; color: #2d3a24; }
-.list { margin: 8px 0 0; padding-left: 18px; color: #2d3828; display: grid; gap: 8px; font-weight: 700; }
+.kcal { margin: 8px 0 0; font-size: 46px; font-weight: 800; color: #2d3a24; }
+.title { margin: 0; }
+.list { margin: 8px 0 0; padding: 0; list-style: none; color: #2d3828; display: grid; gap: 8px; font-weight: 700; }
+.list li { border: 1px solid #ddd7cb; background: #f8f6f1; border-radius: 12px; padding: 10px; display: grid; gap: 4px; }
+.list span { color: #5d6658; }

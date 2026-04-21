@@ -1,11 +1,15 @@
-.total { margin: 0 0 10px; color: #56614c; font-weight: 700; }
-.total strong { display: block; font-size: 36px; color: #2e3b24; }
-.macroGrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+.calendar { font-size: 22px; }
+.totalTitle { margin: 0; color: #516045; font-weight: 700; }
+.totalKcal { margin: 6px 0 10px; font-size: 44px; font-weight: 900; color: #2d3a24; }
+.macroGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
 .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.row h3 { margin: 0; font-size: 20px; }
+.row h3 { margin: 0; font-size: 24px; }
 .row button { border: 0; border-radius: 999px; background: #556a3b; color: #fff; padding: 7px 12px; font-weight: 700; }
-.fixed { color: #5f6958; font-weight: 700; }
-.list { display: flex; flex-direction: column; gap: 8px; }
-.item { display: flex; justify-content: space-between; align-items: center; border: 1px dashed #c8c3b7; border-radius: 10px; padding: 9px 10px; background: #f7f5ef; }
+.fixed { margin: 6px 0 0; color: #2a3522; font-weight: 800; font-size: 22px; }
+.base { margin: 8px 0; color: #414a3a; font-weight: 700; }
+.extraWrap { border: 1px dashed #d0cabd; border-radius: 12px; padding: 8px; background: #f7f5ef; }
+.extraWrap p { margin: 0 0 6px; color: #5f6958; font-weight: 700; }
+.item { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid #dfdbcf; padding: 6px 0; font-weight: 700; }
+.item:last-child { border-bottom: 0; }
 .item button { border: 0; background: transparent; font-size: 22px; color: #6b7260; }
-.save { border: 0; border-radius: 12px; background: #556a3b; color: #fff; padding: 14px; font-weight: 800; font-size: 18px; }
+.save { border: 0; border-radius: 12px; padding: 14px; background: #556a3b; color: #fff; font-weight: 800; }
