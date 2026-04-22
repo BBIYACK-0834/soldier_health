@@ -1,18 +1,49 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import AppLayout from '../components/layout/AppLayout';
+import { login } from '../api/authApi';
+import { ACCESS_TOKEN_KEY } from '../api/httpClient';
 import styles from '../features/design/AuthPage.module.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const data = await login({ email, password });
+      const accessToken = data?.accessToken;
+
+      if (!accessToken) {
+        throw new Error('로그인 토큰을 받지 못했습니다.');
+      }
+
+      localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+      navigate('/home');
+    } catch (error) {
+      setErrorMessage(error.message || '로그인에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <AppLayout showBottomNav={false}>
       <div className={styles.logo}>🪖</div>
       <h2 className={styles.heroText}>강한 몸은<br />기록에서 시작됩니다.</h2>
-      <form className={styles.form} onSubmit={(e) => { e.preventDefault(); navigate('/home'); }}>
-        <label>이메일<input type="email" placeholder="example@army.mil" required /></label>
-        <label>비밀번호<input type="password" placeholder="비밀번호를 입력하세요" required /></label>
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <label>이메일<input type="email" placeholder="example@army.mil" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+        <label>비밀번호<input type="password" placeholder="비밀번호를 입력하세요" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
         <label className={styles.check}><input type="checkbox" /> 로그인 유지</label>
-        <button type="submit">로그인</button>
+        {errorMessage ? <p>{errorMessage}</p> : null}
+        <button type="submit" disabled={submitting}>{submitting ? '로그인 중...' : '로그인'}</button>
         <p>계정이 없으신가요? <Link to="/signup">회원가입</Link></p>
         <p><Link to="/signup">비밀번호 찾기</Link></p>
       </form>
