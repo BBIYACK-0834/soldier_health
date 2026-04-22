@@ -12,6 +12,11 @@ export async function searchUnits(keyword) {
   return unwrap(response);
 }
 
+export async function findUnitsByMeal(payload) {
+  const response = await httpClient.post('/api/units/match-by-meal', payload);
+  return unwrap(response);
+}
+
 export async function setMyUnit(unitId) {
   const response = await httpClient.post('/api/users/me/unit', { unitId });
   return unwrap(response);

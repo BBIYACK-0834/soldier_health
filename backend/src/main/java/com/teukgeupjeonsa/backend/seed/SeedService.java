@@ -138,6 +138,8 @@ public class SeedService {
         }
     }
 
+    // 현재 시드 부대 수가 적어 식단 기반 매칭 후보 풀이 제한될 수 있음.
+    // 신규 부대가 추가되면 unitCode -> serviceCode 매핑만 확장하면 매칭 대상에 포함된다.
     private void synchronizeUnitDataSourceKeys() {
         Map<String, String> unitCodeToServiceCode = new HashMap<>();
         unitCodeToServiceCode.put("ARMY-001", "DS_TB_MNDT_DATEBYMLSVC_1570");

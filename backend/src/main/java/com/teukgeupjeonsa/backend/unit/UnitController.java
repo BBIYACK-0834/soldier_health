@@ -14,6 +14,7 @@ import java.util.List;
 public class UnitController {
 
     private final UnitService unitService;
+    private final UnitMealMatchService unitMealMatchService;
 
     @GetMapping("/api/units")
     public ApiResponse<List<UnitResponse>> getUnits() {
@@ -23,6 +24,11 @@ public class UnitController {
     @GetMapping("/api/units/search")
     public ApiResponse<List<UnitResponse>> searchUnits(@RequestParam String keyword) {
         return ApiResponse.ok(unitService.getUnits(keyword));
+    }
+
+    @PostMapping("/api/units/match-by-meal")
+    public ApiResponse<List<MatchedUnitResponse>> matchByMeal(@Valid @RequestBody MatchUnitByMealRequest request) {
+        return ApiResponse.ok(unitMealMatchService.matchByMeal(request));
     }
 
     @PostMapping("/api/users/me/unit")
