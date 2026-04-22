@@ -12,16 +12,6 @@ export async function searchUnits(keyword) {
   return unwrap(response);
 }
 
-export async function getMealMenuCandidates(params) {
-  const response = await httpClient.get('/api/units/meal-menu-candidates', { params });
-  return unwrap(response);
-}
-
-export async function findUnitsBySelectedMenus(payload) {
-  const response = await httpClient.post('/api/units/match-by-selected-menus', payload);
-  return unwrap(response);
-}
-
 export async function findUnitsByMeal(payload) {
   const response = await httpClient.post('/api/units/match-by-meal', payload);
   return unwrap(response);
