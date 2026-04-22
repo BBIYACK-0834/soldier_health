@@ -3,8 +3,6 @@ package com.teukgeupjeonsa.backend.seed;
 import com.teukgeupjeonsa.backend.equipment.*;
 import com.teukgeupjeonsa.backend.meal.MealDay;
 import com.teukgeupjeonsa.backend.meal.MealDayRepository;
-import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
-import com.teukgeupjeonsa.backend.meal.repository.MealMenuRepository;
 import com.teukgeupjeonsa.backend.nutrition.FoodNutrition;
 import com.teukgeupjeonsa.backend.nutrition.FoodNutritionRepository;
 import com.teukgeupjeonsa.backend.px.PxProduct;
@@ -29,7 +27,6 @@ public class SeedService {
     private final MilitaryUnitRepository militaryUnitRepository;
     private final EquipmentRepository equipmentRepository;
     private final MealDayRepository mealDayRepository;
-    private final MealMenuRepository mealMenuRepository;
     private final FoodNutritionRepository foodNutritionRepository;
     private final PxProductRepository pxProductRepository;
     private final UnitGymDatasetRepository unitGymDatasetRepository;
@@ -39,7 +36,6 @@ public class SeedService {
     public String seedSampleData() {
         seedBase();
         seedSampleMealsInternal();
-        seedSampleMealMenus();
         seedNutrition();
         seedPxProducts();
         seedUnitGymDatasets();
@@ -50,7 +46,6 @@ public class SeedService {
     public String seedSampleMeals() {
         seedBase();
         seedSampleMealsInternal();
-        seedSampleMealMenus();
         return "샘플 식단 시드 완료";
     }
 
@@ -197,79 +192,6 @@ public class SeedService {
                 ));
             }
         }
-    }
-
-    // meal_menus + military_units.data_source_key 경로를 온보딩 식단표 찾기의 기준 데이터로 사용한다.
-    // 샘플 데이터는 부대별 메뉴 차이를 일부러 분리해 2~3개 메뉴 선택 시 후보가 줄어들도록 구성한다.
-    private void seedSampleMealMenus() {
-        List<MilitaryUnit> units = militaryUnitRepository.findAll();
-        if (units.isEmpty()) {
-            return;
-        }
-
-        LocalDate baseDate = LocalDate.now();
-        LocalDate nextDate = baseDate.plusDays(1);
-
-        for (MilitaryUnit unit : units) {
-            String serviceCode = unit.getDataSourceKey();
-            if (serviceCode == null || serviceCode.isBlank()) {
-                continue;
-            }
-
-            if (mealMenuRepository.findByServiceCodeAndMealDate(serviceCode, baseDate).isEmpty()) {
-                mealMenuRepository.save(MealMenu.builder()
-                        .serviceCode(serviceCode)
-                        .sourceName("sample-seed")
-                        .mealDate(baseDate)
-                        .breakfast("쌀밥, 소고기미역국, 계란말이, 김치")
-                        .lunch(buildLunchByUnit(unit.getUnitCode()))
-                        .dinner(buildDinnerByUnit(unit.getUnitCode()))
-                        .breakfastKcal(700)
-                        .lunchKcal(900)
-                        .dinnerKcal(850)
-                        .totalKcal(2450)
-                        .build());
-            }
-
-            if (mealMenuRepository.findByServiceCodeAndMealDate(serviceCode, nextDate).isEmpty()) {
-                mealMenuRepository.save(MealMenu.builder()
-                        .serviceCode(serviceCode)
-                        .sourceName("sample-seed")
-                        .mealDate(nextDate)
-                        .breakfast("쌀밥, 북어국, 햄야채볶음, 김치")
-                        .lunch("쌀밥, 제육볶음, 콩나물무침, 배추김치")
-                        .dinner("쌀밥, 닭갈비, 어묵볶음, 깍두기")
-                        .breakfastKcal(680)
-                        .lunchKcal(920)
-                        .dinnerKcal(780)
-                        .totalKcal(2380)
-                        .build());
-            }
-        }
-    }
-
-    private String buildLunchByUnit(String unitCode) {
-        return switch (unitCode) {
-            case "ARMY-001" -> "쌀밥, 닭볶음탕, 두부조림, 깍두기";
-            case "ARMY-TRN" -> "쌀밥, 불고기볶음우동, 소불고기당면볶음, 깍두기";
-            case "AIR-EDU" -> "쌀밥, 함박스테이크, 감자샐러드, 김치";
-            case "MAR-001" -> "쌀밥, 돼지김치찜, 계란찜, 깍두기";
-            case "NAVY-JH" -> "쌀밥, 오징어볶음, 콩나물국, 김치";
-            case "ARMY-017" -> "쌀밥, 카레라이스, 만두튀김, 배추김치";
-            default -> "쌀밥, 제육볶음, 콩나물무침, 배추김치";
-        };
-    }
-
-    private String buildDinnerByUnit(String unitCode) {
-        return switch (unitCode) {
-            case "ARMY-001" -> "쌀밥, 등심돈가스&소스, 김자반, 굴림만두전골";
-            case "ARMY-TRN" -> "쌀밥, 불고기볶음우동, 동파육, 김치";
-            case "AIR-EDU" -> "쌀밥, 함박스테이크, 감자돈육짜글이, 김자반";
-            case "MAR-001" -> "쌀밥, 생선가스&콘소스, 햄전&케찹, 깍두기";
-            case "NAVY-JH" -> "쌀밥, 소불고기당면볶음, 굴림만두전골, 김치";
-            case "ARMY-017" -> "쌀밥, 돼지고기볶음, 된장국, 김치";
-            default -> "쌀밥, 닭갈비, 어묵볶음, 깍두기";
-        };
     }
 
     private void seedNutrition() {

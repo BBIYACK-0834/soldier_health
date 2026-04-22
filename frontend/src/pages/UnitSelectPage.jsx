@@ -2,17 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import Card from '../components/ui/Card';
-import { findUnitsBySelectedMenus, getMealMenuCandidates, getUnits, searchUnits, setMyUnit } from '../api/unitApi';
+import { findUnitsByMeal, getUnits, searchUnits, setMyUnit } from '../api/unitApi';
 import styles from '../features/design/SetupPage.module.css';
 
 function formatDate(date) {
   return date.toISOString().slice(0, 10);
-}
-
-function mealLabel(mealType) {
-  if (mealType === 'breakfast') return '아침';
-  if (mealType === 'lunch') return '점심';
-  return '저녁';
 }
 
 function toPercent(score) {
@@ -22,123 +16,102 @@ function toPercent(score) {
 export default function UnitSelectPage() {
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState('menu');
+  const [mode, setMode] = useState('meal');
   const [selectedId, setSelectedId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-  const [mealDate, setMealDate] = useState(formatDate(new Date()));
-  const [mealType, setMealType] = useState('dinner');
-  const [menuCandidates, setMenuCandidates] = useState([]);
-  const [selectedMenus, setSelectedMenus] = useState([]);
-  const [matchResult, setMatchResult] = useState({ candidateCount: 0, units: [] });
-  const [loadingMenus, setLoadingMenus] = useState(false);
-  const [loadingMatches, setLoadingMatches] = useState(false);
 
   const [units, setUnits] = useState([]);
   const [query, setQuery] = useState('');
   const [loadingUnits, setLoadingUnits] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const [mealDate, setMealDate] = useState(formatDate(new Date()));
+  const [breakfast, setBreakfast] = useState('');
+  const [lunch, setLunch] = useState('');
+  const [dinner, setDinner] = useState('');
+  const [mealCandidates, setMealCandidates] = useState([]);
+  const [mealSearchState, setMealSearchState] = useState('idle');
 
-    async function fetchCandidates() {
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUnits() {
       try {
-        setLoadingMenus(true);
-        setErrorMessage('');
-        setSelectedId(null);
-        setSelectedMenus([]);
-        setMatchResult({ candidateCount: 0, units: [] });
-        const response = await getMealMenuCandidates({ date: mealDate, mealType });
-        if (!mounted) return;
-        setMenuCandidates(response?.menus ?? []);
+        setLoadingUnits(true);
+        const unitList = await getUnits();
+        if (!isMounted) return;
+        setUnits(unitList ?? []);
       } catch (error) {
-        if (!mounted) return;
-        setMenuCandidates([]);
-        setErrorMessage(error.message || '메뉴 후보를 불러오지 못했습니다.');
+        if (!isMounted) return;
+        setErrorMessage(error.message || '부대 목록을 불러오지 못했습니다.');
       } finally {
-        if (mounted) setLoadingMenus(false);
+        if (isMounted) {
+          setLoadingUnits(false);
+        }
       }
     }
 
-    if (mode === 'menu') {
-      fetchCandidates();
-    }
-
+    loadUnits();
     return () => {
-      mounted = false;
+      isMounted = false;
     };
-  }, [mealDate, mealType, mode]);
+  }, []);
 
   useEffect(() => {
-    let mounted = true;
+    if (mode !== 'name') return;
 
-    async function loadNameCandidates() {
+    let isMounted = true;
+    const timer = setTimeout(async () => {
       try {
         setLoadingUnits(true);
         const list = query.trim() ? await searchUnits(query.trim()) : await getUnits();
-        if (!mounted) return;
+        if (!isMounted) return;
         setUnits(list ?? []);
       } catch (error) {
-        if (!mounted) return;
+        if (!isMounted) return;
         setErrorMessage(error.message || '부대 검색에 실패했습니다.');
       } finally {
-        if (mounted) setLoadingUnits(false);
+        if (isMounted) {
+          setLoadingUnits(false);
+        }
       }
-    }
-
-    if (mode !== 'name') return;
-    const timer = setTimeout(loadNameCandidates, 250);
+    }, 250);
 
     return () => {
-      mounted = false;
+      isMounted = false;
       clearTimeout(timer);
     };
   }, [mode, query]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function fetchMatches() {
-      if (selectedMenus.length === 0) {
-        setMatchResult({ candidateCount: menuCandidates.length, units: [] });
-        return;
-      }
-
-      try {
-        setLoadingMatches(true);
-        setErrorMessage('');
-        setSelectedId(null);
-        const response = await findUnitsBySelectedMenus({
-          date: mealDate,
-          mealType,
-          selectedMenus,
-        });
-        if (!mounted) return;
-        setMatchResult(response ?? { candidateCount: 0, units: [] });
-      } catch (error) {
-        if (!mounted) return;
-        setMatchResult({ candidateCount: 0, units: [] });
-        setErrorMessage(error.message || '메뉴 기반 후보 찾기에 실패했습니다.');
-      } finally {
-        if (mounted) setLoadingMatches(false);
-      }
-    }
-
-    if (mode === 'menu') {
-      fetchMatches();
-    }
-
-    return () => {
-      mounted = false;
-    };
-  }, [selectedMenus, mealDate, mealType, mode, menuCandidates.length]);
-
-  const toggleMenu = (menuName) => {
-    setSelectedMenus((prev) => (prev.includes(menuName) ? prev.filter((item) => item !== menuName) : [...prev, menuName]));
-  };
-
   const nameCandidates = useMemo(() => units ?? [], [units]);
+
+  const handleFindByMeal = async () => {
+    if (!breakfast.trim() && !lunch.trim() && !dinner.trim()) {
+      setErrorMessage('아침/점심/저녁 중 기억나는 식단을 하나 이상 입력해주세요.');
+      return;
+    }
+
+    try {
+      setErrorMessage('');
+      setMealSearchState('loading');
+      setSelectedId(null);
+      const result = await findUnitsByMeal({
+        date: mealDate,
+        breakfast,
+        lunch,
+        dinner,
+      });
+      const candidates = result ?? [];
+      setMealCandidates(candidates);
+      setMealSearchState(candidates.length > 0 ? 'success' : 'empty');
+      if (candidates[0]?.unitId) {
+        setSelectedId(candidates[0].unitId);
+      }
+    } catch (error) {
+      setMealSearchState('error');
+      setErrorMessage(error.message || '식단 기반 부대 찾기에 실패했습니다.');
+    }
+  };
 
   const handleSelectUnit = async () => {
     if (!selectedId) return;
@@ -155,91 +128,83 @@ export default function UnitSelectPage() {
     }
   };
 
-  const currentCandidateCount = selectedMenus.length === 0 ? menuCandidates.length : matchResult.candidateCount;
-
   return (
-    <AppLayout title="식단표 찾기" subtitle="메뉴 선택으로 내 부대를 찾아보세요." showBottomNav={false}>
+    <AppLayout title="부대 식단 선택" subtitle="소속 부대를 선택해주세요." showBottomNav={false}>
       <div className={styles.modeSwitch}>
-        <button type="button" className={mode === 'menu' ? styles.activeChip : ''} onClick={() => setMode('menu')}>
-          메뉴로 찾기
+        <button type="button" className={mode === 'meal' ? styles.activeChip : ''} onClick={() => setMode('meal')}>
+          식단으로 찾기
         </button>
         <button type="button" className={mode === 'name' ? styles.activeChip : ''} onClick={() => setMode('name')}>
-          직접 부대명으로 찾기
+          부대명으로 찾기
         </button>
       </div>
 
-      {mode === 'menu' ? (
+      {mode === 'meal' ? (
         <>
-          <div className={styles.stepIndicator}>
-            <span className={styles.stepActive}>1. 끼니 선택</span>
-            <span>2. 메뉴 선택</span>
-            <span>3. 부대 선택</span>
-          </div>
-
           <Card className={styles.mealFinderCard}>
-            <div className={styles.inlineTwo}>
+            <p className={styles.helperTitle}>오늘 먹은 식단으로 소속 부대를 찾아보세요</p>
+            <small className={styles.helperText}>아침/점심/저녁 중 기억나는 식단만 입력해도 돼요. 가장 비슷한 식단의 부대를 추천해드릴게요.</small>
+            <div className={styles.formGrid}>
               <label>
                 날짜
                 <input type="date" value={mealDate} onChange={(e) => setMealDate(e.target.value)} className={styles.search} />
               </label>
-              <div>
-                <small className={styles.mealTypeLabel}>끼니 선택</small>
-                <div className={styles.chips}>
-                  {['breakfast', 'lunch', 'dinner'].map((type) => (
-                    <button key={type} type="button" className={mealType === type ? styles.activeChip : ''} onClick={() => setMealType(type)}>
-                      {mealLabel(type)}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <label>
+                아침
+                <input
+                  className={styles.search}
+                  placeholder="예: 우유 계란말이 김치"
+                  value={breakfast}
+                  onChange={(e) => setBreakfast(e.target.value)}
+                />
+              </label>
+              <label>
+                점심
+                <input
+                  className={styles.search}
+                  placeholder="예: 닭볶음탕 두부조림 깍두기"
+                  value={lunch}
+                  onChange={(e) => setLunch(e.target.value)}
+                />
+              </label>
+              <label>
+                저녁
+                <input
+                  className={styles.search}
+                  placeholder="예: 돼지고기볶음 된장국 김치"
+                  value={dinner}
+                  onChange={(e) => setDinner(e.target.value)}
+                />
+              </label>
             </div>
-
-            <p className={styles.helperTitle}>
-              <span className={styles.pointText}>오늘 {mealLabel(mealType)}</span>에 나온 메뉴를 찾아주세요!
-            </p>
-            <small className={styles.helperText}>고르신 메뉴를 기반으로 관련된 식단표를 찾아드릴게요.</small>
-            <p className={styles.candidateCount}>식단표 후보 수: {currentCandidateCount}개</p>
+            <button type="button" className={styles.secondary} onClick={handleFindByMeal}>
+              이 식단으로 부대 찾기
+            </button>
           </Card>
 
-          {loadingMenus ? <p className={styles.infoText}>메뉴 후보를 불러오는 중이에요...</p> : null}
-          {!loadingMenus && menuCandidates.length === 0 ? (
-            <p className={styles.infoText}>해당 날짜/끼니의 메뉴 후보가 적어요. 날짜나 끼니를 바꿔보세요.</p>
+          {mealSearchState === 'idle' ? <p className={styles.infoText}>식단을 입력하면 유사도가 높은 부대 후보를 보여드려요.</p> : null}
+          {mealSearchState === 'loading' ? <p className={styles.infoText}>식단을 비교해 부대 후보를 찾는 중이에요...</p> : null}
+          {mealSearchState === 'empty' ? (
+            <p className={styles.infoText}>해당 날짜의 일치 후보가 없어요. 날짜를 바꾸거나 부대명 검색을 이용해보세요.</p>
           ) : null}
 
-          <div className={styles.menuGrid}>
-            {menuCandidates.map((menuName) => (
-              <button
-                key={menuName}
-                type="button"
-                className={`${styles.menuChip} ${selectedMenus.includes(menuName) ? styles.menuChipSelected : ''}`}
-                onClick={() => toggleMenu(menuName)}
-              >
-                {menuName}
-              </button>
-            ))}
-          </div>
-
-          {selectedMenus.length === 0 ? <p className={styles.infoText}>메뉴를 1개 이상 선택하면 관련 부대 후보를 추천해드려요.</p> : null}
-          {selectedMenus.length > 0 && currentCandidateCount > 5 ? (
-            <p className={styles.infoText}>메뉴를 1~2개 더 선택하면 더 정확하게 찾을 수 있어요.</p>
-          ) : null}
-          {loadingMatches ? <p className={styles.infoText}>선택한 메뉴로 후보를 좁히는 중이에요...</p> : null}
-          {!loadingMatches && selectedMenus.length > 0 && (matchResult.units?.length ?? 0) === 0 ? (
-            <p className={styles.infoText}>일치하는 후보가 없어요. 메뉴 선택을 조정해보세요.</p>
-          ) : null}
-
-          {(matchResult.units ?? []).map((unit) => (
+          {mealCandidates.map((unit) => (
             <Card key={unit.unitId} className={`${styles.selectCard} ${selectedId === unit.unitId ? styles.selected : ''}`}>
               <button type="button" onClick={() => setSelectedId(unit.unitId)}>
                 <div className={styles.cardHeaderRow}>
                   <p>{unit.unitName}</p>
-                  <span className={styles.scoreBadge}>일치도 {toPercent(unit.matchScore)}</span>
+                  <span className={styles.scoreBadge}>유사도 {toPercent(unit.matchScore)}</span>
                 </div>
-                <small>
-                  {unit.branchType} · {unit.regionName}
+                <small>{unit.branchType} · {unit.regionName}</small>
+                <small className={styles.matchMealText}>일치 끼니: {unit.matchedMeals?.length ? unit.matchedMeals.join(', ') : '없음'}</small>
+                <small className={styles.matchMealText}>
+                  아침 {toPercent(unit.mealMatchDetail?.breakfastScore)} · 점심 {toPercent(unit.mealMatchDetail?.lunchScore)} · 저녁 {toPercent(unit.mealMatchDetail?.dinnerScore)}
                 </small>
-                <small className={styles.matchMealText}>일치 메뉴 {unit.matchCount}개</small>
-                <small className={styles.matchMealText}>메뉴 미리보기: {unit.mealPreview || '-'}</small>
+                <div className={styles.previewBox}>
+                  <small>아침: {unit.mealPreview?.breakfast || '-'}</small>
+                  <small>점심: {unit.mealPreview?.lunch || '-'}</small>
+                  <small>저녁: {unit.mealPreview?.dinner || '-'}</small>
+                </div>
               </button>
             </Card>
           ))}
@@ -253,9 +218,7 @@ export default function UnitSelectPage() {
             <Card key={unit.id} className={`${styles.selectCard} ${selectedId === unit.id ? styles.selected : ''}`}>
               <button type="button" onClick={() => setSelectedId(unit.id)}>
                 <p>{unit.unitName}</p>
-                <small>
-                  {unit.branchType} · {unit.regionName}
-                </small>
+                <small>{unit.branchType} · {unit.regionName}</small>
               </button>
             </Card>
           ))}
