@@ -18,16 +18,32 @@ import java.util.regex.Pattern;
 public class MndMealResponseParser {
 
     private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d+(?:\\.\\d+)?");
-    private static final Pattern KCAL_IN_TEXT_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:kcal|㎉)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern KCAL_IN_TEXT_PATTERN =
+            Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:kcal|㎉)", Pattern.CASE_INSENSITIVE);
 
-    private static final List<String> DATE_KEYS = List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜");
-    private static final List<String> BREAKFAST_KEYS = List.of("BRKFST", "조식", "breakfast", "조식메뉴");
-    private static final List<String> LUNCH_KEYS = List.of("LUNCH", "중식", "lunch", "중식메뉴");
-    private static final List<String> DINNER_KEYS = List.of("DINNER", "석식", "dinner", "석식메뉴");
-    private static final List<String> BREAKFAST_KCAL_KEYS = List.of("BRKFST_KCAL", "BRKFST_CAL", "조식열량", "breakfastKcal");
-    private static final List<String> LUNCH_KCAL_KEYS = List.of("LUNCH_KCAL", "LUNCH_CAL", "중식열량", "lunchKcal");
-    private static final List<String> DINNER_KCAL_KEYS = List.of("DINNER_KCAL", "DINNER_CAL", "석식열량", "dinnerKcal");
-    private static final List<String> TOTAL_KCAL_KEYS = List.of("TOTAL_KCAL", "TOT_CAL", "총열량", "totalKcal");
+    private static final List<String> DATE_KEYS =
+            List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜", "급식일", "DATES", "dates");
+
+    private static final List<String> BREAKFAST_KEYS =
+            List.of("BRKFST", "조식", "breakfast", "조식메뉴", "조식내용", "BRST", "brst");
+
+    private static final List<String> LUNCH_KEYS =
+            List.of("LUNCH", "중식", "lunch", "중식메뉴", "중식내용", "LUNC", "lunc");
+
+    private static final List<String> DINNER_KEYS =
+            List.of("DINNER", "석식", "dinner", "석식메뉴", "석식내용", "DINR", "dinr");
+
+    private static final List<String> BREAKFAST_KCAL_KEYS =
+            List.of("BRKFST_KCAL", "BRKFST_CAL", "조식열량", "breakfastKcal", "조식칼로리", "BRST_CAL", "brst_cal");
+
+    private static final List<String> LUNCH_KCAL_KEYS =
+            List.of("LUNCH_KCAL", "LUNCH_CAL", "중식열량", "lunchKcal", "중식칼로리", "LUNC_CAL", "lunc_cal");
+
+    private static final List<String> DINNER_KCAL_KEYS =
+            List.of("DINNER_KCAL", "DINNER_CAL", "석식열량", "dinnerKcal", "석식칼로리", "DINR_CAL", "dinr_cal");
+
+    private static final List<String> TOTAL_KCAL_KEYS =
+            List.of("TOTAL_KCAL", "TOT_CAL", "총열량", "totalKcal", "열량합계", "총칼로리", "SUM_CAL", "sum_cal");
 
     @SuppressWarnings("unchecked")
     public List<ParsedMealRow> parseRows(String serviceName, Map<String, Object> responseBody) {
@@ -36,46 +52,123 @@ public class MndMealResponseParser {
         }
 
         Object serviceRoot = responseBody.get(serviceName);
-        if (!(serviceRoot instanceof List<?> serviceRootList) || serviceRootList.size() < 2) {
-            log.warn("서비스 루트 파싱 실패 serviceName={}", serviceName);
+        if (serviceRoot == null) {
+            log.warn("서비스 키 없음 serviceName={}, responseKeys={}", serviceName, responseBody.keySet());
             return List.of();
         }
 
-        Object rowContainer = serviceRootList.get(1);
-        if (!(rowContainer instanceof Map<?, ?> rowMap)) {
-            return List.of();
-        }
-
-        Object rows = rowMap.get("row");
-        if (!(rows instanceof List<?> rowList)) {
+        List<Map<String, Object>> rowMaps = extractRowMaps(serviceRoot, serviceName);
+        if (rowMaps.isEmpty()) {
+            log.warn("row 추출 실패 serviceName={}, serviceRootType={}",
+                    serviceName, serviceRoot.getClass().getName());
             return List.of();
         }
 
         List<ParsedMealRow> result = new ArrayList<>();
-        for (Object item : rowList) {
-            if (!(item instanceof Map<?, ?> map)) {
-                continue;
-            }
-
-            ParsedMealRow parsed = parseSingleRow((Map<String, Object>) map, serviceName);
+        for (Map<String, Object> rowMap : rowMaps) {
+            ParsedMealRow parsed = parseSingleRow(rowMap, serviceName);
             if (parsed != null) {
                 result.add(parsed);
             }
         }
 
+        log.info("식단 row 파싱 완료 serviceName={}, parsedCount={}", serviceName, result.size());
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> extractRowMaps(Object serviceRoot, String serviceName) {
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        if (serviceRoot instanceof List<?> serviceRootList) {
+            for (Object item : serviceRootList) {
+                if (!(item instanceof Map<?, ?> itemMapRaw)) {
+                    continue;
+                }
+
+                Map<String, Object> itemMap = (Map<String, Object>) itemMapRaw;
+                Object rows = itemMap.get("row");
+
+                if (rows instanceof List<?> rowList) {
+                    for (Object rowItem : rowList) {
+                        if (rowItem instanceof Map<?, ?> rowMapRaw) {
+                            result.add((Map<String, Object>) rowMapRaw);
+                        }
+                    }
+                }
+            }
+
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
+
+        if (serviceRoot instanceof Map<?, ?> rootMapRaw) {
+            Map<String, Object> rootMap = (Map<String, Object>) rootMapRaw;
+            Object rows = rootMap.get("row");
+
+            if (rows instanceof List<?> rowList) {
+                for (Object rowItem : rowList) {
+                    if (rowItem instanceof Map<?, ?> rowMapRaw) {
+                        result.add((Map<String, Object>) rowMapRaw);
+                    }
+                }
+            }
+
+            if (!result.isEmpty()) {
+                return result;
+            }
+
+            for (Map.Entry<String, Object> entry : rootMap.entrySet()) {
+                Object nestedValue = entry.getValue();
+
+                if (!(nestedValue instanceof Map<?, ?> nestedMapRaw)) {
+                    continue;
+                }
+
+                Map<String, Object> nestedMap = (Map<String, Object>) nestedMapRaw;
+                Object nestedRows = nestedMap.get("row");
+
+                if (nestedRows instanceof List<?> nestedRowList) {
+                    for (Object rowItem : nestedRowList) {
+                        if (rowItem instanceof Map<?, ?> rowMapRaw) {
+                            result.add((Map<String, Object>) rowMapRaw);
+                        }
+                    }
+                }
+            }
+
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
+
+        log.warn("서비스 루트 파싱 실패 serviceName={}, serviceRoot={}", serviceName, serviceRoot);
         return result;
     }
 
     private ParsedMealRow parseSingleRow(Map<String, Object> row, String serviceName) {
-        LocalDate mealDate = parseDate(firstText(row, DATE_KEYS));
-        if (mealDate == null) {
-            log.warn("날짜 파싱 실패 row={}", row);
+        if (isCompletelyEmptyRow(row)) {
             return null;
         }
 
+        String dateText = firstText(row, DATE_KEYS);
         String breakfastRaw = blankToNull(firstText(row, BREAKFAST_KEYS));
         String lunchRaw = blankToNull(firstText(row, LUNCH_KEYS));
         String dinnerRaw = blankToNull(firstText(row, DINNER_KEYS));
+
+        if ((dateText == null || dateText.isBlank())
+                && breakfastRaw == null
+                && lunchRaw == null
+                && dinnerRaw == null) {
+            return null;
+        }
+
+        LocalDate mealDate = parseDate(dateText);
+        if (mealDate == null) {
+            log.warn("날짜 파싱 실패 serviceName={}, row={}", serviceName, row);
+            return null;
+        }
 
         Integer breakfastKcal = parseKcal(firstText(row, BREAKFAST_KCAL_KEYS));
         if (breakfastKcal == null) {
@@ -107,6 +200,19 @@ public class MndMealResponseParser {
         );
     }
 
+    private boolean isCompletelyEmptyRow(Map<String, Object> row) {
+        if (row == null || row.isEmpty()) {
+            return true;
+        }
+
+        for (Object value : row.values()) {
+            if (value != null && !String.valueOf(value).trim().isBlank()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private String firstText(Map<String, Object> row, List<String> aliases) {
         for (String alias : aliases) {
             for (Map.Entry<String, Object> entry : row.entrySet()) {
@@ -136,7 +242,12 @@ public class MndMealResponseParser {
             return null;
         }
 
-        String compact = raw.replaceAll("[^0-9]", "");
+        String cleaned = raw.trim()
+                .replaceAll("\\([^)]*\\)", "")
+                .replaceAll("\\s+", "")
+                .trim();
+
+        String compact = cleaned.replaceAll("[^0-9]", "");
         if (compact.matches("\\d{8}")) {
             try {
                 return LocalDate.parse(compact, DateTimeFormatter.BASIC_ISO_DATE);
@@ -144,7 +255,7 @@ public class MndMealResponseParser {
             }
         }
 
-        String normalized = raw.replace('.', '-').replace('/', '-');
+        String normalized = cleaned.replace('.', '-').replace('/', '-');
         try {
             return LocalDate.parse(normalized, DateTimeFormatter.ofPattern("yyyy-M-d"));
         } catch (DateTimeParseException ignored) {
