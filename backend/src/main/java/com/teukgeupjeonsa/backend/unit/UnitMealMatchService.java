@@ -131,6 +131,7 @@ public class UnitMealMatchService {
                 .replace("<br/>", "\n")
                 .replace("<br />", "\n")
                 .replace("<br>", "\n")
+                .replace(",", "\n")
                 .replace("|", "\n")
                 .replace("/", "\n")
                 .replace("ㆍ", "\n")
