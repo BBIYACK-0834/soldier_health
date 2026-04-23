@@ -44,6 +44,16 @@ public class MndMealResponseParser {
 
     private static final List<String> TOTAL_KCAL_KEYS =
             List.of("TOTAL_KCAL", "TOT_CAL", "총열량", "totalKcal", "열량합계", "총칼로리", "SUM_CAL", "sum_cal");
+    private static final List<String> DATE_KEYS = List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜");
+    private static final List<String> BREAKFAST_KEYS = List.of("BRKFST", "조식", "breakfast", "조식메뉴");
+    private static final List<String> LUNCH_KEYS = List.of("LUNCH", "중식", "lunch", "중식메뉴");
+    private static final List<String> DINNER_KEYS = List.of("DINNER", "석식", "dinner", "석식메뉴");
+    private static final List<String> BREAKFAST_KCAL_KEYS = List.of("BRKFST_KCAL", "BRKFST_CAL", "조식열량", "breakfastKcal");
+    private static final List<String> LUNCH_KCAL_KEYS = List.of("LUNCH_KCAL", "LUNCH_CAL", "중식열량", "lunchKcal");
+    private static final List<String> DINNER_KCAL_KEYS = List.of("DINNER_KCAL", "DINNER_CAL", "석식열량", "dinnerKcal");
+    private static final List<String> TOTAL_KCAL_KEYS = List.of("TOTAL_KCAL", "TOT_CAL", "총열량", "totalKcal");
+    private static final List<String> UNIT_NAME_KEYS = List.of("UNIT_NM", "UNIT_NAME", "unitName", "부대명", "부대", "군부대명");
+    private static final List<String> REGION_KEYS = List.of("AREA_NM", "AREA_NAME", "region", "지역", "소재지");
 
     @SuppressWarnings("unchecked")
     public List<ParsedMealRow> parseRows(String serviceName, Map<String, Object> responseBody) {
@@ -186,6 +196,8 @@ public class MndMealResponseParser {
         }
 
         Integer totalKcal = parseKcal(firstText(row, TOTAL_KCAL_KEYS));
+        String unitName = blankToNull(firstText(row, UNIT_NAME_KEYS));
+        String regionName = blankToNull(firstText(row, REGION_KEYS));
 
         return new ParsedMealRow(
                 serviceName,
@@ -196,7 +208,9 @@ public class MndMealResponseParser {
                 breakfastKcal,
                 lunchKcal,
                 dinnerKcal,
-                totalKcal
+                totalKcal,
+                unitName,
+                regionName
         );
     }
 
@@ -317,7 +331,9 @@ public class MndMealResponseParser {
             Integer breakfastKcal,
             Integer lunchKcal,
             Integer dinnerKcal,
-            Integer totalKcal
+            Integer totalKcal,
+            String unitName,
+            String regionName
     ) {
     }
 }
