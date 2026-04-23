@@ -142,21 +142,27 @@ public class MealOpenApiCollectionService {
                 continue;
             }
 
-            MealMenu entity = mealMenuRepository.findBySourceNameAndMealDate(SOURCE_NAME, row.mealDate())
-                    .or(() -> mealMenuRepository.findByServiceCodeAndMealDate(row.serviceName(), row.mealDate()))
+            MealMenu entity = mealMenuRepository.findByServiceCodeAndMealDate(row.serviceName(), row.mealDate())
                     .orElseGet(MealMenu::new);
 
             boolean isInsert = entity.getId() == null;
             entity.setServiceCode(row.serviceName());
             entity.setSourceName(SOURCE_NAME);
             entity.setMealDate(row.mealDate());
-            entity.setBreakfast(row.breakfastRaw());
-            entity.setLunch(row.lunchRaw());
-            entity.setDinner(row.dinnerRaw());
-            entity.setBreakfastKcal(row.breakfastKcal());
-            entity.setLunchKcal(row.lunchKcal());
-            entity.setDinnerKcal(row.dinnerKcal());
-            entity.setTotalKcal(sum(row.breakfastKcal(), row.lunchKcal(), row.dinnerKcal()));
+            entity.setBreakfast(mergeMealText(entity.getBreakfast(), row.breakfastRaw()));
+            entity.setLunch(mergeMealText(entity.getLunch(), row.lunchRaw()));
+            entity.setDinner(mergeMealText(entity.getDinner(), row.dinnerRaw()));
+            entity.setBreakfastKcal(mergeKcal(entity.getBreakfastKcal(), row.breakfastKcal()));
+            entity.setLunchKcal(mergeKcal(entity.getLunchKcal(), row.lunchKcal()));
+            entity.setDinnerKcal(mergeKcal(entity.getDinnerKcal(), row.dinnerKcal()));
+
+            Integer rowTotal = row.totalKcal();
+            if (rowTotal != null && rowTotal > 0) {
+                entity.setTotalKcal(rowTotal);
+            } else {
+                entity.setTotalKcal(sum(entity.getBreakfastKcal(), entity.getLunchKcal(), entity.getDinnerKcal()));
+            }
+
             mealMenuRepository.save(entity);
 
             if (isInsert) {
@@ -167,6 +173,35 @@ public class MealOpenApiCollectionService {
         }
 
         return new MealPersistResult(inserted, updated, skipped);
+    }
+
+    private String mergeMealText(String current, String incoming) {
+        if (incoming == null || incoming.isBlank()) {
+            return current;
+        }
+        if (current == null || current.isBlank()) {
+            return incoming.trim();
+        }
+
+        String normalizedCurrent = current.trim();
+        String normalizedIncoming = incoming.trim();
+        if (normalizedCurrent.equals(normalizedIncoming)) {
+            return normalizedCurrent;
+        }
+        if (normalizedCurrent.contains(normalizedIncoming)) {
+            return normalizedCurrent;
+        }
+        return normalizedCurrent + ", " + normalizedIncoming;
+    }
+
+    private Integer mergeKcal(Integer current, Integer incoming) {
+        if (incoming == null) {
+            return current;
+        }
+        if (current == null) {
+            return incoming;
+        }
+        return current + incoming;
     }
 
     private int sum(Integer... values) {

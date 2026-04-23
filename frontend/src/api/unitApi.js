@@ -26,3 +26,11 @@ export async function getMyUnit() {
   const response = await httpClient.get('/api/users/me/unit');
   return unwrap(response);
 }
+
+
+export async function getMealOptionsByDate({ date, mealType, keyword }) {
+  const response = await httpClient.get('/api/units/meal-options', {
+    params: { date, mealType, keyword },
+  });
+  return unwrap(response);
+}
