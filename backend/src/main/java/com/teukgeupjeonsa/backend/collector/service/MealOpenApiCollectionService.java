@@ -6,6 +6,9 @@ import com.teukgeupjeonsa.backend.collector.openapi.MndOpenApiClient;
 import com.teukgeupjeonsa.backend.collector.parser.MndMealResponseParser;
 import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
 import com.teukgeupjeonsa.backend.meal.repository.MealMenuRepository;
+import com.teukgeupjeonsa.backend.unit.MilitaryUnit;
+import com.teukgeupjeonsa.backend.unit.MilitaryUnitRepository;
+import com.teukgeupjeonsa.backend.user.BranchType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ public class MealOpenApiCollectionService {
     private final MndMealResponseParser responseParser;
     private final MealMenuRepository mealMenuRepository;
     private final MealCollectorServiceCodeResolver serviceCodeResolver;
+    private final MilitaryUnitRepository militaryUnitRepository;
 
     @Transactional
     public MealCollectionSummary collectAllFromFixedServices() {
@@ -42,6 +46,7 @@ public class MealOpenApiCollectionService {
             try {
                 Map<String, Object> response = openApiClient.fetchMeals(serviceCode);
                 List<MndMealResponseParser.ParsedMealRow> parsedRows = responseParser.parseRows(serviceCode, response);
+                upsertUnitFromRows(serviceCode, parsedRows);
                 MealPersistResult persistResult = persistMealRows(parsedRows);
 
                 insertedRows += persistResult.inserted();
@@ -98,6 +103,7 @@ public class MealOpenApiCollectionService {
         try {
             Map<String, Object> response = openApiClient.fetchMeals(serviceCode);
             List<MndMealResponseParser.ParsedMealRow> parsedRows = responseParser.parseRows(serviceCode, response);
+            upsertUnitFromRows(serviceCode, parsedRows);
             MealPersistResult persistResult = persistMealRows(parsedRows);
 
             return MealCollectionSummary.builder()
@@ -173,6 +179,69 @@ public class MealOpenApiCollectionService {
         }
 
         return new MealPersistResult(inserted, updated, skipped);
+    }
+
+    private void upsertUnitFromRows(String serviceCode, List<MndMealResponseParser.ParsedMealRow> rows) {
+        if (serviceCode == null || serviceCode.isBlank()) {
+            return;
+        }
+
+        String normalizedServiceCode = serviceCode.trim();
+        String resolvedUnitName = rows.stream()
+                .map(MndMealResponseParser.ParsedMealRow::unitName)
+                .filter(name -> name != null && !name.isBlank())
+                .findFirst()
+                .orElseGet(() -> "부대 " + simplifyServiceCode(normalizedServiceCode));
+        String resolvedRegionName = rows.stream()
+                .map(MndMealResponseParser.ParsedMealRow::regionName)
+                .filter(region -> region != null && !region.isBlank())
+                .findFirst()
+                .orElse("미상");
+
+        MilitaryUnit unit = militaryUnitRepository.findByDataSourceKeyIgnoreCase(normalizedServiceCode)
+                .orElseGet(() -> MilitaryUnit.builder()
+                        .unitCode("AUTO-" + simplifyServiceCode(normalizedServiceCode))
+                        .build());
+
+        unit.setDataSourceKey(normalizedServiceCode);
+        unit.setUnitName(resolvedUnitName);
+        unit.setRegionName(resolvedRegionName);
+        if (unit.getBranchType() == null || unit.getBranchType() == BranchType.ETC) {
+            unit.setBranchType(inferBranchType(resolvedUnitName));
+        }
+        if (unit.getUnitCode() == null || unit.getUnitCode().isBlank()) {
+            unit.setUnitCode("AUTO-" + simplifyServiceCode(normalizedServiceCode));
+        }
+
+        militaryUnitRepository.save(unit);
+    }
+
+    private BranchType inferBranchType(String unitName) {
+        if (unitName == null || unitName.isBlank()) {
+            return BranchType.ETC;
+        }
+        if (unitName.contains("육군")) {
+            return BranchType.ARMY;
+        }
+        if (unitName.contains("해군")) {
+            return BranchType.NAVY;
+        }
+        if (unitName.contains("공군")) {
+            return BranchType.AIR_FORCE;
+        }
+        if (unitName.contains("해병")) {
+            return BranchType.MARINES;
+        }
+        return BranchType.ETC;
+    }
+
+    private String simplifyServiceCode(String serviceCode) {
+        if (serviceCode == null) {
+            return "UNKNOWN";
+        }
+        return serviceCode
+                .replace("DS_TB_MNDT_DATEBYMLSVC_", "")
+                .replaceAll("[^A-Z0-9_-]", "_");
     }
 
     private String mergeMealText(String current, String incoming) {

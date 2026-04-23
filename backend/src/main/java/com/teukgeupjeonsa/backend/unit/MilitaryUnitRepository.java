@@ -9,5 +9,7 @@ import java.util.Optional;
 public interface MilitaryUnitRepository extends JpaRepository<MilitaryUnit, Long> {
     List<MilitaryUnit> findByUnitNameContainingIgnoreCase(String keyword);
     Optional<MilitaryUnit> findByUnitNameIgnoreCase(String unitName);
+    Optional<MilitaryUnit> findByDataSourceKeyIgnoreCase(String dataSourceKey);
     List<MilitaryUnit> findByDataSourceKeyIn(Collection<String> dataSourceKeys);
+    List<MilitaryUnit> findByDataSourceKeyInAndUnitNameContainingIgnoreCase(Collection<String> dataSourceKeys, String keyword);
 }
