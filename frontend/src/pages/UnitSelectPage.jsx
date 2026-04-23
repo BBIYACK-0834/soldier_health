@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import Card from '../components/ui/Card';
-import { findUnitsByMeal, getUnits, searchUnits, setMyUnit } from '../api/unitApi';
+import { findUnitsByMeal, getMealOptionsByDate, getUnits, searchUnits, setMyUnit } from '../api/unitApi';
 import styles from '../features/design/SetupPage.module.css';
 
 function formatDate(date) {
@@ -12,6 +12,12 @@ function formatDate(date) {
 function toPercent(score) {
   return `${Math.round((score ?? 0) * 100)}%`;
 }
+
+const MEAL_TYPES = [
+  { key: 'BREAKFAST', label: '아침', requestKey: 'breakfast' },
+  { key: 'LUNCH', label: '점심', requestKey: 'lunch' },
+  { key: 'DINNER', label: '저녁', requestKey: 'dinner' },
+];
 
 export default function UnitSelectPage() {
   const navigate = useNavigate();
@@ -26,9 +32,11 @@ export default function UnitSelectPage() {
   const [loadingUnits, setLoadingUnits] = useState(false);
 
   const [mealDate, setMealDate] = useState(formatDate(new Date()));
-  const [breakfast, setBreakfast] = useState('');
-  const [lunch, setLunch] = useState('');
-  const [dinner, setDinner] = useState('');
+  const [selectedMealType, setSelectedMealType] = useState('DINNER');
+  const [mealSearchKeyword, setMealSearchKeyword] = useState('');
+  const [selectedMenuItems, setSelectedMenuItems] = useState([]);
+  const [menuOptions, setMenuOptions] = useState([]);
+  const [loadingMealOptions, setLoadingMealOptions] = useState(false);
   const [mealCandidates, setMealCandidates] = useState([]);
   const [mealSearchState, setMealSearchState] = useState('idle');
 
@@ -83,11 +91,53 @@ export default function UnitSelectPage() {
     };
   }, [mode, query]);
 
+  useEffect(() => {
+    if (mode !== 'meal') return;
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        setLoadingMealOptions(true);
+        const options = await getMealOptionsByDate({
+          date: mealDate,
+          mealType: selectedMealType,
+          keyword: mealSearchKeyword.trim() || undefined,
+        });
+        if (!isMounted) return;
+        setMenuOptions(options ?? []);
+      } catch (error) {
+        if (!isMounted) return;
+        setMenuOptions([]);
+        setErrorMessage(error.message || '식단 메뉴를 불러오지 못했습니다.');
+      } finally {
+        if (isMounted) {
+          setLoadingMealOptions(false);
+        }
+      }
+    }, 180);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [mode, mealDate, selectedMealType, mealSearchKeyword]);
+
+  useEffect(() => {
+    setSelectedMenuItems([]);
+    setMealCandidates([]);
+    setMealSearchState('idle');
+    setSelectedId(null);
+  }, [mealDate, selectedMealType]);
+
   const nameCandidates = useMemo(() => units ?? [], [units]);
 
+  const toggleMenuItem = (item) => {
+    setSelectedMenuItems((prev) => (prev.includes(item) ? prev.filter((menu) => menu !== item) : [...prev, item]));
+  };
+
   const handleFindByMeal = async () => {
-    if (!breakfast.trim() && !lunch.trim() && !dinner.trim()) {
-      setErrorMessage('아침/점심/저녁 중 기억나는 식단을 하나 이상 입력해주세요.');
+    if (selectedMenuItems.length === 0) {
+      setErrorMessage('해당 끼니에서 기억나는 메뉴를 하나 이상 선택해주세요.');
       return;
     }
 
@@ -95,12 +145,20 @@ export default function UnitSelectPage() {
       setErrorMessage('');
       setMealSearchState('loading');
       setSelectedId(null);
-      const result = await findUnitsByMeal({
+
+      const payload = {
         date: mealDate,
-        breakfast,
-        lunch,
-        dinner,
-      });
+        breakfast: null,
+        lunch: null,
+        dinner: null,
+      };
+
+      const requestKey = MEAL_TYPES.find((mealType) => mealType.key === selectedMealType)?.requestKey;
+      if (requestKey) {
+        payload[requestKey] = selectedMenuItems.join(' ');
+      }
+
+      const result = await findUnitsByMeal(payload);
       const candidates = result ?? [];
       setMealCandidates(candidates);
       setMealSearchState(candidates.length > 0 ? 'success' : 'empty');
@@ -142,51 +200,66 @@ export default function UnitSelectPage() {
       {mode === 'meal' ? (
         <>
           <Card className={styles.mealFinderCard}>
-            <p className={styles.helperTitle}>오늘 먹은 식단으로 소속 부대를 찾아보세요</p>
-            <small className={styles.helperText}>아침/점심/저녁 중 기억나는 식단만 입력해도 돼요. 가장 비슷한 식단의 부대를 추천해드릴게요.</small>
+            <p className={styles.helperTitle}>해당 날짜 식단에서 기억나는 메뉴를 골라주세요</p>
+            <small className={styles.helperText}>날짜와 끼니를 선택하면 DB에서 메뉴를 가져와 파싱한 뒤, 가장 비슷한 식단의 부대를 추천해드릴게요.</small>
             <div className={styles.formGrid}>
               <label>
                 날짜
                 <input type="date" value={mealDate} onChange={(e) => setMealDate(e.target.value)} className={styles.search} />
               </label>
-              <label>
-                아침
-                <input
-                  className={styles.search}
-                  placeholder="예: 우유 계란말이 김치"
-                  value={breakfast}
-                  onChange={(e) => setBreakfast(e.target.value)}
-                />
-              </label>
-              <label>
-                점심
-                <input
-                  className={styles.search}
-                  placeholder="예: 닭볶음탕 두부조림 깍두기"
-                  value={lunch}
-                  onChange={(e) => setLunch(e.target.value)}
-                />
-              </label>
-              <label>
-                저녁
-                <input
-                  className={styles.search}
-                  placeholder="예: 돼지고기볶음 된장국 김치"
-                  value={dinner}
-                  onChange={(e) => setDinner(e.target.value)}
-                />
-              </label>
             </div>
+
+            <div className={styles.mealTypeButtons}>
+              {MEAL_TYPES.map((mealType) => (
+                <button
+                  key={mealType.key}
+                  type="button"
+                  className={selectedMealType === mealType.key ? styles.activeChip : ''}
+                  onClick={() => setSelectedMealType(mealType.key)}
+                >
+                  {mealType.label}
+                </button>
+              ))}
+            </div>
+
+            <input
+              className={styles.search}
+              placeholder="메뉴 검색 (예: 김치, 국, 볶음)"
+              value={mealSearchKeyword}
+              onChange={(e) => setMealSearchKeyword(e.target.value)}
+            />
+
+            {loadingMealOptions ? <p className={styles.infoText}>해당 날짜 메뉴를 불러오는 중이에요...</p> : null}
+
+            {!loadingMealOptions && menuOptions.length > 0 ? (
+              <div className={styles.menuGrid}>
+                {menuOptions.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`${styles.menuChip} ${selectedMenuItems.includes(item) ? styles.menuChipSelected : ''}`}
+                    onClick={() => toggleMenuItem(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {!loadingMealOptions && menuOptions.length === 0 ? (
+              <p className={styles.infoText}>해당 조건의 메뉴가 없어요. 날짜/검색어를 조정해보세요.</p>
+            ) : null}
+
+            <small className={styles.helperText}>선택한 메뉴 수: {selectedMenuItems.length}개</small>
+
             <button type="button" className={styles.secondary} onClick={handleFindByMeal}>
-              이 식단으로 부대 찾기
+              이 메뉴로 부대 찾기
             </button>
           </Card>
 
-          {mealSearchState === 'idle' ? <p className={styles.infoText}>식단을 입력하면 유사도가 높은 부대 후보를 보여드려요.</p> : null}
+          {mealSearchState === 'idle' ? <p className={styles.infoText}>메뉴를 선택하면 유사도가 높은 부대 후보를 보여드려요.</p> : null}
           {mealSearchState === 'loading' ? <p className={styles.infoText}>식단을 비교해 부대 후보를 찾는 중이에요...</p> : null}
-          {mealSearchState === 'empty' ? (
-            <p className={styles.infoText}>해당 날짜의 일치 후보가 없어요. 날짜를 바꾸거나 부대명 검색을 이용해보세요.</p>
-          ) : null}
+          {mealSearchState === 'empty' ? <p className={styles.infoText}>일치하는 후보가 없어요. 메뉴 선택을 조정해보세요.</p> : null}
 
           {mealCandidates.map((unit) => (
             <Card key={unit.unitId} className={`${styles.selectCard} ${selectedId === unit.unitId ? styles.selected : ''}`}>

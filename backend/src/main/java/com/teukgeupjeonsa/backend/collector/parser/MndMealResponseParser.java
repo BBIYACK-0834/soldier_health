@@ -10,12 +10,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
 public class MndMealResponseParser {
 
-    private static final java.util.regex.Pattern KCAL_PATTERN = java.util.regex.Pattern.compile("([0-9]{2,5})\\s*(kcal|KCAL|㎉)?");
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d+(?:\\.\\d+)?");
+    private static final Pattern KCAL_IN_TEXT_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:kcal|㎉)", Pattern.CASE_INSENSITIVE);
 
     private static final List<String> DATE_KEYS = List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜");
     private static final List<String> BREAKFAST_KEYS = List.of("BRKFST", "조식", "breakfast", "조식메뉴");
@@ -24,6 +27,7 @@ public class MndMealResponseParser {
     private static final List<String> BREAKFAST_KCAL_KEYS = List.of("BRKFST_KCAL", "BRKFST_CAL", "조식열량", "breakfastKcal");
     private static final List<String> LUNCH_KCAL_KEYS = List.of("LUNCH_KCAL", "LUNCH_CAL", "중식열량", "lunchKcal");
     private static final List<String> DINNER_KCAL_KEYS = List.of("DINNER_KCAL", "DINNER_CAL", "석식열량", "dinnerKcal");
+    private static final List<String> TOTAL_KCAL_KEYS = List.of("TOTAL_KCAL", "TOT_CAL", "총열량", "totalKcal");
 
     @SuppressWarnings("unchecked")
     public List<ParsedMealRow> parseRows(String serviceName, Map<String, Object> responseBody) {
@@ -88,6 +92,8 @@ public class MndMealResponseParser {
             dinnerKcal = parseKcalFromMealText(dinnerRaw);
         }
 
+        Integer totalKcal = parseKcal(firstText(row, TOTAL_KCAL_KEYS));
+
         return new ParsedMealRow(
                 serviceName,
                 mealDate,
@@ -96,7 +102,8 @@ public class MndMealResponseParser {
                 dinnerRaw,
                 breakfastKcal,
                 lunchKcal,
-                dinnerKcal
+                dinnerKcal,
+                totalKcal
         );
     }
 
@@ -149,12 +156,19 @@ public class MndMealResponseParser {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        String number = raw.replaceAll("[^0-9-]", "");
-        if (number.isBlank() || number.equals("-")) {
+
+        String normalized = raw.replace(',', '.');
+        Matcher matcher = NUMBER_PATTERN.matcher(normalized);
+        if (!matcher.find()) {
             return null;
         }
+
         try {
-            return Integer.parseInt(number);
+            double value = Double.parseDouble(matcher.group());
+            if (value < 0) {
+                return null;
+            }
+            return (int) Math.round(value);
         } catch (NumberFormatException ignored) {
             return null;
         }
@@ -169,7 +183,7 @@ public class MndMealResponseParser {
             return null;
         }
 
-        java.util.regex.Matcher matcher = KCAL_PATTERN.matcher(mealText);
+        Matcher matcher = KCAL_IN_TEXT_PATTERN.matcher(mealText);
         Integer maxValue = null;
         while (matcher.find()) {
             Integer kcal = parseKcal(matcher.group(1));
@@ -191,7 +205,8 @@ public class MndMealResponseParser {
             String dinnerRaw,
             Integer breakfastKcal,
             Integer lunchKcal,
-            Integer dinnerKcal
+            Integer dinnerKcal,
+            Integer totalKcal
     ) {
     }
 }

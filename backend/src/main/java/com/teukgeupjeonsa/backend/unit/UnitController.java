@@ -4,9 +4,11 @@ import com.teukgeupjeonsa.backend.common.response.ApiResponse;
 import com.teukgeupjeonsa.backend.user.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -29,6 +31,15 @@ public class UnitController {
     @PostMapping("/api/units/match-by-meal")
     public ApiResponse<List<MatchedUnitResponse>> matchByMeal(@Valid @RequestBody MatchUnitByMealRequest request) {
         return ApiResponse.ok(unitMealMatchService.matchByMeal(request));
+    }
+
+    @GetMapping("/api/units/meal-options")
+    public ApiResponse<List<String>> getMealOptions(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam UnitMealMatchService.MealType mealType,
+            @RequestParam(required = false) String keyword
+    ) {
+        return ApiResponse.ok(unitMealMatchService.getMealOptions(date, mealType, keyword));
     }
 
     @PostMapping("/api/users/me/unit")
