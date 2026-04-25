@@ -166,7 +166,7 @@ public class UnitMealMatchService {
             String inputLunch,
             String inputDinner
     ) {
-        String serviceCode = normalizeNullable(menu.getServiceCode());
+        String serviceCode = normalizeServiceCode(menu.getServiceCode());
         if (serviceCode == null) {
             return null;
         }
@@ -196,6 +196,15 @@ public class UnitMealMatchService {
         }
 
         return new MatchCandidate(unit, totalScore, matchedMeals, breakfastScore, lunchScore, dinnerScore, menu);
+    }
+
+    private String normalizeServiceCode(String raw) {
+        if (raw == null) {
+            return null;
+        }
+
+        String normalized = raw.trim();
+        return normalized.isBlank() ? null : normalized;
     }
 
     private double scoreMeal(String userInput, String mealMenuText) {
