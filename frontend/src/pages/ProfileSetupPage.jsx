@@ -9,14 +9,14 @@ const levels = ['운동 초보', '초급', '중급', '고급'];
 
 export default function ProfileSetupPage() {
   const navigate = useNavigate();
-  const [goal, setGoal] = useState('특급전사');
-  const [level, setLevel] = useState('운동 초보');
+  const [goal, setGoal] = useState('');
+  const [level, setLevel] = useState('');
 
   return (
     <AppLayout title="나의 상태 설정" subtitle="현재 상태를 입력해주세요." showBottomNav={false}>
       <Card>
         <h3>1. 키와 몸무게</h3>
-        <div className={styles.inlineTwo}><input defaultValue="178" /><input defaultValue="68.5" /></div>
+        <div className={styles.inlineTwo}><input placeholder="키(cm)" /><input placeholder="몸무게(kg)" /></div>
       </Card>
       <Card>
         <h3>2. 목표</h3>
@@ -30,7 +30,7 @@ export default function ProfileSetupPage() {
           {levels.map((item) => <button key={item} type="button" className={level === item ? styles.activeChip : ''} onClick={() => setLevel(item)}>{item}</button>)}
         </div>
         <h3>4. 주당 운동 빈도</h3>
-        <select className={styles.select}><option>주 4~5회 / 1회 60분</option><option>주 2~3회 / 1회 40분</option></select>
+        <select className={styles.select}><option>선택 안 함</option><option>주 4~5회 / 1회 60분</option><option>주 2~3회 / 1회 40분</option></select>
       </Card>
       <button type="button" className={styles.primary} onClick={() => navigate('/home')}>설정 완료</button>
     </AppLayout>
