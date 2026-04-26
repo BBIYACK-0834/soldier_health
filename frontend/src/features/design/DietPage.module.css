@@ -4,6 +4,7 @@
 .macroGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
 .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .row h3 { margin: 0; font-size: 24px; }
+.mealKcal { font-weight: 800; color: #516045; }
 .row button { border: 0; border-radius: 999px; background: #556a3b; color: #fff; padding: 7px 12px; font-weight: 700; }
 .fixed { margin: 6px 0 0; color: #2a3522; font-weight: 800; font-size: 22px; }
 .base { margin: 8px 0; color: #414a3a; font-weight: 700; }
