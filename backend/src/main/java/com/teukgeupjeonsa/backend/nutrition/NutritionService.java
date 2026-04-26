@@ -1,7 +1,7 @@
 package com.teukgeupjeonsa.backend.nutrition;
 
-import com.teukgeupjeonsa.backend.meal.MealDay;
-import com.teukgeupjeonsa.backend.meal.MealDayRepository;
+import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
+import com.teukgeupjeonsa.backend.meal.repository.MealMenuRepository;
 import com.teukgeupjeonsa.backend.px.PxProduct;
 import com.teukgeupjeonsa.backend.px.PxProductRepository;
 import com.teukgeupjeonsa.backend.unit.UserUnitSettingRepository;
@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -22,20 +24,19 @@ public class NutritionService {
 
     private final UserRepository userRepository;
     private final UserUnitSettingRepository userUnitSettingRepository;
-    private final MealDayRepository mealDayRepository;
-    private final FoodNutritionRepository foodNutritionRepository;
+    private final MealMenuRepository mealMenuRepository;
     private final UserOwnedFoodRepository userOwnedFoodRepository;
     private final PxProductRepository pxProductRepository;
 
     @Transactional(readOnly = true)
     public NutritionDtos.NutritionSummaryResponse getTodaySummary(Long userId) {
         User user = getUser(userId);
-        Optional<MealDay> mealDay = getTodayMealOptional(user);
+        Optional<MealMenu> mealMenu = getTodayMealMenuOptional(user);
 
         Macro target = calculateTarget(user);
-        Macro intake = mealDay.map(this::estimateMealNutrition).orElseGet(() -> new Macro(0, 0, 0, 0));
+        Macro intake = mealMenu.map(this::estimateMealNutrition).orElseGet(() -> new Macro(0, 0, 0, 0));
 
-        return toSummary(target, intake, mealDay.isPresent());
+        return toSummary(target, intake, mealMenu.isPresent());
     }
 
     @Transactional(readOnly = true)
@@ -131,9 +132,15 @@ public class NutritionService {
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
     }
 
-    private Optional<MealDay> getTodayMealOptional(User user) {
+    private Optional<MealMenu> getTodayMealMenuOptional(User user) {
         return userUnitSettingRepository.findByUserAndIsPrimaryTrue(user)
-                .flatMap(setting -> mealDayRepository.findByUnitAndMealDate(setting.getUnit(), LocalDate.now()));
+                .flatMap(setting -> {
+                    String serviceCode = setting.getUnit().getDataSourceKey();
+                    if (serviceCode == null || serviceCode.isBlank()) {
+                        return Optional.empty();
+                    }
+                    return mealMenuRepository.findTopByServiceCodeAndMealDateOrderByUpdatedAtDesc(serviceCode, LocalDate.now());
+                });
     }
 
     private Macro calculateTarget(User user) {
@@ -183,48 +190,18 @@ public class NutritionService {
         return new Macro((int) Math.round(targetCalories), protein, carb, fat);
     }
 
-    private Macro estimateMealNutrition(MealDay mealDay) {
-        String merged = String.join(",",
-                Optional.ofNullable(mealDay.getBreakfastRaw()).orElse(""),
-                Optional.ofNullable(mealDay.getLunchRaw()).orElse(""),
-                Optional.ofNullable(mealDay.getDinnerRaw()).orElse(""));
-
-        List<String> tokens = Arrays.stream(merged.split("[,/\\s]+"))
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
-                .toList();
-
-        Map<String, FoodNutrition> nutritionMap = new HashMap<>();
-        for (FoodNutrition food : foodNutritionRepository.findAll()) {
-            nutritionMap.put(food.getFoodName(), food);
+    private Macro estimateMealNutrition(MealMenu mealMenu) {
+        int calories;
+        if (mealMenu.getTotalKcal() != null) {
+            calories = mealMenu.getTotalKcal();
+        } else {
+            calories = Optional.ofNullable(mealMenu.getBreakfastKcal()).orElse(0)
+                    + Optional.ofNullable(mealMenu.getLunchKcal()).orElse(0)
+                    + Optional.ofNullable(mealMenu.getDinnerKcal()).orElse(0);
         }
 
-        int calories = 0;
-        double protein = 0;
-        double carb = 0;
-        double fat = 0;
-
-        for (String token : tokens) {
-            FoodNutrition matched = nutritionMap.entrySet().stream()
-                    .filter(entry -> token.contains(entry.getKey()))
-                    .map(Map.Entry::getValue)
-                    .findFirst().orElse(null);
-
-            if (matched != null) {
-                calories += Optional.ofNullable(matched.getCalories()).orElse(0);
-                protein += Optional.ofNullable(matched.getProteinG()).orElse(0.0);
-                carb += Optional.ofNullable(matched.getCarbG()).orElse(0.0);
-                fat += Optional.ofNullable(matched.getFatG()).orElse(0.0);
-            }
-        }
-
-        if (calories == 0) {
-            calories = Optional.ofNullable(mealDay.getBreakfastKcal()).orElse(0)
-                    + Optional.ofNullable(mealDay.getLunchKcal()).orElse(0)
-                    + Optional.ofNullable(mealDay.getDinnerKcal()).orElse(0);
-        }
-
-        return new Macro(calories, protein, carb, fat);
+        // meal_menus에는 칼로리만 안정적으로 수집되므로 탄/단/지는 0으로 둔다.
+        return new Macro(calories, 0, 0, 0);
     }
 
     private NutritionDtos.NutritionSummaryResponse toSummary(Macro target, Macro intake, boolean hasMealData) {
@@ -254,7 +231,7 @@ public class NutritionService {
                 .deficitCarbG(round1(remainingCarb))
                 .deficitFatG(round1(remainingFat))
                 .note(hasMealData
-                        ? "당일 식단 + 보유 영양 DB 기반 추정치입니다."
+                        ? "선택 부대의 오늘 식단을 기본 섭취량으로 계산했어요."
                         : "당일 식단 데이터가 없어 섭취량은 0으로 계산되었습니다.")
                 .build();
     }

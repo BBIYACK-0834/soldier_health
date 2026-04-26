@@ -19,6 +19,24 @@ function parseMeal(raw) {
   return raw.split(/[,/\n]/).map((s) => s.trim()).filter(Boolean);
 }
 
+function hasMealMenuData(meal) {
+  if (!meal) return false;
+  return Boolean(
+    meal.breakfastRaw ||
+    meal.lunchRaw ||
+    meal.dinnerRaw ||
+    Number.isFinite(meal.breakfastKcal) ||
+    Number.isFinite(meal.lunchKcal) ||
+    Number.isFinite(meal.dinnerKcal) ||
+    Number.isFinite(meal.totalKcal)
+  );
+}
+
+function formatKcal(value) {
+  if (!Number.isFinite(value)) return '칼로리 정보 없음';
+  return `${value.toLocaleString()} kcal`;
+}
+
 export default function NutritionPage() {
   const [nutrition, setNutrition] = useState(null);
   const [meal, setMeal] = useState(null);
@@ -54,7 +72,14 @@ export default function NutritionPage() {
     };
   }, []);
 
-  const totalKcal = Number.isFinite(nutrition?.intakeCalories) ? nutrition.intakeCalories : null;
+  const menuExists = hasMealMenuData(meal);
+  const mealTotalKcal = Number.isFinite(meal?.totalKcal)
+    ? meal.totalKcal
+    : [meal?.breakfastKcal, meal?.lunchKcal, meal?.dinnerKcal]
+        .filter((value) => Number.isFinite(value))
+        .reduce((sum, value) => sum + value, 0);
+
+  const totalKcal = menuExists ? mealTotalKcal : 0;
   const targetKcal = Number.isFinite(nutrition?.targetCalories) ? nutrition.targetCalories : null;
 
   const macroData = useMemo(
@@ -70,14 +95,19 @@ export default function NutritionPage() {
     <AppLayout title="식단 기록" subtitle="국방부 OpenAPI 수집 DB 기반" headerAction={<span className={styles.calendar}>🗓️</span>}>
       <Card>
         <p className={styles.totalTitle}>총 섭취 칼로리</p>
-        <p className={styles.totalKcal}>{totalKcal == null ? '-' : `${totalKcal} kcal`}</p>
+        <p className={styles.totalKcal}>{`${totalKcal.toLocaleString()} kcal`}</p>
+        <p className={styles.base}>{menuExists ? '선택 부대의 오늘 식단 기준' : '선택 부대의 당일 식단 데이터가 아직 없습니다.'}</p>
         <div className={styles.macroGrid}>
           {macroData.map((macro) => (
             <MacroBox key={macro.label} label={macro.label} intake={macro.intake} target={macro.target} color={macro.color} tone={macro.tone} />
           ))}
         </div>
         <ProgressBar value={totalKcal ?? 0} max={targetKcal || 1} />
-        <small>{nutrition?.note || '등록된 데이터가 없습니다.'}</small>
+        <small>
+          {menuExists
+            ? '선택 부대의 오늘 식단을 기본 섭취량으로 계산했어요. 실제 섭취량이 다르면 끼니별로 수정할 수 있어요.'
+            : '당일 식단 데이터가 없어 섭취량은 0으로 계산되었습니다.'}
+        </small>
       </Card>
 
       <Card>
@@ -87,15 +117,20 @@ export default function NutritionPage() {
 
       {mealLabels.map((section) => {
         const items = parseMeal(meal?.[section.key]);
+        const kcalKey = `${section.key.replace('Raw', 'Kcal')}`;
+        const mealKcal = meal?.[kcalKey];
         return (
           <Card key={section.key}>
-            <div className={styles.row}><h3>{section.label}</h3></div>
+            <div className={styles.row}>
+              <h3>{section.label}</h3>
+              <span className={styles.mealKcal}>{formatKcal(mealKcal)}</span>
+            </div>
             {items.length > 0 ? (
               <div className={styles.extraWrap}>
                 {items.map((item) => <div key={item} className={styles.item}><span>{item}</span></div>)}
               </div>
             ) : (
-              <p className={styles.base}>아직 수집된 식단이 없습니다.</p>
+              <p className={styles.base}>선택 부대의 당일 식단 데이터가 아직 없습니다.</p>
             )}
           </Card>
         );
