@@ -8,7 +8,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -33,8 +43,12 @@ public class UnitMealMatchService {
             Map.entry("포기김치", "김치"),
             Map.entry("열무김치", "김치"),
             Map.entry("백김치", "김치"),
+            Map.entry("총각김치", "김치"),
+            Map.entry("깍두기", "김치"),
+            Map.entry("석박지", "김치"),
             Map.entry("백미밥", "쌀밥"),
             Map.entry("흰쌀밥", "쌀밥"),
+            Map.entry("밥", "쌀밥"),
             Map.entry("요구르트", "발효유"),
             Map.entry("요거트", "발효유"),
             Map.entry("요플레", "발효유")
@@ -101,6 +115,7 @@ public class UnitMealMatchService {
                     if (normalizedKeyword == null) {
                         return true;
                     }
+
                     String normalizedItem = normalizeNullable(entry.getKey());
                     return normalizedItem != null && normalizedItem.contains(normalizedKeyword);
                 })
@@ -121,7 +136,6 @@ public class UnitMealMatchService {
         };
     }
 
-
     private List<String> splitMenuItems(String mealText) {
         if (mealText == null || mealText.isBlank()) {
             return List.of();
@@ -131,19 +145,55 @@ public class UnitMealMatchService {
                 .replace("<br/>", "\n")
                 .replace("<br />", "\n")
                 .replace("<br>", "\n")
-                .replace(",", "\n")
                 .replace("|", "\n")
                 .replace("/", "\n")
                 .replace("ㆍ", "\n")
                 .replace("·", "\n")
                 .replace(";", "\n")
-                .replace("	", "\n");
+                .replace("\t", "\n");
 
-        return Arrays.stream(normalized.split("\\n+"))
-                .map(this::cleanMenuItem)
-                .filter(item -> !item.isBlank())
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        int parenthesesDepth = 0;
+
+        for (int i = 0; i < normalized.length(); i++) {
+            char ch = normalized.charAt(i);
+
+            if (ch == '(') {
+                parenthesesDepth++;
+                current.append(ch);
+                continue;
+            }
+
+            if (ch == ')') {
+                if (parenthesesDepth > 0) {
+                    parenthesesDepth--;
+                }
+                current.append(ch);
+                continue;
+            }
+
+            if ((ch == ',' || ch == '\n') && parenthesesDepth == 0) {
+                addCleanMenuItem(result, current);
+                current.setLength(0);
+                continue;
+            }
+
+            current.append(ch);
+        }
+
+        addCleanMenuItem(result, current);
+
+        return result.stream()
                 .distinct()
                 .toList();
+    }
+
+    private void addCleanMenuItem(List<String> result, StringBuilder current) {
+        String item = cleanMenuItem(current.toString());
+        if (!item.isBlank()) {
+            result.add(item);
+        }
     }
 
     private String cleanMenuItem(String item) {
@@ -220,6 +270,7 @@ public class UnitMealMatchService {
 
         Set<String> union = new HashSet<>(userTokens);
         union.addAll(menuTokens);
+
         if (union.isEmpty()) {
             return 0.0;
         }
@@ -250,6 +301,7 @@ public class UnitMealMatchService {
         if (token.isBlank()) {
             return "";
         }
+
         return TOKEN_SYNONYMS.getOrDefault(token, token);
     }
 
@@ -261,9 +313,11 @@ public class UnitMealMatchService {
         String normalized = Normalizer.normalize(raw, Normalizer.Form.NFKC)
                 .toLowerCase(Locale.ROOT)
                 .trim();
+
         normalized = ALLERGY_CODE_PATTERN.matcher(normalized).replaceAll(" ");
         normalized = NON_KOREAN_OR_ALNUM_PATTERN.matcher(normalized).replaceAll(" ");
         normalized = normalized.replaceAll("\\s+", " ").trim();
+
         return normalized.isBlank() ? null : normalized;
     }
 

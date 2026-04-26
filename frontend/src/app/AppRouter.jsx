@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { ACCESS_TOKEN_KEY } from '../api/httpClient';
 import OnboardingPage from '../pages/OnboardingPage';
 import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
@@ -12,6 +13,16 @@ import WorkoutEditPage from '../pages/WorkoutEditPage';
 import CommunityPage from '../pages/CommunityPage';
 import ProfilePage from '../pages/ProfilePage';
 
+function RequireAuth({ children }) {
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
 export default function AppRouter() {
   return (
     <Routes>
@@ -19,15 +30,88 @@ export default function AppRouter() {
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
-      <Route path="/setup/unit" element={<UnitSelectPage />} />
-      <Route path="/setup/equipment" element={<EquipmentSelectPage />} />
-      <Route path="/setup/profile" element={<ProfileSetupPage />} />
-      <Route path="/home" element={<HomePage />} />
-      <Route path="/diet" element={<NutritionPage />} />
-      <Route path="/workout" element={<WorkoutPage />} />
-      <Route path="/workout/edit" element={<WorkoutEditPage />} />
-      <Route path="/community" element={<CommunityPage />} />
-      <Route path="/mypage" element={<ProfilePage />} />
+
+      <Route
+        path="/setup/unit"
+        element={
+          <RequireAuth>
+            <UnitSelectPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/setup/equipment"
+        element={
+          <RequireAuth>
+            <EquipmentSelectPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/setup/profile"
+        element={
+          <RequireAuth>
+            <ProfileSetupPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/home"
+        element={
+          <RequireAuth>
+            <HomePage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/diet"
+        element={
+          <RequireAuth>
+            <NutritionPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/workout"
+        element={
+          <RequireAuth>
+            <WorkoutPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/workout/edit"
+        element={
+          <RequireAuth>
+            <WorkoutEditPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/community"
+        element={
+          <RequireAuth>
+            <CommunityPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/mypage"
+        element={
+          <RequireAuth>
+            <ProfilePage />
+          </RequireAuth>
+        }
+      />
+
       <Route path="*" element={<Navigate to="/onboarding" replace />} />
     </Routes>
   );

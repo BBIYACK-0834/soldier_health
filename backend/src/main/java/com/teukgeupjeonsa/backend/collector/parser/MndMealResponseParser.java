@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 public class MndMealResponseParser {
 
     private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d+(?:\\.\\d+)?");
+
     private static final Pattern KCAL_IN_TEXT_PATTERN =
             Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:kcal|㎉)", Pattern.CASE_INSENSITIVE);
 
@@ -44,18 +45,13 @@ public class MndMealResponseParser {
 
     private static final List<String> TOTAL_KCAL_KEYS =
             List.of("TOTAL_KCAL", "TOT_CAL", "총열량", "totalKcal", "열량합계", "총칼로리", "SUM_CAL", "sum_cal");
-    private static final List<String> DATE_KEYS = List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜");
-    private static final List<String> BREAKFAST_KEYS = List.of("BRKFST", "조식", "breakfast", "조식메뉴");
-    private static final List<String> LUNCH_KEYS = List.of("LUNCH", "중식", "lunch", "중식메뉴");
-    private static final List<String> DINNER_KEYS = List.of("DINNER", "석식", "dinner", "석식메뉴");
-    private static final List<String> BREAKFAST_KCAL_KEYS = List.of("BRKFST_KCAL", "BRKFST_CAL", "조식열량", "breakfastKcal");
-    private static final List<String> LUNCH_KCAL_KEYS = List.of("LUNCH_KCAL", "LUNCH_CAL", "중식열량", "lunchKcal");
-    private static final List<String> DINNER_KCAL_KEYS = List.of("DINNER_KCAL", "DINNER_CAL", "석식열량", "dinnerKcal");
-    private static final List<String> TOTAL_KCAL_KEYS = List.of("TOTAL_KCAL", "TOT_CAL", "총열량", "totalKcal");
-    private static final List<String> UNIT_NAME_KEYS = List.of("UNIT_NM", "UNIT_NAME", "unitName", "부대명", "부대", "군부대명");
-    private static final List<String> REGION_KEYS = List.of("AREA_NM", "AREA_NAME", "region", "지역", "소재지");
 
-    @SuppressWarnings("unchecked")
+    private static final List<String> UNIT_NAME_KEYS =
+            List.of("UNIT_NM", "UNIT_NAME", "unitName", "부대명", "부대", "군부대명");
+
+    private static final List<String> REGION_KEYS =
+            List.of("AREA_NM", "AREA_NAME", "region", "지역", "소재지");
+
     public List<ParsedMealRow> parseRows(String serviceName, Map<String, Object> responseBody) {
         if (responseBody == null || responseBody.isEmpty()) {
             return List.of();
@@ -224,10 +220,15 @@ public class MndMealResponseParser {
                 return false;
             }
         }
+
         return true;
     }
 
     private String firstText(Map<String, Object> row, List<String> aliases) {
+        if (row == null || aliases == null) {
+            return null;
+        }
+
         for (String alias : aliases) {
             for (Map.Entry<String, Object> entry : row.entrySet()) {
                 if (normalize(entry.getKey()).equals(normalize(alias))) {
@@ -241,6 +242,7 @@ public class MndMealResponseParser {
                 }
             }
         }
+
         return null;
     }
 
@@ -248,7 +250,9 @@ public class MndMealResponseParser {
         if (input == null) {
             return "";
         }
-        return input.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9가-힣]", "");
+
+        return input.toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9가-힣]", "");
     }
 
     private LocalDate parseDate(String raw) {
@@ -269,7 +273,9 @@ public class MndMealResponseParser {
             }
         }
 
-        String normalized = cleaned.replace('.', '-').replace('/', '-');
+        String normalized = cleaned.replace('.', '-')
+                .replace('/', '-');
+
         try {
             return LocalDate.parse(normalized, DateTimeFormatter.ofPattern("yyyy-M-d"));
         } catch (DateTimeParseException ignored) {
@@ -284,6 +290,7 @@ public class MndMealResponseParser {
 
         String normalized = raw.replace(',', '.');
         Matcher matcher = NUMBER_PATTERN.matcher(normalized);
+
         if (!matcher.find()) {
             return null;
         }
@@ -293,14 +300,11 @@ public class MndMealResponseParser {
             if (value < 0) {
                 return null;
             }
+
             return (int) Math.round(value);
         } catch (NumberFormatException ignored) {
             return null;
         }
-    }
-
-    private String blankToNull(String text) {
-        return text == null || text.isBlank() ? null : text;
     }
 
     private Integer parseKcalFromMealText(String mealText) {
@@ -310,16 +314,23 @@ public class MndMealResponseParser {
 
         Matcher matcher = KCAL_IN_TEXT_PATTERN.matcher(mealText);
         Integer maxValue = null;
+
         while (matcher.find()) {
             Integer kcal = parseKcal(matcher.group(1));
             if (kcal == null) {
                 continue;
             }
+
             if (maxValue == null || kcal > maxValue) {
                 maxValue = kcal;
             }
         }
+
         return maxValue;
+    }
+
+    private String blankToNull(String text) {
+        return text == null || text.isBlank() ? null : text;
     }
 
     public record ParsedMealRow(
