@@ -17,7 +17,13 @@ public class MealCollectorServiceCodeResolver {
 
     public List<String> resolveFixedServiceCodes() {
         Set<String> result = new LinkedHashSet<>();
+        if (properties.getFixedServices() == null) {
+            return List.of();
+        }
         for (String raw : properties.getFixedServices()) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
             result.add(resolveSingle(raw));
         }
         return result.stream().toList();

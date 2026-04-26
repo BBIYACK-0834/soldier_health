@@ -18,12 +18,7 @@ public class MealCollectorProperties {
      * 고정 서비스 목록.
      * 숫자(예: 3389), 별칭(ATC/STANDARD), 또는 전체 서비스 코드(DS_TB_MNDT_DATEBYMLSVC_3389)를 허용한다.
      */
-    private List<String> fixedServices = new ArrayList<>(List.of(
-            "1570", "5861", "1691", "3182", "8623", "7296", "1862", "2171", "7021", "9030",
-            "ATC", "5397", "3296", "8902", "2621", "3389", "5021", "6176", "3007", "5322",
-            "5067", "7162", "1575", "6335", "7369", "2136", "1968", "6685", "2291", "7652",
-            "7461", "STANDARD"
-    ));
+    private List<String> fixedServices = new ArrayList<>();
 
     private String servicePrefix = "DS_TB_MNDT_DATEBYMLSVC_";
 

@@ -282,7 +282,7 @@ export default function UnitSelectPage() {
 
             <input
               className={styles.search}
-              placeholder={`${currentMeal?.label ?? '메뉴'} 메뉴 검색 (예: 김치, 국, 볶음)`}
+              placeholder={`${currentMeal?.label ?? '메뉴'} 메뉴 검색`}
               value={mealSearchKeyword}
               onChange={(e) => setMealSearchKeyword(e.target.value)}
             />
