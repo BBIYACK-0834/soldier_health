@@ -15,6 +15,12 @@ public class MealCollectorProperties {
     private int timeoutMillis = 10000;
 
     /**
+     * 한 번의 OpenAPI 요청에서 가져올 row 범위 크기.
+     * 예: pageSize=1000이면 /1/1000, /1001/2000처럼 나누어 요청한다.
+     */
+    private int pageSize = 1000;
+
+    /**
      * 고정 서비스 목록.
      * 숫자(예: 3389), 별칭(ATC/STANDARD), 또는 전체 서비스 코드(DS_TB_MNDT_DATEBYMLSVC_3389)를 허용한다.
      */
