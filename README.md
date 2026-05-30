@@ -13,9 +13,6 @@ node -v
 docker -v
 ```
 
-```env 파일 읽기
-set -a; source /workspaces/soldier_health/backend/.env; set +a
-```
 
 
 ## 2) MySQL 실행
@@ -26,13 +23,16 @@ docker run -d \
   -e MYSQL_DATABASE=teukgeupjeonsa \
   -p 3306:3306 \
   mysql:8.4
+\
+docker 생성 이후
+  docker ps\
+  docker start sql명\
 ```
 
 ## 3) Backend 실행
 ```bash
 cd backend
-cp .env.example .env
-./scripts/bootstrap-wrapper.sh
+set -a; source /workspaces/soldier_health/backend/.env; set +a
 ./gradlew bootRun
 ```
 
