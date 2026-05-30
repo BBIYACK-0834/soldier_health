@@ -13,6 +13,11 @@ node -v
 docker -v
 ```
 
+```env 파일 읽기
+set -a; source /workspaces/soldier_health/backend/.env; set +a
+```
+
+
 ## 2) MySQL 실행
 ```bash
 docker run -d \
@@ -96,7 +101,7 @@ curl -X POST http://localhost:8080/api/admin/collect/meals/openapi \
 
 # 서비스 코드 기준 단건 수집
 # (숫자/별칭/전체 서비스 코드 모두 허용)
-curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/3389" \
+curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/7296" \
   -H "Authorization: Bearer <TOKEN>"
 curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/ATC" \
   -H "Authorization: Bearer <TOKEN>"

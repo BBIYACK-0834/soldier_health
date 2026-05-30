@@ -1,8 +1,9 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/teukgeupjeonsa?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
+    url: "${DB_URL:jdbc:mysql://localhost:3306/tg?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci}"
+    username: "${DB_USERNAME:root}"
+    password: "${DB_PASSWORD:root}"
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -10,32 +11,35 @@ spring:
       hibernate:
         format_sql: true
     open-in-view: false
+
   jackson:
     time-zone: Asia/Seoul
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: "${SERVER_PORT:8080}"
 
 jwt:
-  secret: ${JWT_SECRET:change-this-secret-key-change-this-secret-key}
-  access-token-validity-seconds: ${JWT_ACCESS_TOKEN_VALIDITY_SECONDS:86400}
+  secret: "${JWT_SECRET:change-this-secret-key-change-this-secret-key}"
+  access-token-validity-seconds: "${JWT_ACCESS_TOKEN_VALIDITY_SECONDS:86400}"
 
 logging:
   level:
     org.hibernate.SQL: debug
     com.teukgeupjeonsa.backend.meal: info
+    com.teukgeupjeonsa.backend.collector: info
 
 public-meal:
   api:
-    base-url: ${PUBLIC_MEAL_API_BASE_URL:https://openapi.mnd.go.kr}
-    service-key: ${PUBLIC_MEAL_API_SERVICE_KEY:}
-    rows: ${PUBLIC_MEAL_API_ROWS:200}
-    type: ${PUBLIC_MEAL_API_TYPE:json}
+    base-url: "${PUBLIC_MEAL_API_BASE_URL:https://openapi.mnd.go.kr}"
+    service-key: "${PUBLIC_MEAL_API_SERVICE_KEY:}"
+    rows: "${PUBLIC_MEAL_API_ROWS:10000}"
+    type: "${PUBLIC_MEAL_API_TYPE:json}"
 
 meal-collector:
-  timeout-millis: ${MEAL_COLLECTOR_TIMEOUT:10000}
-  fixed-services: ${MEAL_COLLECTOR_FIXED_SERVICES:}
-  atc-service-code: ${MEAL_COLLECTOR_ATC_SERVICE_CODE:DS_TB_MNDT_DATEBYMLSVC_ATC}
-  standard-service-code: ${MEAL_COLLECTOR_STANDARD_SERVICE_CODE:DS_TB_MNDT_DATEBYMLSVC_STANDARD}
-  auto-collect-cron: ${MEAL_COLLECTOR_AUTO_COLLECT_CRON:0 0 3 1 * *}
-  auto-collect-zone: ${MEAL_COLLECTOR_AUTO_COLLECT_ZONE:Asia/Seoul}
+  timeout-millis: "${MEAL_COLLECTOR_TIMEOUT:30000}"
+  page-size: "${MEAL_COLLECTOR_PAGE_SIZE:1000}"
+  fixed-services: "${MEAL_COLLECTOR_FIXED_SERVICES:1570,5861,1691,3182,8623,7296,1862,2171,7021,9030,ATC,5397,3296,8902,2621,3389,5021,6176,3007,5322,5067,7162,1575,6335,7369,2136,1968,6685,2291,7652,7461,STANDARD}"
+  atc-service-code: "${MEAL_COLLECTOR_ATC_SERVICE_CODE:DS_TB_MNDT_DATEBYMLSVC_ATC}"
+  standard-service-code: "${MEAL_COLLECTOR_STANDARD_SERVICE_CODE:DS_TB_MNDT_DATEBYMLSVC_STANDARD}"
+  auto-collect-cron: "${MEAL_COLLECTOR_AUTO_COLLECT_CRON:0 0 3 1 * *}"
+  auto-collect-zone: "${MEAL_COLLECTOR_AUTO_COLLECT_ZONE:Asia/Seoul}"
