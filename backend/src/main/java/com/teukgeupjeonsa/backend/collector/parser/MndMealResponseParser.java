@@ -6,24 +6,12 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.*;
 
 @Slf4j
 @Component
 public class MndMealResponseParser {
 
-    private static final Pattern KCAL_IN_TEXT_PATTERN =
-            Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:kcal|㎉)", Pattern.CASE_INSENSITIVE);
-
-    private static final Pattern DATE_PATTERN =
-            Pattern.compile("\\d{4}[-.]\\d{1,2}[-.]\\d{1,2}");
-
-    // 💡 키값 보강 완료
     private static final List<String> DATE_KEYS = List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜", "급식일", "dates");
     private static final List<String> BREAKFAST_KEYS = List.of("BRKFST", "조식", "breakfast", "조식메뉴", "brst");
     private static final List<String> LUNCH_KEYS = List.of("LUNCH", "중식", "lunch", "중식메뉴", "lunc");
@@ -33,18 +21,123 @@ public class MndMealResponseParser {
 
     public List<ParsedMealRow> parseRows(String serviceName, Map<String, Object> responseBody) {
         if (responseBody == null || responseBody.isEmpty()) return List.of();
+
         Object serviceRoot = responseBody.get(serviceName);
         if (serviceRoot == null) return List.of();
 
         List<Map<String, Object>> rowMaps = extractRowMaps(serviceRoot, serviceName);
-        List<ParsedMealRow> result = new ArrayList<>();
+        
+        // 💡 핵심: 같은 날짜(LocalDate)의 식단과 칼로리를 하나로 묶기 위한 Map
+        Map<LocalDate, CombinedMealData> groupedMap = new LinkedHashMap<>();
 
         for (Map<String, Object> row : rowMaps) {
-            ParsedMealRow parsed = parseSingleRow(row, serviceName);
-            if (parsed != null) result.add(parsed);
+            String dateText = firstText(row, DATE_KEYS);
+            if (dateText == null) continue;
+
+            LocalDate mealDate = parseDate(dateText);
+            if (mealDate == null) continue;
+
+            // 각 행에서 메뉴와 칼로리 추출
+            String brst = blankToNull(firstText(row, BREAKFAST_KEYS));
+            String lunc = blankToNull(firstText(row, LUNCH_KEYS));
+            String dinr = blankToNull(firstText(row, DINNER_KEYS));
+
+            Double brstCal = parseCalValue(firstText(row, List.of("brst_cal", "BREAKFAST_CAL")));
+            Double luncCal = parseCalValue(firstText(row, List.of("lunc_cal", "LUNCH_CAL")));
+            Double dinrCal = parseCalValue(firstText(row, List.of("dinr_cal", "DINNER_CAL")));
+
+            String unitName = blankToNull(firstText(row, UNIT_NAME_KEYS));
+            String region = blankToNull(firstText(row, REGION_KEYS));
+
+            // 같은 날짜 가 있으면 가져오고, 없으면 새로 생성
+            CombinedMealData combinedData = groupedMap.computeIfAbsent(mealDate, d -> new CombinedMealData(unitName, region));
+            
+            // 데이터 누적 (글자는 청소해서 합치고, 칼로리는 더하기)
+            combinedData.addBreakfast(cleanMealText(brst), brstCal);
+            combinedData.addLunch(cleanMealText(lunc), luncCal);
+            combinedData.addDinner(cleanMealText(dinr), dinrCal);
         }
-        log.info("식단 row 파싱 완료 service={}, count={}", serviceName, result.size());
+
+        // 💡 묶은 데이터를 최종 Entity 변환용 DTO 리스트로 변환
+        List<ParsedMealRow> result = new ArrayList<>();
+        for (Map.Entry<LocalDate, CombinedMealData> entry : groupedMap.entrySet()) {
+            LocalDate date = entry.getKey();
+            CombinedMealData cd = entry.getValue();
+
+            Integer bKcal = cd.getBreakfastKcal();
+            Integer lKcal = cd.getLunchKcal();
+            Integer dKcal = cd.getDinnerKcal();
+            Integer tKcal = sum(bKcal, lKcal, dKcal);
+
+            result.add(new ParsedMealRow(
+                    serviceName, date,
+                    cd.getBreakfastStr(), cd.getLunchStr(), cd.getDinnerStr(),
+                    bKcal, lKcal, dKcal, tKcal,
+                    cd.unitName, cd.regionName
+            ));
+        }
+
+        log.info("🎯 식단 일자별 병합 완료 service={}, 총 {}일치 식단 정제됨", serviceName, result.size());
         return result;
+    }
+
+    // 💡 날짜별 메뉴 합산 및 칼로리 누적을 위한 내부 헬퍼 클래스
+    private static class CombinedMealData {
+        List<String> breakfastList = new ArrayList<>();
+        List<String> lunchList = new ArrayList<>();
+        List<String> dinnerList = new ArrayList<>();
+        double bCalSum = 0; int bCalCount = 0;
+        double lCalSum = 0; int lCalCount = 0;
+        double dCalSum = 0; int dCalCount = 0;
+        String unitName;
+        String regionName;
+
+        CombinedMealData(String unitName, String regionName) {
+            this.unitName = unitName;
+            this.regionName = regionName;
+        }
+
+        void addBreakfast(String menu, Double cal) {
+            if (menu != null && !breakfastList.contains(menu)) breakfastList.add(menu);
+            if (cal != null) { bCalSum += cal; bCalCount++; }
+        }
+        void addLunch(String menu, Double cal) {
+            if (menu != null && !lunchList.contains(menu)) lunchList.add(menu);
+            if (cal != null) { lCalSum += cal; lCalCount++; }
+        }
+        void addDinner(String menu, Double cal) {
+            if (menu != null && !dinnerList.contains(menu)) dinnerList.add(menu);
+            if (cal != null) { dCalSum += cal; dCalCount++; }
+        }
+
+        String getBreakfastStr() { return breakfastList.isEmpty() ? null : String.join(", ", breakfastList); }
+        String getLunchStr() { return lunchList.isEmpty() ? null : String.join(", ", lunchList); }
+        String getDinnerStr() { return dinnerList.isEmpty() ? null : String.join(", ", dinnerList); }
+
+        Integer getBreakfastKcal() { return bCalCount > 0 ? (int) Math.round(bCalSum) : null; }
+        Integer getLunchKcal() { return lCalCount > 0 ? (int) Math.round(lCalSum) : null; }
+        Integer getDinnerKcal() { return dCalCount > 0 ? (int) Math.round(dCalSum) : null; }
+    }
+
+    // 💡 텍스트에서 순수 숫자 칼로리만 뽑아내는 메서드
+    private Double parseCalValue(String text) {
+        if (text == null || text.isBlank()) return null;
+        try {
+            String cleaned = text.replaceAll("[^0-9.]", "");
+            return cleaned.isBlank() ? null : Double.parseDouble(cleaned);
+        } catch (Exception e) { return null; }
+    }
+
+    private String cleanMealText(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String cleaned = raw;
+        cleaned = cleaned.replaceAll("(?i)IF\\([^)]+\\)", ""); 
+        cleaned = cleaned.replaceAll("\\d{4}[-.]\\d{2}[-.]\\d{2}\\([가-힣]\\)", ""); 
+        cleaned = cleaned.replaceAll("(?i)\\d+(?:\\.\\d+)?\\s*(?:kcal|㎉|ml|g|kg|l)", ""); 
+        cleaned = cleaned.replaceAll("\\([^)]*(계약|상표|공급|업체|개입)[^)]*\\)", ""); 
+        cleaned = cleaned.replaceAll("\\b0\\b", ""); 
+        cleaned = cleaned.replaceAll("[,\\s]+", " ").trim(); 
+        return cleaned.isBlank() ? null : cleaned;
     }
 
     @SuppressWarnings("unchecked")
@@ -81,50 +174,6 @@ public class MndMealResponseParser {
         return result;
     }
 
-    private ParsedMealRow parseSingleRow(Map<String, Object> row, String serviceName) {
-        String dateText = firstText(row, DATE_KEYS);
-        if (dateText == null) return null;
-        
-        LocalDate mealDate = parseDate(dateText);
-        if (mealDate == null) return null;
-
-        // 1. 칼로리 추출을 위한 원본 텍스트
-        String rawBreakfast = blankToNull(firstText(row, BREAKFAST_KEYS));
-        String rawLunch = blankToNull(firstText(row, LUNCH_KEYS));
-        String rawDinner = blankToNull(firstText(row, DINNER_KEYS));
-
-        Integer breakfastKcal = parseKcalFromMealText(rawBreakfast);
-        Integer lunchKcal = parseKcalFromMealText(rawLunch);
-        Integer dinnerKcal = parseKcalFromMealText(rawDinner);
-        Integer totalKcal = sum(breakfastKcal, lunchKcal, dinnerKcal);
-
-        // 2. ✨ 화면에 나갈 텍스트는 클리닝 진행 ✨ ( RAW 대응 로직 삭제됨 )
-        String cleanBreakfast = cleanMealText(rawBreakfast);
-        String cleanLunch = cleanMealText(rawLunch);
-        String cleanDinner = cleanMealText(rawDinner);
-
-        return new ParsedMealRow(
-                serviceName, mealDate, 
-                cleanBreakfast, cleanLunch, cleanDinner, 
-                breakfastKcal, lunchKcal, dinnerKcal, totalKcal,
-                blankToNull(firstText(row, UNIT_NAME_KEYS)),
-                blankToNull(firstText(row, REGION_KEYS))
-        );
-    }
-
-    // 💡 먼지 털어내는 청소기 메서드 (용량, 수식, 괄호 제거)
-    private String cleanMealText(String raw) {
-        if (raw == null || raw.isBlank()) return null;
-        String cleaned = raw;
-        cleaned = cleaned.replaceAll("(?i)IF\\([^)]+\\)", ""); // 엑셀 수식
-        cleaned = cleaned.replaceAll("\\d{4}[-.]\\d{2}[-.]\\d{2}\\([가-힣]\\)", ""); // 날짜
-        cleaned = cleaned.replaceAll("(?i)\\d+(?:\\.\\d+)?\\s*(?:kcal|㎉|ml|g|kg|l)", ""); // 단위 및 칼로리
-        cleaned = cleaned.replaceAll("\\([^)]*(계약|상표|공급|업체|개입)[^)]*\\)", ""); // 불필요 괄호
-        cleaned = cleaned.replaceAll("\\b0\\b", ""); // 0 제거
-        cleaned = cleaned.replaceAll("[,\\s]+", " ").trim(); // 띄어쓰기 정리
-        return cleaned.isBlank() ? null : cleaned;
-    }
-
     private LocalDate parseDate(String raw) {
         if (raw == null || raw.isBlank()) return null;
         String cleaned = raw.trim().replaceAll("\\([^)]*\\)", "").replaceAll("\\s+", "");
@@ -138,23 +187,10 @@ public class MndMealResponseParser {
         return null;
     }
 
-    private Integer parseKcalFromMealText(String mealText) {
-        if (mealText == null) return null;
-        Matcher matcher = KCAL_IN_TEXT_PATTERN.matcher(mealText);
-        Integer max = null;
-        while (matcher.find()) {
-            try {
-                int value = (int) Math.round(Double.parseDouble(matcher.group(1)));
-                if (max == null || value > max) max = value;
-            } catch (Exception ignored) {}
-        }
-        return max;
-    }
-
     private Integer sum(Integer... values) {
-        int sum = 0;
-        for (Integer v : values) if (v != null) sum += v;
-        return sum == 0 ? null : sum;
+        int sum = 0; boolean hasValue = false;
+        for (Integer v : values) { if (v != null) { sum += v; hasValue = true; } }
+        return hasValue ? sum : null;
     }
 
     private String firstText(Map<String, Object> row, List<String> aliases) {
