@@ -23,6 +23,7 @@ public class MndMealResponseParser {
     private static final Pattern DATE_PATTERN =
             Pattern.compile("\\d{4}[-.]\\d{1,2}[-.]\\d{1,2}");
 
+    // 💡 키값 보강 완료
     private static final List<String> DATE_KEYS = List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜", "급식일", "dates");
     private static final List<String> BREAKFAST_KEYS = List.of("BRKFST", "조식", "breakfast", "조식메뉴", "brst");
     private static final List<String> LUNCH_KEYS = List.of("LUNCH", "중식", "lunch", "중식메뉴", "lunc");
@@ -32,7 +33,6 @@ public class MndMealResponseParser {
 
     public List<ParsedMealRow> parseRows(String serviceName, Map<String, Object> responseBody) {
         if (responseBody == null || responseBody.isEmpty()) return List.of();
-
         Object serviceRoot = responseBody.get(serviceName);
         if (serviceRoot == null) return List.of();
 
@@ -43,7 +43,6 @@ public class MndMealResponseParser {
             ParsedMealRow parsed = parseSingleRow(row, serviceName);
             if (parsed != null) result.add(parsed);
         }
-
         log.info("식단 row 파싱 완료 service={}, count={}", serviceName, result.size());
         return result;
     }
@@ -51,12 +50,31 @@ public class MndMealResponseParser {
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> extractRowMaps(Object serviceRoot, String serviceName) {
         List<Map<String, Object>> result = new ArrayList<>();
-        // (기존 extractRowMaps 로직은 동일하게 유지하세요)
+        if (serviceRoot instanceof List<?> serviceRootList) {
+            for (Object item : serviceRootList) {
+                if (item instanceof Map<?, ?> itemMap) {
+                    Object rows = itemMap.get("row");
+                    if (rows instanceof List<?> rowList) {
+                        for (Object row : rowList) if (row instanceof Map<?, ?> rowMap) result.add((Map<String, Object>) rowMap);
+                    }
+                }
+            }
+        }
+        if (!result.isEmpty()) return result;
+
         if (serviceRoot instanceof Map<?, ?> rootMap) {
-            Object rows = ((Map<String, Object>) rootMap).get("row");
+            Object rows = rootMap.get("row");
             if (rows instanceof List<?> rowList) {
-                for (Object row : rowList) {
-                    if (row instanceof Map<?, ?> rowMap) result.add((Map<String, Object>) rowMap);
+                for (Object row : rowList) if (row instanceof Map<?, ?> rowMap) result.add((Map<String, Object>) rowMap);
+            }
+            if (!result.isEmpty()) return result;
+
+            for (Map.Entry<?, ?> entry : rootMap.entrySet()) {
+                if (entry.getValue() instanceof Map<?, ?> nestedMap) {
+                    Object nestedRows = nestedMap.get("row");
+                    if (nestedRows instanceof List<?> rowList) {
+                        for (Object row : rowList) if (row instanceof Map<?, ?> rowMap) result.add((Map<String, Object>) rowMap);
+                    }
                 }
             }
         }
@@ -65,42 +83,55 @@ public class MndMealResponseParser {
 
     private ParsedMealRow parseSingleRow(Map<String, Object> row, String serviceName) {
         String dateText = firstText(row, DATE_KEYS);
-        String breakfastRaw = blankToNull(firstText(row, BREAKFAST_KEYS));
-        String lunchRaw = blankToNull(firstText(row, LUNCH_KEYS));
-        String dinnerRaw = blankToNull(firstText(row, DINNER_KEYS));
-
-        // 💡 RAW 대응 로직(데이터 뭉치기) 삭제!
-        // 이제 파서는 정확한 키값으로만 데이터를 가져와서 분리합니다.
-
         if (dateText == null) return null;
-
+        
         LocalDate mealDate = parseDate(dateText);
         if (mealDate == null) return null;
 
-        Integer breakfastKcal = parseKcalFromMealText(breakfastRaw);
-        Integer lunchKcal = parseKcalFromMealText(lunchRaw);
-        Integer dinnerKcal = parseKcalFromMealText(dinnerRaw);
+        // 1. 칼로리 추출을 위한 원본 텍스트
+        String rawBreakfast = blankToNull(firstText(row, BREAKFAST_KEYS));
+        String rawLunch = blankToNull(firstText(row, LUNCH_KEYS));
+        String rawDinner = blankToNull(firstText(row, DINNER_KEYS));
+
+        Integer breakfastKcal = parseKcalFromMealText(rawBreakfast);
+        Integer lunchKcal = parseKcalFromMealText(rawLunch);
+        Integer dinnerKcal = parseKcalFromMealText(rawDinner);
         Integer totalKcal = sum(breakfastKcal, lunchKcal, dinnerKcal);
 
+        // 2. ✨ 화면에 나갈 텍스트는 클리닝 진행 ✨ ( RAW 대응 로직 삭제됨 )
+        String cleanBreakfast = cleanMealText(rawBreakfast);
+        String cleanLunch = cleanMealText(rawLunch);
+        String cleanDinner = cleanMealText(rawDinner);
+
         return new ParsedMealRow(
-                serviceName, mealDate, breakfastRaw, lunchRaw, dinnerRaw,
+                serviceName, mealDate, 
+                cleanBreakfast, cleanLunch, cleanDinner, 
                 breakfastKcal, lunchKcal, dinnerKcal, totalKcal,
                 blankToNull(firstText(row, UNIT_NAME_KEYS)),
                 blankToNull(firstText(row, REGION_KEYS))
         );
     }
 
+    // 💡 먼지 털어내는 청소기 메서드 (용량, 수식, 괄호 제거)
+    private String cleanMealText(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String cleaned = raw;
+        cleaned = cleaned.replaceAll("(?i)IF\\([^)]+\\)", ""); // 엑셀 수식
+        cleaned = cleaned.replaceAll("\\d{4}[-.]\\d{2}[-.]\\d{2}\\([가-힣]\\)", ""); // 날짜
+        cleaned = cleaned.replaceAll("(?i)\\d+(?:\\.\\d+)?\\s*(?:kcal|㎉|ml|g|kg|l)", ""); // 단위 및 칼로리
+        cleaned = cleaned.replaceAll("\\([^)]*(계약|상표|공급|업체|개입)[^)]*\\)", ""); // 불필요 괄호
+        cleaned = cleaned.replaceAll("\\b0\\b", ""); // 0 제거
+        cleaned = cleaned.replaceAll("[,\\s]+", " ").trim(); // 띄어쓰기 정리
+        return cleaned.isBlank() ? null : cleaned;
+    }
+
     private LocalDate parseDate(String raw) {
         if (raw == null || raw.isBlank()) return null;
         String cleaned = raw.trim().replaceAll("\\([^)]*\\)", "").replaceAll("\\s+", "");
         String compact = cleaned.replaceAll("[^0-9]", "");
-
         try {
-            if (compact.matches("\\d{8}")) {
-                return LocalDate.parse(compact, DateTimeFormatter.BASIC_ISO_DATE);
-            }
+            if (compact.matches("\\d{8}")) return LocalDate.parse(compact, DateTimeFormatter.BASIC_ISO_DATE);
         } catch (DateTimeParseException ignored) {}
-
         try {
             return LocalDate.parse(cleaned.replace('.', '-').replace('/', '-'), DateTimeFormatter.ofPattern("yyyy-M-d"));
         } catch (DateTimeParseException ignored) {}
