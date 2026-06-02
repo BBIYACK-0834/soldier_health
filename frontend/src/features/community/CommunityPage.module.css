@@ -1,0 +1,12 @@
+.edit { font-size: 21px; }
+.tabWrap { display: grid; grid-template-columns: repeat(3, 1fr); padding: 4px; background: var(--color-primary-light); border-radius: 999px; border: 1px solid var(--color-border); }
+.tab { border: 0; background: transparent; border-radius: 999px; padding: 8px 0; font-weight: 900; color: var(--color-primary); }
+.active { background: var(--color-primary); color: #fff; }
+.postHead { display: flex; align-items: center; gap: 10px; }
+.avatar, .rank { width: 38px; height: 38px; border-radius: 50%; background: var(--color-primary-light); color: var(--color-primary); display: grid; place-items: center; font-weight: 900; flex: 0 0 auto; }
+.user { margin: 0; font-weight: 900; color: var(--color-primary-dark); }
+.user span { display: block; color: var(--color-text-secondary); font-size: 12px; font-weight: 700; margin-top: 2px; }
+.title { margin: 12px 0 6px; font-size: 15px; color: var(--color-text-primary); }
+.content { margin: 0; color: #343b30; font-weight: 700; line-height: 1.45; }
+.meta { margin: 12px 0 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 800; }
+.fab { position: sticky; bottom: 14px; align-self: flex-end; width: 52px; height: 52px; border: 0; border-radius: 50%; background: var(--color-primary); color: #fff; font-size: 28px; box-shadow: 0 8px 20px rgba(63, 79, 50, .24); }

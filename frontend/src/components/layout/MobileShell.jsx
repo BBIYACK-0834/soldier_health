@@ -3,7 +3,7 @@ import styles from './MobileShell.module.css';
 
 const defaultTabs = [
   { to: '/', label: '홈' },
-  { to: '/workout', label: '운동' },
+  { to: '/exercise', label: '운동' },
   { to: '/nutrition', label: '식단' },
   { to: '/community', label: '커뮤니티' },
   { to: '/profile', label: '프로필' },

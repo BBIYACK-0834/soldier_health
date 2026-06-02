@@ -1,0 +1,24 @@
+.profileTop { display: grid; grid-template-columns: 58px 1fr 32px; align-items: center; gap: 12px; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: #fff; }
+.avatar { width: 58px; height: 58px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; font-size: 34px; }
+.profileTop h2 { margin: 0; font-size: 20px; }
+.profileTop p { margin: 6px 0 0; color: rgba(255,255,255,.82); font-weight: 700; }
+.settings { border: 0; background: transparent; color: #fff; font-size: 20px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stats p { margin: 0 0 8px; color: var(--color-text-secondary); font-weight: 800; }
+.stats strong { color: var(--color-primary); font-size: 24px; }
+.sectionTitle { margin: 0 0 10px; }
+.menu { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+.menu li { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--color-border); font-weight: 900; cursor: pointer; }
+.menu li:last-child { border-bottom: 0; }
+.menu b { color: var(--color-text-muted); }
+.logoutButton { border: 0; border-radius: 12px; padding: 14px; background: var(--color-primary); color: #fff; font-weight: 900; width: 100%; }
+.form { display: flex; flex-direction: column; gap: 10px; }
+.optionGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.optionGrid button { border: 1px solid var(--color-border); border-radius: 999px; background: #fff; padding: 10px 4px; font-weight: 900; color: var(--color-primary); }
+.optionGrid .active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.toggleRow, .dataRow { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--color-border); }
+.toggleRow:last-child, .dataRow:last-child { border-bottom: 0; }
+.toggle { width: 46px; height: 26px; border: 0; border-radius: 999px; background: #c9c9c9; padding: 3px; display: flex; justify-content: flex-start; }
+.toggle::after { content: ''; width: 20px; height: 20px; border-radius: 50%; background: #fff; display: block; }
+.toggleOn { background: var(--color-success); justify-content: flex-end; }
+.danger { color: var(--color-danger); }

@@ -38,3 +38,7 @@
 .menuGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
 .menuChip { border: 1px solid #d8d3c6; border-radius: 12px; background: #f2f1ec; color: #26354b; padding: 10px 12px; text-align: left; font-weight: 700; }
 .menuChipSelected { border-color: #28a67a; background: #dff2eb; color: #0d6b4e; }
+.completeCard { min-height: 640px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px; }
+.checkIcon { width: 72px; height: 72px; border-radius: 50%; background: var(--color-primary); color: #fff; display: grid; place-items: center; font-size: 42px; font-weight: 900; }
+.completeCard h2 { margin: 0; font-size: 24px; line-height: 1.35; }
+.completeCard p { margin: 0 0 18px; color: var(--color-text-secondary); font-weight: 700; }

@@ -1,16 +1,57 @@
 :root {
+  --color-primary: #3F4F32;
+  --color-primary-dark: #2F3D26;
+  --color-primary-light: #EEF2E8;
+  --color-secondary: #8A9574;
+  --color-accent: #D99A3D;
+  --color-background: #FAF8F2;
+  --color-surface: #FFFFFF;
+  --color-surface-soft: #F4F1E8;
+  --color-text-primary: #1E1E1E;
+  --color-text-secondary: #666666;
+  --color-text-muted: #999999;
+  --color-border: #E2DED3;
+  --color-danger: #D9534F;
+  --color-success: #4E7D45;
+  --tg-bg: var(--color-background);
+  --tg-surface: var(--color-surface);
+  --tg-card: var(--color-surface);
+  --tg-card-strong: var(--color-surface-soft);
+  --tg-border: var(--color-border);
+  --tg-text: var(--color-text-primary);
+  --tg-muted: var(--color-text-secondary);
+  --tg-primary: var(--color-primary);
+  --tg-primary-dark: var(--color-primary-dark);
+  --tg-primary-soft: var(--color-primary-light);
+  --tg-accent: var(--color-accent);
+  --tg-danger: var(--color-danger);
+  --tg-shadow: 0 14px 40px rgba(46, 56, 36, 0.12);
+  --tg-radius-phone: 24px;
+  --tg-radius-card: 16px;
+  --tg-phone-width: 393px;
   font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #1f261d;
-  background: #e9e6df;
+  color: var(--tg-text);
+  background: var(--tg-bg);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: #e9e6df;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.7), transparent 36%),
+    var(--tg-bg);
 }
 
 a { color: inherit; }
 
-button,input,textarea { font: inherit; }
+button,
+input,
+textarea { font: inherit; }
+
+button { cursor: pointer; }
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
