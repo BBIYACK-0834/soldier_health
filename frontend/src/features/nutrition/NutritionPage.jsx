@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import AppLayout from '../components/layout/AppLayout';
-import Card from '../components/ui/Card';
-import ProgressBar from '../components/ui/ProgressBar';
-import MacroBox from '../components/ui/MacroBox';
-import { getTodayMeal } from '../api/mealApi';
-import { getTodayNutrition } from '../api/nutritionApi';
-import { getMyUnit } from '../api/unitApi';
-import styles from '../features/design/DietPage.module.css';
+import AppLayout from '../../components/layout/AppLayout';
+import Card from '../../components/ui/Card';
+import ProgressBar from '../../components/ui/ProgressBar';
+import MacroBox from '../../components/ui/MacroBox';
+import { getTodayMeal } from '../../api/mealApi';
+import { getTodayNutrition } from '../../api/nutritionApi';
+import { getMyUnit } from '../../api/unitApi';
+import { mockDashboardSummary, mockMealDay, mockUnits } from '../../constants/mockData';
+import styles from './DietPage.module.css';
 
 const mealLabels = [
   { key: 'breakfastRaw', label: '아침' },
@@ -38,9 +39,9 @@ function formatKcal(value) {
 }
 
 export default function NutritionPage() {
-  const [nutrition, setNutrition] = useState(null);
-  const [meal, setMeal] = useState(null);
-  const [unit, setUnit] = useState(null);
+  const [nutrition, setNutrition] = useState(mockDashboardSummary);
+  const [meal, setMeal] = useState(mockMealDay);
+  const [unit, setUnit] = useState(mockUnits[0]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -55,12 +56,15 @@ export default function NutritionPage() {
           getMyUnit(),
         ]);
         if (!mounted) return;
-        setNutrition(nutritionData ?? null);
-        setMeal(mealData ?? null);
-        setUnit(unitData ?? null);
+        setNutrition(nutritionData ? { ...mockDashboardSummary, ...nutritionData } : mockDashboardSummary);
+        setMeal(mealData ? { ...mockMealDay, ...mealData } : mockMealDay);
+        setUnit(unitData ?? mockUnits[0]);
       } catch (error) {
         if (!mounted) return;
-        setErrorMessage(error.message || '식단 정보를 불러오지 못했습니다.');
+        setNutrition(mockDashboardSummary);
+        setMeal(mockMealDay);
+        setUnit(mockUnits[0]);
+        setErrorMessage('서버 연결 전이라 예시 식단으로 표시합니다.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -92,7 +96,7 @@ export default function NutritionPage() {
   );
 
   return (
-    <AppLayout title="식단 기록" subtitle="국방부 OpenAPI 수집 DB 기반" headerAction={<span className={styles.calendar}>🗓️</span>}>
+    <AppLayout title="식단 기록" subtitle="날짜별 식단과 영양소를 확인하세요." headerAction={<span className={styles.calendar}>🗓️</span>}>
       <Card>
         <p className={styles.totalTitle}>총 섭취 칼로리</p>
         <p className={styles.totalKcal}>{`${totalKcal.toLocaleString()} kcal`}</p>
@@ -111,14 +115,14 @@ export default function NutritionPage() {
       </Card>
 
       <Card>
-        <div className={styles.row}><strong>선택 부대</strong></div>
+        <div className={styles.row}><strong>선택 부대</strong><button type="button" onClick={() => window.location.assign('/diet/add')}>음식 추가</button></div>
         <p className={styles.fixed}>{unit?.unitName || '선택된 부대가 없습니다'}</p>
       </Card>
 
-      {mealLabels.map((section) => {
-        const items = parseMeal(meal?.[section.key]);
+      {[...mealLabels, { key: 'snackRaw', label: '간식' }].map((section) => {
+        const items = section.key === 'snackRaw' ? ['프로틴 쉐이크 1스쿱'] : parseMeal(meal?.[section.key]);
         const kcalKey = `${section.key.replace('Raw', 'Kcal')}`;
-        const mealKcal = meal?.[kcalKey];
+        const mealKcal = section.key === 'snackRaw' ? 120 : meal?.[kcalKey];
         return (
           <Card key={section.key}>
             <div className={styles.row}>

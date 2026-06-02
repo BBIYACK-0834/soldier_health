@@ -1,6 +1,7 @@
 .card {
-  background: #efede7;
-  border: 1px solid #d8d4c9;
-  border-radius: 18px;
+  background: var(--tg-card);
+  border: 1px solid var(--tg-border);
+  border-radius: var(--tg-radius-card);
   padding: 14px;
+  box-shadow: 0 4px 16px rgba(45, 54, 36, 0.05);
 }

@@ -1,0 +1,4 @@
+.step { display: flex; gap: 14px; align-items: flex-start; }
+.step span { width: 46px; height: 46px; border-radius: 50%; background: var(--color-primary-light); display: grid; place-items: center; font-size: 22px; flex: 0 0 auto; }
+.step h3 { margin: 0 0 6px; color: var(--color-primary-dark); }
+.step p { margin: 0; color: var(--color-text-secondary); line-height: 1.45; font-weight: 700; }

@@ -131,3 +131,10 @@ curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/DS_T
 ## 8) 참고
 - `backend/gradle/wrapper/gradle-wrapper.jar`는 저장소에 포함되지 않습니다.
 - 네트워크 제한 환경에서는 Gradle plugin/배포본 다운로드가 실패할 수 있습니다.
+
+## Project Notes for Ongoing Development
+
+- UI/UX 기준 원문/구현 라우트는 [`docs/designMe.md`](docs/designMe.md)에, 라우트/API 요약과 DB ↔ Java/JSON 변수명 매핑은 [`docs/developMe.md`](docs/developMe.md)에 정리합니다.
+- Codex가 수행한 구조 변경과 검증 기록은 [`docs/codexMe.md`](docs/codexMe.md)에 누적합니다.
+- 프론트 페이지는 기능별로 `frontend/src/features/<feature>/` 아래에 JSX와 CSS 모듈을 함께 둡니다.
+- 크롤링/수집 관련 백엔드(`backend/src/main/java/com/teukgeupjeonsa/backend/collector/`)는 사용자의 직접 요청 없이는 수정하지 않습니다.
