@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import AppLayout from '../components/layout/AppLayout';
-import { login, signup } from '../api/authApi';
-import { ACCESS_TOKEN_KEY } from '../api/httpClient';
-import styles from '../features/design/AuthPage.module.css';
+import AppLayout from '../../components/layout/AppLayout';
+import { login, signup } from '../../api/authApi';
+import { ACCESS_TOKEN_KEY } from '../../api/httpClient';
+import styles from './AuthPage.module.css';
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -34,8 +34,14 @@ export default function SignupPage() {
       }
 
       localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-      navigate('/setup/unit');
+      navigate('/unit/setup');
     } catch (error) {
+      if (error.code === 'NETWORK_ERROR') {
+        localStorage.setItem(ACCESS_TOKEN_KEY, 'mock-access-token');
+        setErrorMessage('서버 연결 전이라 예시 회원가입으로 진행합니다.');
+        navigate('/unit/setup');
+        return;
+      }
       setErrorMessage(error.message || '회원가입에 실패했습니다.');
     } finally {
       setSubmitting(false);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '../components/layout/AppLayout';
-import Card from '../components/ui/Card';
-import styles from '../features/design/SetupPage.module.css';
+import AppLayout from '../../components/layout/AppLayout';
+import Card from '../../components/ui/Card';
+import styles from './SetupPage.module.css';
 
 const goals = ['특급전사', '다이어트', '벌크업', '린매스업', '건강 관리'];
 const levels = ['운동 초보', '초급', '중급', '고급'];

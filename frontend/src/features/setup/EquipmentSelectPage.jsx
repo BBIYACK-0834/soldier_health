@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '../components/layout/AppLayout';
-import { getEquipments, getMyEquipments, saveMyEquipments } from '../api/equipmentApi';
-import styles from '../features/design/SetupPage.module.css';
+import AppLayout from '../../components/layout/AppLayout';
+import { getEquipments, getMyEquipments, saveMyEquipments } from '../../api/equipmentApi';
+import styles from './SetupPage.module.css';
 
 export default function EquipmentSelectPage() {
   const navigate = useNavigate();

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '../components/layout/AppLayout';
-import styles from '../features/design/OnboardingPage.module.css';
+import AppLayout from '../../components/layout/AppLayout';
+import styles from './OnboardingPage.module.css';
 
 export default function OnboardingPage() {
   const navigate = useNavigate();

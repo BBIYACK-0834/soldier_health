@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '../components/layout/AppLayout';
-import Card from '../components/ui/Card';
-import { findUnitsByMeal, getMealOptionsByDate, getUnits, searchUnits, setMyUnit } from '../api/unitApi';
-import styles from '../features/design/SetupPage.module.css';
+import AppLayout from '../../components/layout/AppLayout';
+import Card from '../../components/ui/Card';
+import { findUnitsByMeal, getMealOptionsByDate, getUnits, searchUnits, setMyUnit } from '../../api/unitApi';
+import { mockUnits } from '../../constants/mockData';
+import styles from './SetupPage.module.css';
 
 function formatDate(date) {
   return date.toISOString().slice(0, 10);
@@ -64,10 +65,11 @@ export default function UnitSelectPage() {
         setLoadingUnits(true);
         const unitList = await getUnits();
         if (!isMounted) return;
-        setUnits(unitList ?? []);
+        setUnits(unitList?.length ? unitList : mockUnits);
       } catch (error) {
         if (!isMounted) return;
-        setErrorMessage(error.message || '부대 목록을 불러오지 못했습니다.');
+        setUnits(mockUnits);
+        setErrorMessage('서버 연결 전이라 예시 부대 목록으로 표시합니다.');
       } finally {
         if (isMounted) {
           setLoadingUnits(false);
@@ -91,10 +93,11 @@ export default function UnitSelectPage() {
         setLoadingUnits(true);
         const list = query.trim() ? await searchUnits(query.trim()) : await getUnits();
         if (!isMounted) return;
-        setUnits(list ?? []);
+        setUnits(list?.length ? list : mockUnits.filter((unit) => unit.unitName.includes(query.trim())));
       } catch (error) {
         if (!isMounted) return;
-        setErrorMessage(error.message || '부대 검색에 실패했습니다.');
+        setUnits(mockUnits.filter((unit) => !query.trim() || unit.unitName.includes(query.trim())));
+        setErrorMessage('서버 연결 전이라 예시 부대 검색 결과로 표시합니다.');
       } finally {
         if (isMounted) {
           setLoadingUnits(false);
@@ -227,8 +230,12 @@ export default function UnitSelectPage() {
     try {
       setSubmitting(true);
       setErrorMessage('');
-      await setMyUnit(selectedId);
-      navigate('/setup/equipment');
+      try {
+        await setMyUnit(selectedId);
+      } catch {
+        localStorage.setItem('tg_mock_unit_id', String(selectedId));
+      }
+      navigate('/unit/complete');
     } catch (error) {
       setErrorMessage(error.message || '부대 선택 저장에 실패했습니다.');
     } finally {

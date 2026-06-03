@@ -1,29 +1,32 @@
 .nav {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  border-top: 1px solid #d5d0c5;
-  background: #f4f2ed;
+  border-top: 1px solid var(--tg-border);
+  background: rgba(247, 245, 239, 0.94);
+  backdrop-filter: blur(10px);
 }
 
 .item {
   text-align: center;
   text-decoration: none;
   color: #6a6f62;
-  font-weight: 700;
+  font-weight: 800;
   padding: 8px 2px 10px;
   display: grid;
   gap: 2px;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .item span {
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1;
 }
 
 .item small {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .active {
-  color: #556a3b;
+  color: var(--tg-primary);
+  transform: translateY(-1px);
 }
