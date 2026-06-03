@@ -65,12 +65,3 @@
   gap: 8px !important;
   font-size: 14px;
 }
-.stepTabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin-bottom: 10px; border-radius: 999px; background: #e7e4da; }
-.stepTabs button { border: 0; border-radius: 999px; padding: 9px; background: transparent; color: #556a3b; font-weight: 900; }
-.stepTabs .activeStep { background: #556a3b; color: #fff; }
-.profilePreview { width: 96px; height: 96px; border-radius: 50%; margin: 0 auto 4px; display: grid; place-items: center; overflow: hidden; background: #e4e0d4; border: 2px solid #d1cdbf; font-size: 44px; }
-.profilePreview img { width: 100%; height: 100%; object-fit: cover; }
-.presetGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.presetGrid button { margin: 0; padding: 6px; border: 2px solid transparent; border-radius: 14px; background: #f8f7f2; }
-.presetGrid img { width: 52px; height: 52px; border-radius: 50%; display: block; margin: 0 auto; }
-.presetGrid .selectedPreset { border-color: #556a3b; background: #eef2e7; }

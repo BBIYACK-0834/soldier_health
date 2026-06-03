@@ -6,15 +6,12 @@ import ProgressBar from '../../components/ui/ProgressBar';
 import MacroBox from '../../components/ui/MacroBox';
 import WorkoutCheckCircle from '../../components/ui/WorkoutCheckCircle';
 import { getTodayNutrition } from '../../api/nutritionApi';
-import { getMyProfile } from '../../api/userApi';
 import { mockDashboardSummary, mockUser } from '../../constants/mockData';
-import { calculateMilitaryService } from '../../utils/militaryService';
 import styles from './HomePage.module.css';
 
 export default function HomePage() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState(mockDashboardSummary);
-  const [profile, setProfile] = useState(mockUser);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -23,14 +20,12 @@ export default function HomePage() {
     async function load() {
       try {
         setLoading(true);
-        const [data, profileData] = await Promise.all([getTodayNutrition(), getMyProfile()]);
+        const data = await getTodayNutrition();
         if (!mounted) return;
         setSummary(data ? { ...mockDashboardSummary, ...data } : mockDashboardSummary);
-        setProfile(profileData ? { ...mockUser, ...profileData } : mockUser);
       } catch (error) {
         if (!mounted) return;
         setSummary(mockDashboardSummary);
-        setProfile(mockUser);
         setErrorMessage('서버 연결 전이라 예시 데이터로 홈을 표시합니다.');
       } finally {
         if (mounted) setLoading(false);
@@ -46,7 +41,6 @@ export default function HomePage() {
   const intakeCalories = Number.isFinite(summary?.intakeCalories) ? summary.intakeCalories : mockDashboardSummary.intakeCalories;
   const targetCalories = Number.isFinite(summary?.targetCalories) ? summary.targetCalories : mockDashboardSummary.targetCalories;
   const weeklyExercise = summary?.weeklyExercise ?? mockDashboardSummary.weeklyExercise;
-  const serviceInfo = calculateMilitaryService(profile?.enlistmentDate) ?? profile;
 
   const macroData = useMemo(
     () => [
@@ -59,7 +53,7 @@ export default function HomePage() {
 
   return (
     <AppLayout
-      title={`${profile?.nickname || mockUser.nickname}님, 오늘도 파이팅입니다.`}
+      title={`${mockUser.nickname}님, 오늘도 파이팅입니다.`}
       subtitle="오늘의 건강 상태를 한눈에 확인하세요."
       headerAction={<button type="button" className={styles.iconBtn} onClick={() => navigate('/mypage/notifications')}>🔔</button>}
     >
@@ -94,11 +88,15 @@ export default function HomePage() {
       <Card className={styles.tipCard}>
         <div className={styles.avatar}>🪖</div>
         <div>
-          <span className={styles.tipPill}>{serviceInfo?.daysUntilDischarge != null ? `D-${serviceInfo.daysUntilDischarge} 전역` : '입대일 설정 필요'}</span>
+          <span className={styles.tipPill}>D-120 전역</span>
           <p>{summary?.recommendation || mockDashboardSummary.recommendation}</p>
         </div>
       </Card>
 
+      <div className={styles.quickGrid}>
+        <button type="button" onClick={() => navigate('/diet/add')}>+ 식단 추가</button>
+        <button type="button" onClick={() => navigate('/exercise/add/equipment')}>+ 운동 추가</button>
+      </div>
       {loading ? <small className={styles.meta}>데이터를 동기화하는 중...</small> : null}
       {errorMessage ? <small className={styles.meta}>{errorMessage}</small> : null}
     </AppLayout>

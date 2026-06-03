@@ -45,9 +45,6 @@ public class CommunityPost {
     private String routineText;
 
     @Column(nullable = false)
-    private int likeCount;
-
-    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

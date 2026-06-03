@@ -6,11 +6,18 @@ export default function AppLayout({
   subtitle,
   children,
   showBottomNav = true,
+  showStatusBar = true,
   headerAction,
 }) {
   return (
     <div className={styles.viewport}>
       <div className={styles.phone}>
+        {showStatusBar ? (
+          <div className={styles.statusBar} aria-label="모바일 상태 표시줄">
+            <strong>04:1</strong>
+            <span>⌁ ▰ ●</span>
+          </div>
+        ) : null}
         {(title || subtitle || headerAction) && (
           <header className={styles.header}>
             <div>
