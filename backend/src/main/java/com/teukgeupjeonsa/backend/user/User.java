@@ -48,8 +48,8 @@ public class User {
     @Column(length = 20)
     private BranchType branchType;
 
-    @Column(length = 30)
-    private String rank;
+    @Column(name = "military_rank", length = 30)
+private String rank;
 
     private LocalDate dischargeDate;
 
