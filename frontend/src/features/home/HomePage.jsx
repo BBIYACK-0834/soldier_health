@@ -7,6 +7,7 @@ import MacroBox from '../../components/ui/MacroBox';
 import WorkoutCheckCircle from '../../components/ui/WorkoutCheckCircle';
 import { getTodayNutrition } from '../../api/nutritionApi';
 import { emptyDashboardSummary, emptyUser } from '../../constants/defaultData';
+import { getWeeklyWorkoutSummary } from '../../utils/workoutStorage';
 import { useAppContext } from '../../app/AppContext';
 import styles from './HomePage.module.css';
 
@@ -16,6 +17,7 @@ export default function HomePage() {
   const [summary, setSummary] = useState(emptyDashboardSummary);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [localWeeklyExercise, setLocalWeeklyExercise] = useState(() => getWeeklyWorkoutSummary());
 
   useEffect(() => {
     let mounted = true;
@@ -40,9 +42,23 @@ export default function HomePage() {
     };
   }, []);
 
+  useEffect(() => {
+    const refreshWorkoutSummary = () => setLocalWeeklyExercise(getWeeklyWorkoutSummary());
+    window.addEventListener('focus', refreshWorkoutSummary);
+    window.addEventListener('tg-workout-progress-updated', refreshWorkoutSummary);
+    return () => {
+      window.removeEventListener('focus', refreshWorkoutSummary);
+      window.removeEventListener('tg-workout-progress-updated', refreshWorkoutSummary);
+    };
+  }, []);
+
   const intakeCalories = Number.isFinite(summary?.intakeCalories) ? summary.intakeCalories : emptyDashboardSummary.intakeCalories;
   const targetCalories = Number.isFinite(summary?.targetCalories) ? summary.targetCalories : emptyDashboardSummary.targetCalories;
-  const weeklyExercise = summary?.weeklyExercise ?? emptyDashboardSummary.weeklyExercise;
+  const apiWeeklyExercise = summary?.weeklyExercise ?? emptyDashboardSummary.weeklyExercise;
+  const weeklyExercise = {
+    completed: Math.max(apiWeeklyExercise.completed ?? 0, localWeeklyExercise.completed),
+    target: apiWeeklyExercise.target || localWeeklyExercise.target,
+  };
 
   const macroData = useMemo(
     () => [

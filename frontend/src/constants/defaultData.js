@@ -3,6 +3,8 @@ export const emptyUser = {
   email: '',
   nickname: '사용자',
   rank: '',
+  dischargeDate: '',
+  promotionDate: '',
   unitId: null,
   unitName: '',
   streakDays: 0,

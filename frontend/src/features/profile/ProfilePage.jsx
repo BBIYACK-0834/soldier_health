@@ -8,11 +8,30 @@ import { emptyUser } from '../../constants/defaultData';
 import styles from './MyPage.module.css';
 
 const menus = [
+  { label: '내 정보 설정', path: '/mypage/settings', icon: '⚙️' },
   { label: '목표 설정', path: '/mypage/goal', icon: '🎯' },
   { label: '알림 설정', path: '/mypage/notifications', icon: '🔔' },
   { label: '데이터 관리', path: '/mypage/data', icon: '💾' },
   { label: '내 게시글', path: '/mypage/posts', icon: '📝' },
 ];
+
+function getRemainingDays(dateString) {
+  if (!dateString) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateString);
+  if (Number.isNaN(target.getTime())) return null;
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatDday(label, dateString) {
+  const days = getRemainingDays(dateString);
+  if (days === null) return null;
+  if (days < 0) return `${label} D+${Math.abs(days)}`;
+  if (days === 0) return `${label} D-Day`;
+  return `${label} D-${days}`;
+}
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -37,6 +56,9 @@ export default function ProfilePage() {
     };
   }, []);
 
+  const dischargeDday = formatDday('전역', profile?.dischargeDate);
+  const promotionDday = formatDday('진급', profile?.promotionDate);
+
   const handleLogout = () => {
     actions.logout();
     navigate('/login');
@@ -48,9 +70,13 @@ export default function ProfilePage() {
         <div className={styles.avatar}>🪖</div>
         <div>
           <h2>{profile?.nickname || '사용자'}</h2>
-          <p>{profile?.rank || '이병'} · {profile?.unitName || '선택된 부대 없음'}</p>
+          <p>{profile?.rank || '계급 미설정'} · {profile?.unitName || '선택된 부대 없음'}</p>
+          <div className={styles.militaryMeta}>
+            {dischargeDday ? <span>{dischargeDday}</span> : null}
+            {promotionDday ? <span>{promotionDday}</span> : null}
+          </div>
         </div>
-        <button type="button" className={styles.settings}>⚙️</button>
+        <button type="button" className={styles.settings} onClick={() => navigate('/mypage/settings')} aria-label="내 정보 설정">⚙️</button>
       </Card>
       <div className={styles.stats}>
         <Card><p>연속 기록</p><strong>{profile?.streakDays ?? 0}일</strong></Card>

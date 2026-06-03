@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
 import { findUnitsByMeal, getMealOptionsByDate, getUnits, searchUnits, setMyUnit } from '../../api/unitApi';
@@ -27,6 +27,8 @@ const EMPTY_SELECTED_MENUS = {
 
 export default function UnitSelectPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = searchParams.get('next') || '/setup/profile';
 
   const [mode, setMode] = useState('meal');
   const [selectedId, setSelectedId] = useState(null);
@@ -241,7 +243,7 @@ export default function UnitSelectPage() {
       if (selectedUnit) {
         localStorage.setItem('tg_selected_unit', JSON.stringify(selectedUnit));
       }
-      navigate('/unit/complete');
+      navigate(nextPath);
     } catch (error) {
       setErrorMessage(error.message || '부대 선택 저장에 실패했습니다.');
     } finally {

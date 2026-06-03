@@ -10,3 +10,16 @@
 .content { margin: 0; color: #343b30; font-weight: 700; line-height: 1.45; }
 .meta { margin: 12px 0 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 800; }
 .fab { position: sticky; bottom: 14px; align-self: flex-end; width: 52px; height: 52px; border: 0; border-radius: 50%; background: var(--color-primary); color: #fff; font-size: 28px; box-shadow: 0 8px 20px rgba(63, 79, 50, .24); }
+.edit { border: 0; background: transparent; padding: 0; cursor: pointer; }
+.composerCard { border-color: rgba(85, 106, 59, 0.35); background: linear-gradient(180deg, #fbfaf6, #ffffff); }
+.composerForm { display: flex; flex-direction: column; gap: 10px; }
+.composerHead { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.composerHead h3 { margin: 0; color: var(--color-primary-dark); }
+.composerHead button { border: 0; background: #eef2e7; color: var(--color-primary); width: 32px; height: 32px; border-radius: 50%; font-size: 24px; font-weight: 900; line-height: 1; }
+.categorySelect { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.categorySelect button { border: 1px solid var(--color-border); border-radius: 999px; background: #fff; color: var(--color-primary); padding: 9px 10px; font-weight: 900; }
+.categorySelect .selectedCategory { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.composerForm input,
+.composerForm textarea { border: 1px solid var(--color-border); border-radius: 14px; background: #fff; color: var(--color-text-primary); padding: 12px; font: inherit; font-weight: 800; resize: vertical; }
+.submitButton { border: 0; border-radius: 14px; background: var(--color-primary); color: #fff; padding: 13px; font-weight: 900; }
+.submitButton:disabled { opacity: 0.55; }
