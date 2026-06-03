@@ -6,12 +6,14 @@ import ProgressBar from '../../components/ui/ProgressBar';
 import MacroBox from '../../components/ui/MacroBox';
 import WorkoutCheckCircle from '../../components/ui/WorkoutCheckCircle';
 import { getTodayNutrition } from '../../api/nutritionApi';
-import { mockDashboardSummary, mockUser } from '../../constants/mockData';
+import { emptyDashboardSummary, emptyUser } from '../../constants/defaultData';
+import { useAppContext } from '../../app/AppContext';
 import styles from './HomePage.module.css';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const [summary, setSummary] = useState(mockDashboardSummary);
+  const { state } = useAppContext();
+  const [summary, setSummary] = useState(emptyDashboardSummary);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -22,11 +24,11 @@ export default function HomePage() {
         setLoading(true);
         const data = await getTodayNutrition();
         if (!mounted) return;
-        setSummary(data ? { ...mockDashboardSummary, ...data } : mockDashboardSummary);
+        setSummary(data ? { ...emptyDashboardSummary, ...data } : emptyDashboardSummary);
       } catch (error) {
         if (!mounted) return;
-        setSummary(mockDashboardSummary);
-        setErrorMessage('서버 연결 전이라 예시 데이터로 홈을 표시합니다.');
+        setSummary(emptyDashboardSummary);
+        setErrorMessage('건강 데이터를 불러오지 못했습니다. 연결 전에는 모든 수치를 0으로 표시합니다.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -38,9 +40,9 @@ export default function HomePage() {
     };
   }, []);
 
-  const intakeCalories = Number.isFinite(summary?.intakeCalories) ? summary.intakeCalories : mockDashboardSummary.intakeCalories;
-  const targetCalories = Number.isFinite(summary?.targetCalories) ? summary.targetCalories : mockDashboardSummary.targetCalories;
-  const weeklyExercise = summary?.weeklyExercise ?? mockDashboardSummary.weeklyExercise;
+  const intakeCalories = Number.isFinite(summary?.intakeCalories) ? summary.intakeCalories : emptyDashboardSummary.intakeCalories;
+  const targetCalories = Number.isFinite(summary?.targetCalories) ? summary.targetCalories : emptyDashboardSummary.targetCalories;
+  const weeklyExercise = summary?.weeklyExercise ?? emptyDashboardSummary.weeklyExercise;
 
   const macroData = useMemo(
     () => [
@@ -53,18 +55,18 @@ export default function HomePage() {
 
   return (
     <AppLayout
-      title={`${mockUser.nickname}님, 오늘도 파이팅입니다.`}
+      title={`${(state.user?.nickname || emptyUser.nickname)}님, 오늘도 파이팅입니다.`}
       subtitle="오늘의 건강 상태를 한눈에 확인하세요."
       headerAction={<button type="button" className={styles.iconBtn} onClick={() => navigate('/mypage/notifications')}>🔔</button>}
     >
       <Card className={styles.mainDietCard}>
         <div className={styles.rowBetween}>
           <span className={styles.pill}>오늘의 식단</span>
-          <span className={styles.percent}>{Math.round((intakeCalories / targetCalories) * 100)}%</span>
+          <span className={styles.percent}>{targetCalories > 0 ? Math.round((intakeCalories / targetCalories) * 100) : 0}%</span>
         </div>
         <p className={styles.title}>총 섭취 칼로리</p>
         <p className={styles.kcal}>{intakeCalories.toLocaleString()} <span>/ {targetCalories.toLocaleString()} kcal</span></p>
-        <ProgressBar value={intakeCalories} max={targetCalories} />
+        <ProgressBar value={intakeCalories} max={targetCalories || 1} />
         <div className={styles.macroGrid}>
           {macroData.map((macro) => (
             <MacroBox key={macro.label} label={macro.label} intake={macro.intake} target={macro.target} color={macro.color} tone={macro.tone} />
@@ -88,8 +90,8 @@ export default function HomePage() {
       <Card className={styles.tipCard}>
         <div className={styles.avatar}>🪖</div>
         <div>
-          <span className={styles.tipPill}>D-120 전역</span>
-          <p>{summary?.recommendation || mockDashboardSummary.recommendation}</p>
+          <span className={styles.tipPill}>D-0 전역</span>
+          <p>{summary?.recommendation || '아직 추천 데이터가 없습니다. 식단과 운동을 기록하면 맞춤 팁이 표시됩니다.'}</p>
         </div>
       </Card>
 

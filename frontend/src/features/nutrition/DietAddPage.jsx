@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
 import TabSwitcher from '../../components/ui/TabSwitcher';
-import { mockFoods } from '../../constants/mockData';
+import { getOwnedFoods } from '../../api/nutritionApi';
+import { useEffect, useMemo, useState } from 'react';
 import styles from './DietPage.module.css';
 import screen from '../../components/ui/Screen.module.css';
 
@@ -16,15 +16,30 @@ export default function DietAddPage() {
   const [tab, setTab] = useState('recent');
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState([]);
+  const [ownedFoods, setOwnedFoods] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadFoods() {
+      try {
+        const foods = await getOwnedFoods();
+        if (mounted) setOwnedFoods(foods ?? []);
+      } catch {
+        if (mounted) setOwnedFoods([]);
+      }
+    }
+    loadFoods();
+    return () => { mounted = false; };
+  }, []);
 
   const foods = useMemo(() => {
     if (tab === 'manual') return [];
-    return mockFoods.filter((food) => {
+    return ownedFoods.filter((food) => {
       const matchesTab = tab === 'favorite' ? food.isFavorite : true;
       const matchesKeyword = keyword.trim() ? food.foodName.includes(keyword.trim()) : true;
       return matchesTab && matchesKeyword;
     });
-  }, [keyword, tab]);
+  }, [keyword, ownedFoods, tab]);
 
   const toggleFood = (food) => {
     setSelected((prev) => (prev.some((item) => item.id === food.id) ? prev.filter((item) => item.id !== food.id) : [...prev, food]));
@@ -55,7 +70,7 @@ export default function DietAddPage() {
                 <span>{food.foodName} <small>({food.calories} kcal)</small></span>
                 <button type="button" onClick={() => toggleFood(food)}>{selected.some((item) => item.id === food.id) ? '✓' : '+'}</button>
               </div>
-              <p className={styles.base}>탄 {food.carbg}g · 단 {food.proteing}g · 지 {food.fatg}g · {food.servingUnit}</p>
+              <p className={styles.base}>탄 {(food.carbG ?? food.carbg ?? 0)}g · 단 {(food.proteinG ?? food.proteing ?? 0)}g · 지 {(food.fatG ?? food.fatg ?? 0)}g · {food.servingUnit}</p>
             </Card>
           ))}
         </div>

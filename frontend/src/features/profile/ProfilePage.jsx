@@ -4,7 +4,7 @@ import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
 import { useAppContext } from '../../app/AppContext';
 import { getMyProfile } from '../../api/userApi';
-import { mockUser } from '../../constants/mockData';
+import { emptyUser } from '../../constants/defaultData';
 import styles from './MyPage.module.css';
 
 const menus = [
@@ -17,7 +17,7 @@ const menus = [
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { actions } = useAppContext();
-  const [profile, setProfile] = useState(mockUser);
+  const [profile, setProfile] = useState(emptyUser);
 
   useEffect(() => {
     let mounted = true;
@@ -25,10 +25,10 @@ export default function ProfilePage() {
       try {
         const data = await getMyProfile();
         if (!mounted) return;
-        setProfile(data ? { ...mockUser, ...data } : mockUser);
+        setProfile(data ? { ...emptyUser, ...data } : emptyUser);
       } catch {
         if (!mounted) return;
-        setProfile(mockUser);
+        setProfile(emptyUser);
       }
     }
     load();

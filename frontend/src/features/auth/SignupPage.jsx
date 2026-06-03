@@ -37,9 +37,7 @@ export default function SignupPage() {
       navigate('/unit/setup');
     } catch (error) {
       if (error.code === 'NETWORK_ERROR') {
-        localStorage.setItem(ACCESS_TOKEN_KEY, 'mock-access-token');
-        setErrorMessage('서버 연결 전이라 예시 회원가입으로 진행합니다.');
-        navigate('/unit/setup');
+        setErrorMessage('서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
         return;
       }
       setErrorMessage(error.message || '회원가입에 실패했습니다.');

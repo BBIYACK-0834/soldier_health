@@ -29,9 +29,7 @@ export default function LoginPage() {
       navigate('/home');
     } catch (error) {
       if (error.code === 'NETWORK_ERROR') {
-        localStorage.setItem(ACCESS_TOKEN_KEY, 'mock-access-token');
-        setErrorMessage('서버 연결 전이라 예시 로그인으로 진행합니다.');
-        navigate('/home');
+        setErrorMessage('서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
         return;
       }
       setErrorMessage(error.message || '로그인에 실패했습니다.');

@@ -6,7 +6,7 @@ import MacroBox from '../../components/ui/MacroBox';
 import { getTodayMeal } from '../../api/mealApi';
 import { getTodayNutrition } from '../../api/nutritionApi';
 import { getMyUnit } from '../../api/unitApi';
-import { mockDashboardSummary, mockMealDay, mockUnits } from '../../constants/mockData';
+import { emptyDashboardSummary, emptyMealDay } from '../../constants/defaultData';
 import styles from './DietPage.module.css';
 
 const mealLabels = [
@@ -26,10 +26,10 @@ function hasMealMenuData(meal) {
     meal.breakfastRaw ||
     meal.lunchRaw ||
     meal.dinnerRaw ||
-    Number.isFinite(meal.breakfastKcal) ||
-    Number.isFinite(meal.lunchKcal) ||
-    Number.isFinite(meal.dinnerKcal) ||
-    Number.isFinite(meal.totalKcal)
+    (Number.isFinite(meal.breakfastKcal) && meal.breakfastKcal > 0) ||
+    (Number.isFinite(meal.lunchKcal) && meal.lunchKcal > 0) ||
+    (Number.isFinite(meal.dinnerKcal) && meal.dinnerKcal > 0) ||
+    (Number.isFinite(meal.totalKcal) && meal.totalKcal > 0)
   );
 }
 
@@ -39,9 +39,9 @@ function formatKcal(value) {
 }
 
 export default function NutritionPage() {
-  const [nutrition, setNutrition] = useState(mockDashboardSummary);
-  const [meal, setMeal] = useState(mockMealDay);
-  const [unit, setUnit] = useState(mockUnits[0]);
+  const [nutrition, setNutrition] = useState(emptyDashboardSummary);
+  const [meal, setMeal] = useState(emptyMealDay);
+  const [unit, setUnit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -56,15 +56,15 @@ export default function NutritionPage() {
           getMyUnit(),
         ]);
         if (!mounted) return;
-        setNutrition(nutritionData ? { ...mockDashboardSummary, ...nutritionData } : mockDashboardSummary);
-        setMeal(mealData ? { ...mockMealDay, ...mealData } : mockMealDay);
-        setUnit(unitData ?? mockUnits[0]);
+        setNutrition(nutritionData ? { ...emptyDashboardSummary, ...nutritionData } : emptyDashboardSummary);
+        setMeal(mealData ? { ...emptyMealDay, ...mealData } : emptyMealDay);
+        setUnit(unitData ?? null);
       } catch (error) {
         if (!mounted) return;
-        setNutrition(mockDashboardSummary);
-        setMeal(mockMealDay);
-        setUnit(mockUnits[0]);
-        setErrorMessage('서버 연결 전이라 예시 식단으로 표시합니다.');
+        setNutrition(emptyDashboardSummary);
+        setMeal(emptyMealDay);
+        setUnit(null);
+        setErrorMessage('식단 데이터를 불러오지 못했습니다. 선택 부대의 실제 식단이 연결되면 표시됩니다.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -120,9 +120,9 @@ export default function NutritionPage() {
       </Card>
 
       {[...mealLabels, { key: 'snackRaw', label: '간식' }].map((section) => {
-        const items = section.key === 'snackRaw' ? ['프로틴 쉐이크 1스쿱'] : parseMeal(meal?.[section.key]);
+        const items = section.key === 'snackRaw' ? [] : parseMeal(meal?.[section.key]);
         const kcalKey = `${section.key.replace('Raw', 'Kcal')}`;
-        const mealKcal = section.key === 'snackRaw' ? 120 : meal?.[kcalKey];
+        const mealKcal = section.key === 'snackRaw' ? 0 : meal?.[kcalKey];
         return (
           <Card key={section.key}>
             <div className={styles.row}>
