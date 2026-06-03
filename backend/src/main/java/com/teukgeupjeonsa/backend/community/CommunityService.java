@@ -66,6 +66,14 @@ public class CommunityService {
         return toPostResponse(communityPostRepository.save(post));
     }
 
+    @Transactional
+    public CommunityDtos.PostResponse likePost(Long postId) {
+        CommunityPost post = communityPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("게시글을 찾을 수 없습니다."));
+        post.setLikeCount(post.getLikeCount() + 1);
+        return toPostResponse(post);
+    }
+
     @Transactional(readOnly = true)
     public CommunityDtos.PostDetailResponse getPostDetail(Long postId) {
         CommunityPost post = communityPostRepository.findById(postId)
@@ -110,6 +118,7 @@ public class CommunityService {
                 .authorNickname(post.getAuthor().getNickname())
                 .unitId(post.getUnit() != null ? post.getUnit().getId() : null)
                 .unitName(post.getUnit() != null ? post.getUnit().getUnitName() : null)
+                .likeCount(post.getLikeCount())
                 .commentCount(commentCount)
                 .createdAt(post.getCreatedAt())
                 .build();

@@ -3,6 +3,7 @@ package com.teukgeupjeonsa.backend.user;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -27,6 +28,9 @@ public class User {
     @Column(nullable = false, length = 50)
     private String nickname;
 
+    @Column(length = 500)
+    private String profileImageUrl;
+
     private Double heightCm;
 
     private Double weightKg;
@@ -46,6 +50,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private BranchType branchType;
+
+    private LocalDate enlistmentDate;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;

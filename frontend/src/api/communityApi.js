@@ -21,3 +21,8 @@ export async function createCommunityComment(postId, payload) {
   const response = await httpClient.post(`/api/community/posts/${postId}/comments`, payload);
   return unwrap(response);
 }
+
+export async function likeCommunityPost(postId) {
+  const response = await httpClient.post(`/api/community/posts/${postId}/likes`);
+  return unwrap(response);
+}
