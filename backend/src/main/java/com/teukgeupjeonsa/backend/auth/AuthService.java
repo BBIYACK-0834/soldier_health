@@ -29,6 +29,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
+                .profileImageUrl(normalizeProfileImageUrl(request.getProfileImageUrl()))
                 .build();
 
         User saved = userRepository.save(user);
@@ -37,6 +38,7 @@ public class AuthService {
                 .id(saved.getId())
                 .email(saved.getEmail())
                 .nickname(saved.getNickname())
+                .profileImageUrl(saved.getProfileImageUrl())
                 .build();
     }
 
@@ -61,7 +63,15 @@ public class AuthService {
                         .id(user.getId())
                         .email(user.getEmail())
                         .nickname(user.getNickname())
+                        .profileImageUrl(user.getProfileImageUrl())
                         .build())
                 .build();
+    }
+
+    private String normalizeProfileImageUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

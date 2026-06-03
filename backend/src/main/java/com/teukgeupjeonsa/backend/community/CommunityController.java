@@ -36,6 +36,11 @@ public class CommunityController {
         return ApiResponse.ok(communityService.getPostDetail(postId));
     }
 
+    @PostMapping("/posts/{postId}/likes")
+    public ApiResponse<CommunityDtos.PostResponse> likePost(@PathVariable Long postId) {
+        return ApiResponse.ok(communityService.likePost(postId));
+    }
+
     @PostMapping("/posts/{postId}/comments")
     public ApiResponse<CommunityDtos.CommentResponse> createComment(
             @AuthenticationPrincipal User user,

@@ -44,6 +44,7 @@ function normalizeAuthPayload(data) {
         id: rawUser.id ?? data.userId ?? null,
         email: rawUser.email ?? null,
         nickname: rawUser.nickname ?? null,
+        profileImageUrl: rawUser.profileImageUrl ?? null,
       }
     : null;
 
