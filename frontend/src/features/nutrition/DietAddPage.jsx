@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
 import TabSwitcher from '../../components/ui/TabSwitcher';
@@ -6,6 +7,13 @@ import { useEffect, useMemo, useState } from 'react';
 import styles from './DietPage.module.css';
 import screen from '../../components/ui/Screen.module.css';
 
+const mealLabels = {
+  breakfast: '아침',
+  lunch: '점심',
+  dinner: '저녁',
+  snack: '간식',
+};
+
 const tabs = [
   { value: 'recent', label: '최근' },
   { value: 'favorite', label: '즐겨찾기' },
@@ -13,6 +21,8 @@ const tabs = [
 ];
 
 export default function DietAddPage() {
+  const [searchParams] = useSearchParams();
+  const selectedMeal = mealLabels[searchParams.get('meal')] ?? '식단';
   const [tab, setTab] = useState('recent');
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState([]);
@@ -46,7 +56,8 @@ export default function DietAddPage() {
   };
 
   return (
-    <AppLayout title="음식 검색" subtitle="최근·즐겨찾기·직접 입력으로 식단을 추가하세요." showBottomNav={false}>
+    <AppLayout title={`${selectedMeal} 음식 추가`} subtitle="최근·즐겨찾기·직접 입력으로 식단을 추가하세요." showBottomNav={false}>
+      <span className={styles.mealContext}>{selectedMeal}에 추가할 음식을 선택해주세요.</span>
       <input className={screen.input} placeholder="음식명을 입력하세요" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
       <TabSwitcher tabs={tabs} value={tab} onChange={setTab} />
 
@@ -76,7 +87,7 @@ export default function DietAddPage() {
         </div>
       )}
 
-      <button type="button" className={screen.primaryButton}>선택한 음식 {selected.length}개 추가</button>
+      <button type="button" className={screen.primaryButton}>{selectedMeal}에 선택한 음식 {selected.length}개 추가</button>
     </AppLayout>
   );
 }

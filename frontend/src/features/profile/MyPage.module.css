@@ -22,3 +22,11 @@
 .toggle::after { content: ''; width: 20px; height: 20px; border-radius: 50%; background: #fff; display: block; }
 .toggleOn { background: var(--color-success); justify-content: flex-end; }
 .danger { color: var(--color-danger); }
+.settingSummary { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+.settingSummary p { margin: 0 0 6px; color: var(--color-text-secondary); font-weight: 900; }
+.settingSummary strong { display: block; color: var(--color-primary); font-size: 20px; margin-bottom: 4px; }
+.settingSummary small { color: var(--color-text-muted); font-weight: 700; }
+.settingSummary button { border: 0; border-radius: 999px; padding: 10px 14px; background: var(--color-primary); color: #fff; font-weight: 900; white-space: nowrap; }
+.muted { color: var(--color-text-secondary); font-weight: 800; }
+.militaryMeta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.militaryMeta span { border-radius: 999px; padding: 5px 8px; background: rgba(255,255,255,.16); color: #fff; font-size: 12px; font-weight: 900; }

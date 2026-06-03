@@ -3,6 +3,7 @@ package com.teukgeupjeonsa.backend.user;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -46,6 +47,13 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private BranchType branchType;
+
+    @Column(length = 30)
+    private String rank;
+
+    private LocalDate dischargeDate;
+
+    private LocalDate promotionDate;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;

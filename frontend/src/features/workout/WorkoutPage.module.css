@@ -1,7 +1,6 @@
 .calendar { font-size: 22px; }
 .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .row button { border: 0; border-radius: 999px; background: var(--color-primary); color: #fff; padding: 8px 12px; font-weight: 800; }
-.kcal { margin: 8px 0 0; font-size: 42px; font-weight: 900; color: var(--color-primary-dark); letter-spacing: -0.05em; }
 .title { margin: 0; font-size: 18px; }
 .smallMeta { color: var(--color-text-secondary); font-size: 12px; font-weight: 800; }
 .completeHero { border-color: rgba(88, 128, 72, 0.45); background: linear-gradient(135deg, #eef8e9, #ffffff); }
@@ -24,7 +23,7 @@
 .list li { border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface-soft); overflow: hidden; }
 .list li.selected { border-color: var(--color-primary); box-shadow: 0 10px 22px rgba(57, 83, 117, 0.12); }
 .list li.completed { background: #eef8e9; border-color: #b9d6ad; }
-.list button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 0; background: transparent; padding: 13px; text-align: left; }
+.list button, .listItem { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 0; background: transparent; padding: 13px; text-align: left; }
 .list strong { display: block; color: var(--color-primary-dark); }
 .list small { display: block; margin-top: 3px; color: var(--color-text-secondary); font-weight: 800; }
 .list em { min-width: 42px; text-align: center; border-radius: 999px; background: #fff; color: var(--color-primary-dark); padding: 6px 8px; font-style: normal; font-size: 12px; font-weight: 950; }
