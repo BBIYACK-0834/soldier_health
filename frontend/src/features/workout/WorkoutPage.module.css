@@ -3,7 +3,29 @@
 .row button { border: 0; border-radius: 999px; background: var(--color-primary); color: #fff; padding: 8px 12px; font-weight: 800; }
 .kcal { margin: 8px 0 0; font-size: 42px; font-weight: 900; color: var(--color-primary-dark); letter-spacing: -0.05em; }
 .title { margin: 0; font-size: 18px; }
+.smallMeta { color: var(--color-text-secondary); font-size: 12px; font-weight: 800; }
+.completeHero { border-color: rgba(88, 128, 72, 0.45); background: linear-gradient(135deg, #eef8e9, #ffffff); }
+.finishButton { width: 100%; margin-top: 14px; border: 0; border-radius: 16px; background: #2f6f3e; color: #fff; padding: 13px; font-weight: 900; }
+.timerCard { background: radial-gradient(circle at top, #f8fbff, #ffffff 64%); }
+.timerTop { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.timerTop h3 { margin: 4px 0 0; font-size: 24px; color: var(--color-primary-dark); }
+.category { display: inline-flex; border-radius: 999px; background: #e8eef7; color: #3b557a; padding: 4px 9px; font-size: 12px; font-weight: 900; }
+.setBadge, .doneBadge { border-radius: 999px; padding: 7px 10px; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.setBadge { background: #fff4d9; color: #9a6a09; }
+.doneBadge { background: #e4f5df; color: #2f6f3e; }
+.timerCircle { width: 188px; height: 188px; border: 12px solid #dfe9f7; border-top-color: var(--color-primary); border-radius: 50%; display: grid; place-items: center; margin: 20px auto 12px; font-size: 42px; font-weight: 950; color: var(--color-primary-dark); letter-spacing: -0.06em; box-shadow: inset 0 0 0 10px #fff, 0 16px 36px rgba(55, 79, 110, 0.12); }
+.timerHint { text-align: center; color: var(--color-text-secondary); font-weight: 800; }
+.timerActions { display: grid; grid-template-columns: 1fr 0.8fr 1fr; gap: 8px; }
+.timerActions button { border: 0; border-radius: 14px; background: var(--color-primary); color: #fff; padding: 13px 8px; font-weight: 900; }
+.timerActions button:disabled { opacity: 0.45; }
+.timerActions .secondaryButton { background: #e8eef7; color: #3b557a; }
+.timerActions .completeButton { background: #2f6f3e; }
 .list { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 8px; }
-.list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-soft); padding: 12px; }
-.list strong { color: var(--color-primary-dark); }
-.list span { color: var(--color-text-secondary); font-weight: 800; font-size: 13px; }
+.list li { border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface-soft); overflow: hidden; }
+.list li.selected { border-color: var(--color-primary); box-shadow: 0 10px 22px rgba(57, 83, 117, 0.12); }
+.list li.completed { background: #eef8e9; border-color: #b9d6ad; }
+.list button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 0; background: transparent; padding: 13px; text-align: left; }
+.list strong { display: block; color: var(--color-primary-dark); }
+.list small { display: block; margin-top: 3px; color: var(--color-text-secondary); font-weight: 800; }
+.list em { min-width: 42px; text-align: center; border-radius: 999px; background: #fff; color: var(--color-primary-dark); padding: 6px 8px; font-style: normal; font-size: 12px; font-weight: 950; }
+.completed em { background: #2f6f3e; color: #fff; }

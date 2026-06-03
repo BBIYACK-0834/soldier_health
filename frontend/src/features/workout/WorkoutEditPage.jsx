@@ -4,7 +4,6 @@ import Card from '../../components/ui/Card';
 import TabSwitcher from '../../components/ui/TabSwitcher';
 import { applyGymDataset, createUnitGymDataset, getEquipments, getMyEquipments, getUnitGymDatasets, saveMyEquipments } from '../../api/equipmentApi';
 import { getMyUnit } from '../../api/unitApi';
-import { mockDatasets, mockEquipments, mockUnits } from '../../constants/mockData';
 import styles from './WorkoutEditPage.module.css';
 
 export default function WorkoutEditPage() {
@@ -23,22 +22,22 @@ export default function WorkoutEditPage() {
         setLoading(true);
         const [allList, myList, myUnit] = await Promise.all([getEquipments(), getMyEquipments(), getMyUnit()]);
         if (!mounted) return;
-        setEquipments(allList?.length ? allList : mockEquipments);
-        setSelected((myList?.length ? myList : mockEquipments.slice(0, 4)).map((item) => item.name));
-        const id = myUnit?.id ?? mockUnits[0].id;
+        setEquipments(allList ?? []);
+        setSelected((myList ?? []).map((item) => item.name));
+        const id = myUnit?.id ?? null;
         setUnitId(id);
         if (id) {
           const list = await getUnitGymDatasets(id);
           if (!mounted) return;
-          setDatasets(list?.length ? list : mockDatasets);
+          setDatasets(list ?? []);
         }
       } catch (error) {
         if (!mounted) return;
-        setEquipments(mockEquipments);
-        setSelected(mockEquipments.slice(0, 4).map((item) => item.name));
-        setUnitId(mockUnits[0].id);
-        setDatasets(mockDatasets);
-        setErrorMessage('서버 연결 전이라 예시 기구/데이터셋으로 표시합니다.');
+        setEquipments([]);
+        setSelected([]);
+        setUnitId(null);
+        setDatasets([]);
+        setErrorMessage('기구/데이터셋을 불러오지 못했습니다.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -59,7 +58,7 @@ export default function WorkoutEditPage() {
       await saveMyEquipments({ equipmentIds: selectedIds, customEquipmentNames: [] });
       setErrorMessage('기구 선택이 저장되었습니다.');
     } catch {
-      setErrorMessage('서버 연결 전이라 화면에서만 기구 선택을 유지합니다.');
+      setErrorMessage('기구 선택 저장에 실패했습니다.');
     }
   };
 
@@ -74,10 +73,10 @@ export default function WorkoutEditPage() {
         customEquipmentNames: [],
       });
       const list = await getUnitGymDatasets(unitId);
-      setDatasets(list?.length ? list : mockDatasets);
+      setDatasets(list ?? []);
     } catch {
-      setDatasets(mockDatasets);
-      setErrorMessage('서버 연결 전이라 예시 데이터셋 목록을 유지합니다.');
+      setDatasets([]);
+      setErrorMessage('데이터셋 저장에 실패했습니다.');
     }
   };
 
@@ -109,7 +108,7 @@ export default function WorkoutEditPage() {
               <h3>{dataset.datasetName || dataset.title}</h3>
               <p className={styles.meta}>{dataset.description || dataset.unitName || '설명 없음'}</p>
               <p>{dataset.tags?.join(' · ') || [...(dataset.equipments ?? []).map((item) => item.name), ...(dataset.customEquipmentNames ?? [])].join(' · ') || '기구 정보 없음'}</p>
-              <button type="button" className={styles.loadBtn} onClick={async () => { try { await applyGymDataset(dataset.id); setErrorMessage('데이터셋을 불러왔습니다.'); } catch { setErrorMessage('서버 연결 전이라 예시 데이터셋을 화면에만 적용합니다.'); } }}>이 데이터셋 불러오기</button>
+              <button type="button" className={styles.loadBtn} onClick={async () => { try { await applyGymDataset(dataset.id); setErrorMessage('데이터셋을 불러왔습니다.'); } catch { setErrorMessage('데이터셋을 불러오지 못했습니다.'); } }}>이 데이터셋 불러오기</button>
             </Card>
           ))}
           <button type="button" className={styles.save} onClick={saveDataset} disabled={!unitId}>내 부대 데이터셋 저장</button>

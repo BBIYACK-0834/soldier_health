@@ -346,6 +346,7 @@ public class UnitMealMatchService {
                     .unitName(unit.getUnitName())
                     .branchType(unit.getBranchType().name())
                     .regionName(unit.getRegionName())
+                    .dataSourceKey(unit.getDataSourceKey())
                     .matchScore(Math.round(totalScore * 1000.0) / 1000.0)
                     .matchedMeals(matchedMeals)
                     .mealPreview(MatchedUnitResponse.MealPreview.builder()

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
 import { findUnitsByMeal, getMealOptionsByDate, getUnits, searchUnits, setMyUnit } from '../../api/unitApi';
-import { mockUnits } from '../../constants/mockData';
 import styles from './SetupPage.module.css';
 
 function formatDate(date) {
@@ -65,11 +64,11 @@ export default function UnitSelectPage() {
         setLoadingUnits(true);
         const unitList = await getUnits();
         if (!isMounted) return;
-        setUnits(unitList?.length ? unitList : mockUnits);
+        setUnits(unitList ?? []);
       } catch (error) {
         if (!isMounted) return;
-        setUnits(mockUnits);
-        setErrorMessage('서버 연결 전이라 예시 부대 목록으로 표시합니다.');
+        setUnits([]);
+        setErrorMessage('부대 목록을 불러오지 못했습니다.');
       } finally {
         if (isMounted) {
           setLoadingUnits(false);
@@ -93,11 +92,11 @@ export default function UnitSelectPage() {
         setLoadingUnits(true);
         const list = query.trim() ? await searchUnits(query.trim()) : await getUnits();
         if (!isMounted) return;
-        setUnits(list?.length ? list : mockUnits.filter((unit) => unit.unitName.includes(query.trim())));
+        setUnits(list ?? []);
       } catch (error) {
         if (!isMounted) return;
-        setUnits(mockUnits.filter((unit) => !query.trim() || unit.unitName.includes(query.trim())));
-        setErrorMessage('서버 연결 전이라 예시 부대 검색 결과로 표시합니다.');
+        setUnits([]);
+        setErrorMessage('부대 검색 결과를 불러오지 못했습니다.');
       } finally {
         if (isMounted) {
           setLoadingUnits(false);
@@ -217,6 +216,13 @@ export default function UnitSelectPage() {
 
       if (candidates[0]?.unitId) {
         setSelectedId(candidates[0].unitId);
+        try {
+          await setMyUnit(candidates[0].unitId);
+          localStorage.setItem('tg_selected_unit', JSON.stringify(candidates[0]));
+          setErrorMessage(`${candidates[0].unitName}으로 자동 설정했습니다.`);
+        } catch (saveError) {
+          setErrorMessage(saveError.message || '매칭된 부대를 자동 저장하지 못했습니다. 후보를 선택해 저장해주세요.');
+        }
       }
     } catch (error) {
       setMealSearchState('error');
@@ -230,10 +236,10 @@ export default function UnitSelectPage() {
     try {
       setSubmitting(true);
       setErrorMessage('');
-      try {
-        await setMyUnit(selectedId);
-      } catch {
-        localStorage.setItem('tg_mock_unit_id', String(selectedId));
+      const selectedUnit = [...nameCandidates, ...mealCandidates].find((unit) => (unit.id ?? unit.unitId) === selectedId);
+      await setMyUnit(selectedId);
+      if (selectedUnit) {
+        localStorage.setItem('tg_selected_unit', JSON.stringify(selectedUnit));
       }
       navigate('/unit/complete');
     } catch (error) {

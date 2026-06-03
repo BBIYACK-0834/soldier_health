@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
 import { getCommunityPosts } from '../../api/communityApi';
-import { mockPosts, mockUser } from '../../constants/mockData';
+import { useAppContext } from '../../app/AppContext';
 import styles from './CommunityPage.module.css';
 
 const tabs = [
@@ -22,7 +22,8 @@ export default function CommunityPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [tab, setTab] = useState(tabFromPath(location.pathname));
-  const [posts, setPosts] = useState(mockPosts);
+  const { state } = useAppContext();
+  const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -37,11 +38,11 @@ export default function CommunityPage() {
         setLoading(true);
         const list = await getCommunityPosts(tab === 'POPULAR' ? 'ALL' : tab);
         if (!mounted) return;
-        setPosts(list?.length ? list : mockPosts);
+        setPosts(list ?? []);
       } catch (error) {
         if (!mounted) return;
-        setErrorMessage('서버 연결 전이라 예시 게시글로 표시합니다.');
-        setPosts(mockPosts);
+        setErrorMessage('게시글 데이터를 불러오지 못했습니다.');
+        setPosts([]);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -55,9 +56,9 @@ export default function CommunityPage() {
 
   const visiblePosts = useMemo(() => {
     if (tab === 'POPULAR') return [...posts].sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
-    if (tab === 'UNIT') return posts.filter((post) => !post.unitName || post.unitName === mockUser.unitName);
+    if (tab === 'UNIT') return posts.filter((post) => !state.user?.unitName || !post.unitName || post.unitName === state.user.unitName);
     return posts;
-  }, [posts, tab]);
+  }, [posts, state.user?.unitName, tab]);
 
   const handleTab = (item) => {
     setTab(item.value);
@@ -65,7 +66,7 @@ export default function CommunityPage() {
   };
 
   return (
-    <AppLayout title={tab === 'UNIT' ? `${mockUser.unitName} 게시판` : '커뮤니티'} headerAction={<span className={styles.edit}>✏️</span>}>
+    <AppLayout title={tab === 'UNIT' ? `${state.user?.unitName || '우리 부대'} 게시판` : '커뮤니티'} headerAction={<span className={styles.edit}>✏️</span>}>
       <div className={styles.tabWrap}>
         {tabs.map((item) => (
           <button key={item.value} type="button" className={`${styles.tab} ${tab === item.value ? styles.active : ''}`} onClick={() => handleTab(item)}>{item.label}</button>

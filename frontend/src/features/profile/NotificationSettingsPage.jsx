@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
-import { mockNotificationSettings } from '../../constants/mockData';
+import { emptyNotificationSettings } from '../../constants/defaultData';
 import screen from '../../components/ui/Screen.module.css';
 import styles from './MyPage.module.css';
 
@@ -13,7 +13,7 @@ const rows = [
 ];
 
 export default function NotificationSettingsPage() {
-  const [settings, setSettings] = useState(mockNotificationSettings);
+  const [settings, setSettings] = useState(emptyNotificationSettings);
   return (
     <AppLayout title="알림 설정" showBottomNav={false}>
       <Card>
