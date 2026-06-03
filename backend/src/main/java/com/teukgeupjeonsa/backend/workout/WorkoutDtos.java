@@ -11,8 +11,14 @@ public class WorkoutDtos {
     @Builder
     public static class WorkoutExercise {
         private String name;
+        private String category;
         private int sets;
         private String reps;
+        private int durationSeconds;
+        private int restSeconds;
+        private String intensity;
+        private String requiredEquipment;
+        private String recommendationReason;
         private String alternative;
     }
 

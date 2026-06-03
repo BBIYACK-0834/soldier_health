@@ -44,6 +44,8 @@ DB_PASSWORD=root
 JWT_SECRET=change-this-secret-key-change-this-secret-key
 JWT_ACCESS_TOKEN_VALIDITY_SECONDS=86400
 SERVER_PORT=8080
+# 로그인 403(CORS) 방지를 위해 프론트 배포/포트 포워딩 Origin을 쉼표로 추가하세요.
+CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:*,http://127.0.0.1:*,https://localhost:*,https://*.app.github.dev,https://*.github.dev,https://*.vercel.app,https://*.netlify.app
 
 PUBLIC_MEAL_API_BASE_URL=https://openapi.mnd.go.kr
 PUBLIC_MEAL_API_SERVICE_KEY=<MND_OPENAPI_SERVICE_KEY>
