@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
-import { createCommunityPost, getCommunityPosts } from '../../api/communityApi';
+import { createCommunityComment, createCommunityPost, getCommunityPostDetail, getCommunityPosts, likeCommunityPost } from '../../api/communityApi';
 import { useAppContext } from '../../app/AppContext';
 import styles from './CommunityPage.module.css';
 
@@ -21,15 +21,21 @@ function tabFromPath(pathname) {
 export default function CommunityPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { postId } = useParams();
   const [tab, setTab] = useState(tabFromPath(location.pathname));
   const { state } = useAppContext();
   const [posts, setPosts] = useState([]);
+  const [postDetail, setPostDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [showComposer, setShowComposer] = useState(false);
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
+  const [postImageUrl, setPostImageUrl] = useState('');
+  const [routineText, setRoutineText] = useState('');
   const [postCategory, setPostCategory] = useState(tab === 'UNIT' ? 'UNIT' : 'ALL');
+  const [commentContent, setCommentContent] = useState('');
+  const [suggestedRoutineText, setSuggestedRoutineText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -43,7 +49,7 @@ export default function CommunityPage() {
       if (!isMounted()) return;
       setPosts(list ?? []);
       setErrorMessage('');
-    } catch (error) {
+    } catch {
       if (!isMounted()) return;
       setErrorMessage('게시글 데이터를 불러오지 못했습니다.');
       setPosts([]);
@@ -54,11 +60,28 @@ export default function CommunityPage() {
 
   useEffect(() => {
     let mounted = true;
-    loadPosts(() => mounted);
+    if (postId) {
+      setLoading(true);
+      getCommunityPostDetail(postId)
+        .then((detail) => {
+          if (!mounted) return;
+          setPostDetail(detail);
+          setErrorMessage('');
+        })
+        .catch(() => {
+          if (!mounted) return;
+          setErrorMessage('게시글 상세를 불러오지 못했습니다.');
+          setPostDetail(null);
+        })
+        .finally(() => mounted && setLoading(false));
+    } else {
+      setPostDetail(null);
+      loadPosts(() => mounted);
+    }
     return () => {
       mounted = false;
     };
-  }, [loadPosts]);
+  }, [loadPosts, postId]);
 
   useEffect(() => {
     setPostCategory(tab === 'UNIT' ? 'UNIT' : 'ALL');
@@ -70,14 +93,26 @@ export default function CommunityPage() {
     return posts;
   }, [posts, state.user?.unitName, tab]);
 
+  const handleLike = async (targetPostId) => {
+    const optimistic = (post) => post.id === targetPostId ? { ...post, likeCount: (post.likeCount ?? 0) + 1 } : post;
+    setPosts((prev) => prev.map(optimistic));
+    if (postDetail?.post?.id === targetPostId) {
+      setPostDetail((prev) => ({ ...prev, post: optimistic(prev.post) }));
+    }
+    try {
+      const updated = await likeCommunityPost(targetPostId);
+      setPosts((prev) => prev.map((post) => (post.id === targetPostId ? updated : post)));
+      if (postDetail?.post?.id === targetPostId) {
+        setPostDetail((prev) => ({ ...prev, post: updated }));
+      }
+    } catch {
+      setErrorMessage('좋아요 반영에 실패했습니다.');
+    }
+  };
+
   const handleTab = (item) => {
     setTab(item.value);
     navigate(item.path);
-  };
-
-  const openComposer = () => {
-    setPostCategory(tab === 'UNIT' ? 'UNIT' : 'ALL');
-    setShowComposer(true);
   };
 
   const closeComposer = () => {
@@ -85,6 +120,8 @@ export default function CommunityPage() {
     setShowComposer(false);
     setPostTitle('');
     setPostContent('');
+    setPostImageUrl('');
+    setRoutineText('');
   };
 
   const handleSubmitPost = async (event) => {
@@ -102,11 +139,11 @@ export default function CommunityPage() {
         category: postCategory,
         title: postTitle.trim(),
         content: postContent.trim(),
+        imageUrl: postImageUrl.trim() || null,
+        routineText: routineText.trim() || null,
       });
       setPosts((prev) => [created, ...prev]);
-      setShowComposer(false);
-      setPostTitle('');
-      setPostContent('');
+      closeComposer();
       if (postCategory === 'UNIT' && tab !== 'UNIT') {
         navigate('/community/unit');
       }
@@ -117,13 +154,55 @@ export default function CommunityPage() {
     }
   };
 
-  return (
-    <AppLayout title={tab === 'UNIT' ? `${state.user?.unitName || '우리 부대'} 게시판` : '커뮤니티'} headerAction={<button type="button" className={styles.edit} onClick={openComposer} aria-label="게시글 작성">✏️</button>}>
-      <div className={styles.tabWrap}>
-        {tabs.map((item) => (
-          <button key={item.value} type="button" className={`${styles.tab} ${tab === item.value ? styles.active : ''}`} onClick={() => handleTab(item)}>{item.label}</button>
-        ))}
+  const handleSubmitComment = async (event) => {
+    event.preventDefault();
+    if (!postId || (!commentContent.trim() && !suggestedRoutineText.trim())) return;
+    try {
+      setSubmitting(true);
+      const created = await createCommunityComment(postId, {
+        content: commentContent.trim(),
+        suggestedRoutineText: suggestedRoutineText.trim() || null,
+      });
+      setPostDetail((prev) => ({
+        ...prev,
+        post: { ...prev.post, commentCount: (prev.post.commentCount ?? 0) + 1 },
+        comments: [...(prev.comments ?? []), created],
+      }));
+      setCommentContent('');
+      setSuggestedRoutineText('');
+    } catch (error) {
+      setErrorMessage(error.message || '댓글 작성에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderPost = (post, index, detail = false) => (
+    <Card key={post.id} className={detail ? styles.detailCard : ''} onClick={detail ? undefined : () => navigate(`/community/posts/${post.id}`)}>
+      <div className={styles.postHead}>
+        {tab === 'POPULAR' && !detail ? <strong className={styles.rank}>{index + 1}</strong> : <span className={styles.avatar}>🪖</span>}
+        <p className={styles.user}>{post.authorNickname || '익명'} <span>{post.unitName || '전 부대'} · {post.createdAt || ''}</span></p>
       </div>
+      <h3 className={styles.title}>{post.title || '제목 없음'}</h3>
+      <p className={styles.content}>{post.content || ''}</p>
+      {post.imageUrl ? <img className={styles.postImage} src={post.imageUrl} alt="게시글 이미지" /> : null}
+      {post.routineText ? <pre className={styles.routineBox}>{post.routineText}</pre> : null}
+      <div className={styles.metaRow}>
+        <button type="button" onClick={(event) => { event.stopPropagation(); handleLike(post.id); }}>♡ {post.likeCount ?? 0}</button>
+        <span>댓글 {post.commentCount ?? 0}</span>
+      </div>
+    </Card>
+  );
+
+  return (
+    <AppLayout title={postId ? '게시글 상세' : (tab === 'UNIT' ? `${state.user?.unitName || '우리 부대'} 게시판` : '커뮤니티')} headerAction={!postId ? <button type="button" className={styles.edit} onClick={() => setShowComposer(true)} aria-label="게시글 작성">✏️</button> : <button type="button" className={styles.edit} onClick={() => navigate('/community')}>←</button>}>
+      {!postId ? (
+        <div className={styles.tabWrap}>
+          {tabs.map((item) => (
+            <button key={item.value} type="button" className={`${styles.tab} ${tab === item.value ? styles.active : ''}`} onClick={() => handleTab(item)}>{item.label}</button>
+          ))}
+        </div>
+      ) : null}
       {showComposer ? (
         <Card className={styles.composerCard}>
           <form className={styles.composerForm} onSubmit={handleSubmitPost}>
@@ -137,24 +216,38 @@ export default function CommunityPage() {
             </div>
             <input value={postTitle} onChange={(event) => setPostTitle(event.target.value)} placeholder="제목을 입력하세요" maxLength={80} />
             <textarea value={postContent} onChange={(event) => setPostContent(event.target.value)} placeholder="공유하고 싶은 내용을 작성하세요" rows={5} />
+            <input value={postImageUrl} onChange={(event) => setPostImageUrl(event.target.value)} placeholder="이미지 URL (선택)" />
+            <textarea value={routineText} onChange={(event) => setRoutineText(event.target.value)} placeholder="공유할 운동 루틴 (선택)" rows={3} />
             <button type="submit" className={styles.submitButton} disabled={submitting}>{submitting ? '작성 중...' : '게시글 등록'}</button>
           </form>
         </Card>
       ) : null}
       {loading ? <Card><p>불러오는 중...</p></Card> : null}
-      {!loading && visiblePosts.length === 0 ? <Card><p>등록된 게시글이 없습니다.</p></Card> : null}
-      {visiblePosts.map((post, index) => (
-        <Card key={post.id}>
-          <div className={styles.postHead}>
-            {tab === 'POPULAR' ? <strong className={styles.rank}>{index + 1}</strong> : <span className={styles.avatar}>🪖</span>}
-            <p className={styles.user}>{post.authorNickname || '익명'} <span>{post.unitName || '전 부대'} · {post.createdAt || ''}</span></p>
-          </div>
-          <h3 className={styles.title}>{post.title || '제목 없음'}</h3>
-          <p className={styles.content}>{post.content || ''}</p>
-          <p className={styles.meta}>♡ {post.likeCount ?? 0} · 댓글 {post.commentCount ?? 0}</p>
-        </Card>
-      ))}
-      <button type="button" className={styles.fab} onClick={openComposer} aria-label="게시글 작성">+</button>
+      {postId && postDetail?.post ? (
+        <>
+          {renderPost(postDetail.post, 0, true)}
+          <Card>
+            <h3 className={styles.title}>댓글</h3>
+            <form className={styles.composerForm} onSubmit={handleSubmitComment}>
+              <textarea value={commentContent} onChange={(event) => setCommentContent(event.target.value)} placeholder="댓글을 입력하세요" rows={3} />
+              <textarea value={suggestedRoutineText} onChange={(event) => setSuggestedRoutineText(event.target.value)} placeholder="추천 루틴 (선택)" rows={2} />
+              <button type="submit" className={styles.submitButton} disabled={submitting}>댓글 등록</button>
+            </form>
+            <div className={styles.commentList}>
+              {(postDetail.comments ?? []).map((comment) => (
+                <article key={comment.id} className={styles.commentItem}>
+                  <strong>{comment.authorNickname || '익명'}</strong>
+                  <p>{comment.content}</p>
+                  {comment.suggestedRoutineText ? <pre className={styles.routineBox}>{comment.suggestedRoutineText}</pre> : null}
+                </article>
+              ))}
+            </div>
+          </Card>
+        </>
+      ) : null}
+      {!postId && !loading && visiblePosts.length === 0 ? <Card><p>등록된 게시글이 없습니다.</p></Card> : null}
+      {!postId ? visiblePosts.map((post, index) => renderPost(post, index)) : null}
+      {!postId ? <button type="button" className={styles.fab} onClick={() => setShowComposer(true)} aria-label="게시글 작성">+</button> : null}
       {errorMessage ? <Card><p>{errorMessage}</p></Card> : null}
     </AppLayout>
   );

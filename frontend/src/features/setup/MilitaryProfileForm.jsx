@@ -11,20 +11,26 @@ function toDateInput(value) {
 }
 
 export default function MilitaryProfileForm({ initialProfile, submitLabel = '저장하기', onSaved }) {
+  const [nickname, setNickname] = useState('');
+  const [profileImageUrl, setProfileImageUrl] = useState('');
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [rank, setRank] = useState('');
   const [dischargeDate, setDischargeDate] = useState('');
   const [promotionDate, setPromotionDate] = useState('');
+  const [enlistmentDate, setEnlistmentDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    setNickname(initialProfile?.nickname ?? '');
+    setProfileImageUrl(initialProfile?.profileImageUrl ?? '');
     setHeightCm(initialProfile?.heightCm ?? '');
     setWeightKg(initialProfile?.weightKg ?? '');
     setRank(initialProfile?.rank ?? '');
     setDischargeDate(toDateInput(initialProfile?.dischargeDate));
-    setPromotionDate(toDateInput(initialProfile?.promotionDate));
+    setPromotionDate(toDateInput(initialProfile?.promotionDate ?? initialProfile?.nextPromotionDate));
+    setEnlistmentDate(toDateInput(initialProfile?.enlistmentDate));
   }, [initialProfile]);
 
   const handleSubmit = async (event) => {
@@ -34,11 +40,14 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
     try {
       setSubmitting(true);
       const savedProfile = await updateProfile({
+        nickname: nickname || null,
+        profileImageUrl: profileImageUrl || null,
         heightCm: heightCm === '' ? null : Number(heightCm),
         weightKg: weightKg === '' ? null : Number(weightKg),
         rank: rank || null,
         dischargeDate: dischargeDate || null,
         promotionDate: promotionDate || null,
+        enlistmentDate: enlistmentDate || null,
       });
       setMessage('나의 군 생활 정보가 저장되었습니다.');
       onSaved?.(savedProfile);
@@ -51,6 +60,21 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
 
   return (
     <form className={styles.formStack} onSubmit={handleSubmit}>
+      <Card>
+        <h3>0. 프로필</h3>
+        <div className={styles.formGrid}>
+          <label>
+            닉네임
+            <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="닉네임" />
+          </label>
+          <label>
+            프로필 사진 URL
+            <input value={profileImageUrl} onChange={(e) => setProfileImageUrl(e.target.value)} placeholder="https://..." />
+          </label>
+        </div>
+        {profileImageUrl ? <img className={styles.profilePreviewImage} src={profileImageUrl} alt="프로필 미리보기" /> : null}
+      </Card>
+
       <Card>
         <h3>1. 키와 몸무게</h3>
         <div className={styles.inlineTwo}>
@@ -79,6 +103,10 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
       <Card>
         <h3>3. 군 생활 일정</h3>
         <div className={styles.formGrid}>
+          <label>
+            입대일
+            <input type="date" value={enlistmentDate} onChange={(e) => setEnlistmentDate(e.target.value)} />
+          </label>
           <label>
             전역 예정일
             <input type="date" value={dischargeDate} onChange={(e) => setDischargeDate(e.target.value)} />

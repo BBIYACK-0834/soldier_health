@@ -57,6 +57,8 @@ export default function WorkoutSessionPage() {
   const [completedSets, setCompletedSets] = useState(savedProgress?.completedSets ?? {});
   const [remainingSeconds, setRemainingSeconds] = useState(initialWorkout.exercises[0]?.durationSeconds ?? 0);
   const [isRunning, setIsRunning] = useState(false);
+  const [timerPhase, setTimerPhase] = useState('work');
+  const [pendingExerciseId, setPendingExerciseId] = useState(null);
 
   const exercises = workout?.exercises ?? [];
   const selectedExercise = exercises.find((exercise) => exercise.id === selectedExerciseId) ?? exercises[0];
@@ -73,6 +75,8 @@ export default function WorkoutSessionPage() {
 
   useEffect(() => {
     if (!selectedExercise) return;
+    setTimerPhase('work');
+    setPendingExerciseId(null);
     setRemainingSeconds(selectedExercise.durationSeconds);
     setIsRunning(false);
   }, [selectedExerciseId, selectedExercise]);
@@ -87,6 +91,21 @@ export default function WorkoutSessionPage() {
     return () => window.clearInterval(timer);
   }, [isRunning, remainingSeconds]);
 
+  useEffect(() => {
+    if (!isRunning || remainingSeconds !== 0 || timerPhase !== 'rest') return;
+    setTimerPhase('work');
+    setIsRunning(false);
+    const nextId = pendingExerciseId;
+    if (nextId) {
+      setSelectedExerciseId(nextId);
+      setPendingExerciseId(null);
+      const nextExercise = exercises.find((exercise) => exercise.id === nextId);
+      setRemainingSeconds(nextExercise?.durationSeconds ?? 0);
+    } else if (selectedExercise) {
+      setRemainingSeconds(selectedExercise.durationSeconds);
+    }
+  }, [exercises, isRunning, pendingExerciseId, remainingSeconds, selectedExercise, timerPhase]);
+
   const completeCurrentSet = () => {
     if (!selectedExercise || isSelectedComplete) return;
 
@@ -99,8 +118,19 @@ export default function WorkoutSessionPage() {
     setIsRunning(false);
 
     const nextExerciseId = findNextExerciseId(exercises, nextCompletedSets, selectedExercise.id);
-    setSelectedExerciseId(nextExerciseId);
+    const currentStillHasSets = nextCompletedSets[selectedExercise.id] < selectedExercise.sets;
     const nextExercise = exercises.find((exercise) => exercise.id === nextExerciseId);
+
+    if (!allWorkoutComplete && selectedExercise.restSeconds > 0) {
+      setTimerPhase('rest');
+      setPendingExerciseId(currentStillHasSets ? selectedExercise.id : nextExerciseId);
+      setRemainingSeconds(selectedExercise.restSeconds);
+      setIsRunning(true);
+      return;
+    }
+
+    setTimerPhase('work');
+    setSelectedExerciseId(nextExerciseId);
     setRemainingSeconds(nextExercise?.durationSeconds ?? 0);
   };
 
@@ -116,19 +146,19 @@ export default function WorkoutSessionPage() {
           <>
             <div className={styles.timerTop}>
               <div>
-                <span className={styles.category}>{selectedExercise.category}</span>
+                <span className={styles.category}>{timerPhase === 'rest' ? '휴식' : selectedExercise.category}</span>
                 <h3>{selectedExercise.exerciseName}</h3>
               </div>
               <span className={isSelectedComplete ? styles.doneBadge : styles.setBadge}>
                 {isSelectedComplete ? '완료' : `${activeSet}/${selectedExercise.sets}세트`}
               </span>
             </div>
-            <div className={styles.timerCircle}>{formatTime(remainingSeconds)}</div>
-            <p className={styles.timerHint}>{remainingSeconds === 0 ? '세트 시간이 끝났습니다. 세트 완료를 눌러 기록하세요.' : `${selectedExercise.reps} · 휴식 ${selectedExercise.restSeconds}초`}</p>
+            <div className={`${styles.timerCircle} ${timerPhase === 'rest' ? styles.restCircle : ''}`}>{formatTime(remainingSeconds)}</div>
+            <p className={styles.timerHint}>{timerPhase === 'rest' ? '휴식 중입니다. 시간이 끝나면 다음 세트를 준비하세요.' : (remainingSeconds === 0 ? '세트 시간이 끝났습니다. 세트 완료를 눌러 기록하세요.' : `${selectedExercise.reps} · 휴식 ${selectedExercise.restSeconds}초`)}</p>
             <div className={styles.timerActions}>
               <button type="button" onClick={() => setIsRunning((value) => !value)} disabled={isSelectedComplete || allWorkoutComplete}>{isRunning ? '일시정지' : '시작'}</button>
-              <button type="button" className={styles.secondaryButton} onClick={() => setRemainingSeconds(selectedExercise.durationSeconds)} disabled={isSelectedComplete || allWorkoutComplete}>다시</button>
-              <button type="button" className={styles.completeButton} onClick={completeCurrentSet} disabled={isSelectedComplete || allWorkoutComplete}>세트 완료</button>
+              <button type="button" className={styles.secondaryButton} onClick={() => setRemainingSeconds(timerPhase === 'rest' ? selectedExercise.restSeconds : selectedExercise.durationSeconds)} disabled={isSelectedComplete || allWorkoutComplete}>다시</button>
+              <button type="button" className={styles.completeButton} onClick={completeCurrentSet} disabled={timerPhase === 'rest' || isSelectedComplete || allWorkoutComplete}>세트 완료</button>
             </div>
           </>
         ) : (

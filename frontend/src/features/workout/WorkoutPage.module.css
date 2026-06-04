@@ -28,3 +28,5 @@
 .list small { display: block; margin-top: 3px; color: var(--color-text-secondary); font-weight: 800; }
 .list em { min-width: 42px; text-align: center; border-radius: 999px; background: #fff; color: var(--color-primary-dark); padding: 6px 8px; font-style: normal; font-size: 12px; font-weight: 950; }
 .completed em { background: #2f6f3e; color: #fff; }
+
+.restCircle { border-color: #f3e2bb; border-top-color: #d99224; color: #9a6a09; }

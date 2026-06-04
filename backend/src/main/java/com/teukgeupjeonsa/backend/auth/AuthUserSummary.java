@@ -9,4 +9,5 @@ public class AuthUserSummary {
     private Long id;
     private String email;
     private String nickname;
+    private String profileImageUrl;
 }

@@ -28,6 +28,9 @@ public class User {
     @Column(nullable = false, length = 50)
     private String nickname;
 
+    @Column(length = 500)
+    private String profileImageUrl;
+
     private Double heightCm;
 
     private Double weightKg;
@@ -54,6 +57,8 @@ public class User {
     private LocalDate dischargeDate;
 
     private LocalDate promotionDate;
+
+    private LocalDate enlistmentDate;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;

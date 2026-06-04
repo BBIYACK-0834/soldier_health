@@ -5,6 +5,7 @@ import Card from '../../components/ui/Card';
 import { useAppContext } from '../../app/AppContext';
 import { getMyProfile } from '../../api/userApi';
 import { emptyUser } from '../../constants/defaultData';
+import { calculateMilitaryService } from '../../utils/militaryService';
 import styles from './MyPage.module.css';
 
 const menus = [
@@ -56,8 +57,10 @@ export default function ProfilePage() {
     };
   }, []);
 
-  const dischargeDday = formatDday('전역', profile?.dischargeDate);
-  const promotionDday = formatDday('진급', profile?.promotionDate);
+  const serviceInfo = calculateMilitaryService(profile);
+  const dischargeDday = formatDday('전역', serviceInfo.dischargeDate || profile?.dischargeDate);
+  const promotionDday = formatDday('진급', serviceInfo.nextPromotionDate || profile?.promotionDate);
+  const serviceProgress = Math.round(serviceInfo.serviceProgressPercent ?? profile?.serviceProgressPercent ?? 0);
 
   const handleLogout = () => {
     actions.logout();
@@ -67,13 +70,14 @@ export default function ProfilePage() {
   return (
     <AppLayout title="마이 페이지">
       <Card className={styles.profileTop}>
-        <div className={styles.avatar}>🪖</div>
+        <div className={styles.avatar}>{profile?.profileImageUrl ? <img src={profile.profileImageUrl} alt="프로필" /> : '🪖'}</div>
         <div>
           <h2>{profile?.nickname || '사용자'}</h2>
-          <p>{profile?.rank || '계급 미설정'} · {profile?.unitName || '선택된 부대 없음'}</p>
+          <p>{serviceInfo.rank || profile?.rank || '계급 미설정'} · {profile?.unitName || '선택된 부대 없음'}</p>
           <div className={styles.militaryMeta}>
             {dischargeDday ? <span>{dischargeDday}</span> : null}
             {promotionDday ? <span>{promotionDday}</span> : null}
+            {serviceProgress ? <span>복무 {serviceProgress}%</span> : null}
           </div>
         </div>
         <button type="button" className={styles.settings} onClick={() => navigate('/mypage/settings')} aria-label="내 정보 설정">⚙️</button>

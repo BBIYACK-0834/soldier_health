@@ -12,6 +12,7 @@ public class UserProfileResponse {
     private Long id;
     private String email;
     private String nickname;
+    private String profileImageUrl;
     private Double heightCm;
     private Double weightKg;
     private GoalType goalType;
@@ -22,6 +23,10 @@ public class UserProfileResponse {
     private String rank;
     private LocalDate dischargeDate;
     private LocalDate promotionDate;
+    private LocalDate enlistmentDate;
+    private LocalDate nextPromotionDate;
+    private Long daysUntilDischarge;
+    private Double serviceProgressPercent;
     private Long unitId;
     private String unitName;
     private UnitResponse unit;
