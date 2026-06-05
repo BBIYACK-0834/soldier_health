@@ -7,6 +7,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -16,12 +17,13 @@ import java.time.temporal.ChronoUnit;
 public class UserService {
 
     private static final int ARMY_SERVICE_MONTHS = 18;
-    private static final int PRIVATE_FIRST_CLASS_MONTH = 3;
-    private static final int CORPORAL_MONTH = 9;
-    private static final int SERGEANT_MONTH = 12;
+    private static final int PRIVATE_FIRST_CLASS_PROMOTION_MONTH = 3;
+    private static final int CORPORAL_PROMOTION_MONTH = 9;
+    private static final int SERGEANT_PROMOTION_MONTH = 15;
 
     private final UserRepository userRepository;
     private final UserUnitSettingRepository userUnitSettingRepository;
+    private final ProfileImageStorageService profileImageStorageService;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(Long userId) {
@@ -44,18 +46,16 @@ public class UserService {
         if (request.getWeightKg() != null) {
             user.setWeightKg(request.getWeightKg());
         }
-        if (request.getRank() != null) {
-            user.setRank(normalizeRank(request.getRank()));
-        }
-        if (request.getDischargeDate() != null) {
-            user.setDischargeDate(request.getDischargeDate());
-        }
-        if (request.getPromotionDate() != null) {
-            user.setPromotionDate(request.getPromotionDate());
-        }
         if (request.getEnlistmentDate() != null) {
             user.setEnlistmentDate(request.getEnlistmentDate());
         }
+        return toResponse(user);
+    }
+
+    @Transactional
+    public UserProfileResponse uploadProfileImage(Long userId, MultipartFile file) {
+        User user = getUser(userId);
+        user.setProfileImageUrl(profileImageStorageService.store(file));
         return toResponse(user);
     }
 
@@ -73,13 +73,6 @@ public class UserService {
     private User getUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
-    }
-
-    private String normalizeRank(String rank) {
-        if (rank == null || rank.isBlank()) {
-            return null;
-        }
-        return rank.trim();
     }
 
     private String normalizeProfileImageUrl(String value) {
@@ -101,7 +94,7 @@ public class UserService {
                         .dataSourceKey(selectedUnit.getDataSourceKey())
                         .build())
                 .orElse(null);
-        MilitaryServiceInfo serviceInfo = calculateMilitaryServiceInfo(user.getEnlistmentDate(), user.getDischargeDate(), user.getPromotionDate());
+        MilitaryServiceInfo serviceInfo = calculateMilitaryServiceInfo(user.getEnlistmentDate());
 
         return UserProfileResponse.builder()
                 .id(user.getId())
@@ -115,9 +108,9 @@ public class UserService {
                 .workoutDaysPerWeek(user.getWorkoutDaysPerWeek())
                 .preferredWorkoutMinutes(user.getPreferredWorkoutMinutes())
                 .branchType(user.getBranchType())
-                .rank(user.getRank() != null ? user.getRank() : serviceInfo.rank())
-                .dischargeDate(user.getDischargeDate() != null ? user.getDischargeDate() : serviceInfo.dischargeDate())
-                .promotionDate(user.getPromotionDate())
+                .rank(serviceInfo.rank())
+                .dischargeDate(serviceInfo.dischargeDate())
+                .promotionDate(null)
                 .enlistmentDate(user.getEnlistmentDate())
                 .nextPromotionDate(serviceInfo.nextPromotionDate())
                 .daysUntilDischarge(serviceInfo.daysUntilDischarge())
@@ -128,15 +121,15 @@ public class UserService {
                 .build();
     }
 
-    private MilitaryServiceInfo calculateMilitaryServiceInfo(LocalDate enlistmentDate, LocalDate manualDischargeDate, LocalDate manualPromotionDate) {
+    private MilitaryServiceInfo calculateMilitaryServiceInfo(LocalDate enlistmentDate) {
         if (enlistmentDate == null) {
-            return new MilitaryServiceInfo(manualDischargeDate, null, manualPromotionDate, calculateDaysUntil(manualDischargeDate), null);
+            return new MilitaryServiceInfo(null, null, null, null, null);
         }
 
         LocalDate today = LocalDate.now();
-        LocalDate dischargeDate = manualDischargeDate != null ? manualDischargeDate : enlistmentDate.plusMonths(ARMY_SERVICE_MONTHS).minusDays(1);
+        LocalDate dischargeDate = enlistmentDate.plusMonths(ARMY_SERVICE_MONTHS).minusDays(1);
         String rank = calculateRank(enlistmentDate, today);
-        LocalDate nextPromotionDate = manualPromotionDate != null ? manualPromotionDate : calculateNextPromotionDate(enlistmentDate, today);
+        LocalDate nextPromotionDate = calculateNextPromotionDate(enlistmentDate, today);
         long daysUntilDischarge = Math.max(0, ChronoUnit.DAYS.between(today, dischargeDate));
         long totalServiceDays = Math.max(1, ChronoUnit.DAYS.between(enlistmentDate, dischargeDate) + 1);
         long servedDays = Math.max(0, ChronoUnit.DAYS.between(enlistmentDate, today));
@@ -145,38 +138,35 @@ public class UserService {
         return new MilitaryServiceInfo(dischargeDate, rank, nextPromotionDate, daysUntilDischarge, progressPercent);
     }
 
-    private Long calculateDaysUntil(LocalDate date) {
-        if (date == null) {
-            return null;
-        }
-        return Math.max(0, ChronoUnit.DAYS.between(LocalDate.now(), date));
-    }
-
     private String calculateRank(LocalDate enlistmentDate, LocalDate baseDate) {
-        if (!baseDate.isBefore(enlistmentDate.plusMonths(SERGEANT_MONTH))) {
+        if (!baseDate.isBefore(getMonthlyPromotionDate(enlistmentDate, SERGEANT_PROMOTION_MONTH))) {
             return "병장";
         }
-        if (!baseDate.isBefore(enlistmentDate.plusMonths(CORPORAL_MONTH))) {
+        if (!baseDate.isBefore(getMonthlyPromotionDate(enlistmentDate, CORPORAL_PROMOTION_MONTH))) {
             return "상병";
         }
-        if (!baseDate.isBefore(enlistmentDate.plusMonths(PRIVATE_FIRST_CLASS_MONTH))) {
+        if (!baseDate.isBefore(getMonthlyPromotionDate(enlistmentDate, PRIVATE_FIRST_CLASS_PROMOTION_MONTH))) {
             return "일병";
         }
         return "이병";
     }
 
+    private LocalDate getMonthlyPromotionDate(LocalDate enlistmentDate, int monthsAfterEnlistmentMonth) {
+        return enlistmentDate.withDayOfMonth(1).plusMonths(monthsAfterEnlistmentMonth);
+    }
+
     private LocalDate calculateNextPromotionDate(LocalDate enlistmentDate, LocalDate baseDate) {
-        LocalDate privateFirstClassDate = enlistmentDate.plusMonths(PRIVATE_FIRST_CLASS_MONTH);
+        LocalDate privateFirstClassDate = getMonthlyPromotionDate(enlistmentDate, PRIVATE_FIRST_CLASS_PROMOTION_MONTH);
         if (baseDate.isBefore(privateFirstClassDate)) {
             return privateFirstClassDate;
         }
 
-        LocalDate corporalDate = enlistmentDate.plusMonths(CORPORAL_MONTH);
+        LocalDate corporalDate = getMonthlyPromotionDate(enlistmentDate, CORPORAL_PROMOTION_MONTH);
         if (baseDate.isBefore(corporalDate)) {
             return corporalDate;
         }
 
-        LocalDate sergeantDate = enlistmentDate.plusMonths(SERGEANT_MONTH);
+        LocalDate sergeantDate = getMonthlyPromotionDate(enlistmentDate, SERGEANT_PROMOTION_MONTH);
         if (baseDate.isBefore(sergeantDate)) {
             return sergeantDate;
         }

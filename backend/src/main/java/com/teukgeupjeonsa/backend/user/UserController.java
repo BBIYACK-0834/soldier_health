@@ -4,7 +4,9 @@ import com.teukgeupjeonsa.backend.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users/me")
@@ -24,6 +26,15 @@ public class UserController {
             @Valid @RequestBody UpdateProfileRequest request
     ) {
         return ApiResponse.ok(userService.updateProfile(user.getId(), request));
+    }
+
+
+    @PostMapping(value = "/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<UserProfileResponse> uploadProfileImage(
+            @AuthenticationPrincipal User user,
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ApiResponse.ok(userService.uploadProfileImage(user.getId(), file));
     }
 
     @PutMapping("/goals")

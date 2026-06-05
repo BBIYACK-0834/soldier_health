@@ -75,3 +75,82 @@
 .presetGrid button { margin: 0; padding: 6px; border: 2px solid transparent; border-radius: 14px; background: #f8f7f2; }
 .presetGrid img { width: 52px; height: 52px; border-radius: 50%; display: block; margin: 0 auto; }
 .presetGrid .selectedPreset { border-color: #556a3b; background: #eef2e7; }
+
+.signupCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.signupCard h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.18;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+}
+
+.signupCard > p {
+  margin: 0;
+  color: var(--tg-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+.error {
+  margin: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(217, 83, 79, 0.1);
+  color: var(--tg-danger);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.linkButton {
+  border: 0;
+  background: transparent;
+  color: var(--tg-primary);
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.termsText {
+  display: block;
+  color: var(--tg-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.signupProfileBox {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--tg-border);
+  border-radius: 16px;
+  background: var(--tg-primary-soft);
+}
+
+.uploadLabel {
+  display: block !important;
+  border: 1px dashed var(--tg-primary);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: #fff;
+  color: var(--tg-primary);
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+  cursor: pointer;
+}
+
+.uploadLabel input {
+  display: none;
+}
