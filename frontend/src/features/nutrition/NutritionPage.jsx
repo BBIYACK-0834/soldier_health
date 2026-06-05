@@ -106,6 +106,16 @@ export default function NutritionPage() {
     </div>
   );
 
+  if (loading) {
+    return (
+      <AppLayout title="식단 기록" subtitle="날짜별 식단과 영양소를 확인하세요.">
+        <Card>
+          <p className={styles.base}>불러오는 중...</p>
+        </Card>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout title="식단 기록" subtitle="날짜별 식단과 영양소를 확인하세요." headerAction={headerAction}>
       <Card>
@@ -158,7 +168,6 @@ export default function NutritionPage() {
         );
       })}
 
-      {loading ? <p className={styles.base}>불러오는 중...</p> : null}
       {errorMessage ? <p className={styles.base}>{errorMessage}</p> : null}
     </AppLayout>
   );

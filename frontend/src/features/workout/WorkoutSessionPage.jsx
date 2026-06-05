@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
@@ -66,6 +66,13 @@ export default function WorkoutSessionPage() {
   const activeSet = selectedExercise ? Math.min(selectedCompletedSets + 1, selectedExercise.sets) : 0;
   const isSelectedComplete = selectedExercise ? selectedCompletedSets >= selectedExercise.sets : false;
   const allWorkoutComplete = exercises.length > 0 && exercises.every((exercise) => (completedSets[exercise.id] ?? 0) >= exercise.sets);
+  const currentPhaseDuration = selectedExercise
+    ? (timerPhase === 'rest' ? selectedExercise.restSeconds : selectedExercise.durationSeconds)
+    : 0;
+  const timerProgress = currentPhaseDuration > 0
+    ? Math.max(0, Math.min(1, remainingSeconds / currentPhaseDuration))
+    : 0;
+  const timerDisabled = !selectedExercise || allWorkoutComplete || (timerPhase !== 'rest' && isSelectedComplete);
   const totalSetCount = exercises.reduce((sum, exercise) => sum + exercise.sets, 0);
   const completedSetCount = exercises.reduce((sum, exercise) => sum + Math.min(completedSets[exercise.id] ?? 0, exercise.sets), 0);
 
@@ -91,8 +98,7 @@ export default function WorkoutSessionPage() {
     return () => window.clearInterval(timer);
   }, [isRunning, remainingSeconds]);
 
-  useEffect(() => {
-    if (!isRunning || remainingSeconds !== 0 || timerPhase !== 'rest') return;
+  const completeRest = useCallback(() => {
     setTimerPhase('work');
     setIsRunning(false);
     const nextId = pendingExerciseId;
@@ -104,7 +110,17 @@ export default function WorkoutSessionPage() {
     } else if (selectedExercise) {
       setRemainingSeconds(selectedExercise.durationSeconds);
     }
-  }, [exercises, isRunning, pendingExerciseId, remainingSeconds, selectedExercise, timerPhase]);
+  }, [exercises, pendingExerciseId, selectedExercise]);
+
+  useEffect(() => {
+    if (!isRunning || remainingSeconds !== 0 || timerPhase !== 'rest') return;
+    completeRest();
+  }, [completeRest, isRunning, remainingSeconds, timerPhase]);
+
+  const resetTimer = () => {
+    if (!selectedExercise) return;
+    setRemainingSeconds(timerPhase === 'rest' ? selectedExercise.restSeconds : selectedExercise.durationSeconds);
+  };
 
   const completeCurrentSet = () => {
     if (!selectedExercise || isSelectedComplete) return;
@@ -120,8 +136,9 @@ export default function WorkoutSessionPage() {
     const nextExerciseId = findNextExerciseId(exercises, nextCompletedSets, selectedExercise.id);
     const currentStillHasSets = nextCompletedSets[selectedExercise.id] < selectedExercise.sets;
     const nextExercise = exercises.find((exercise) => exercise.id === nextExerciseId);
+    const nextAllWorkoutComplete = exercises.length > 0 && exercises.every((exercise) => (nextCompletedSets[exercise.id] ?? 0) >= exercise.sets);
 
-    if (!allWorkoutComplete && selectedExercise.restSeconds > 0) {
+    if (!nextAllWorkoutComplete && selectedExercise.restSeconds > 0) {
       setTimerPhase('rest');
       setPendingExerciseId(currentStillHasSets ? selectedExercise.id : nextExerciseId);
       setRemainingSeconds(selectedExercise.restSeconds);
@@ -153,12 +170,22 @@ export default function WorkoutSessionPage() {
                 {isSelectedComplete ? '완료' : `${activeSet}/${selectedExercise.sets}세트`}
               </span>
             </div>
-            <div className={`${styles.timerCircle} ${timerPhase === 'rest' ? styles.restCircle : ''}`}>{formatTime(remainingSeconds)}</div>
-            <p className={styles.timerHint}>{timerPhase === 'rest' ? '휴식 중입니다. 시간이 끝나면 다음 세트를 준비하세요.' : (remainingSeconds === 0 ? '세트 시간이 끝났습니다. 세트 완료를 눌러 기록하세요.' : `${selectedExercise.reps} · 휴식 ${selectedExercise.restSeconds}초`)}</p>
+            <div
+              className={`${styles.timerCircle} ${timerPhase === 'rest' ? styles.restCircle : ''}`}
+              style={{ '--timer-progress': `${timerProgress * 360}deg` }}
+              aria-label={`${timerPhase === 'rest' ? '휴식' : '운동'} 남은 시간 ${formatTime(remainingSeconds)}`}
+            >
+              <span>{formatTime(remainingSeconds)}</span>
+            </div>
+            <p className={styles.timerHint}>{timerPhase === 'rest' ? '휴식 중입니다. 일시정지하면 원하는 만큼 휴식을 늘릴 수 있고, 휴식 완료를 누르면 바로 다음 세트로 넘어갑니다.' : (remainingSeconds === 0 ? '세트 시간이 끝났습니다. 세트 완료를 눌러 기록하세요.' : `${selectedExercise.reps} · 휴식 ${selectedExercise.restSeconds}초`)}</p>
             <div className={styles.timerActions}>
-              <button type="button" onClick={() => setIsRunning((value) => !value)} disabled={isSelectedComplete || allWorkoutComplete}>{isRunning ? '일시정지' : '시작'}</button>
-              <button type="button" className={styles.secondaryButton} onClick={() => setRemainingSeconds(timerPhase === 'rest' ? selectedExercise.restSeconds : selectedExercise.durationSeconds)} disabled={isSelectedComplete || allWorkoutComplete}>다시</button>
-              <button type="button" className={styles.completeButton} onClick={completeCurrentSet} disabled={timerPhase === 'rest' || isSelectedComplete || allWorkoutComplete}>세트 완료</button>
+              <button type="button" onClick={() => setIsRunning((value) => !value)} disabled={timerDisabled}>{isRunning ? '일시정지' : (timerPhase === 'rest' ? '휴식 계속' : '시작')}</button>
+              <button type="button" className={styles.secondaryButton} onClick={resetTimer} disabled={timerDisabled}>다시</button>
+              {timerPhase === 'rest' ? (
+                <button type="button" className={styles.completeButton} onClick={completeRest} disabled={!selectedExercise || allWorkoutComplete}>휴식 완료</button>
+              ) : (
+                <button type="button" className={styles.completeButton} onClick={completeCurrentSet} disabled={isSelectedComplete || allWorkoutComplete}>세트 완료</button>
+              )}
             </div>
           </>
         ) : (
