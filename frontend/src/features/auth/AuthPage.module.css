@@ -128,3 +128,29 @@
   line-height: 1.45;
   text-align: center;
 }
+
+.signupProfileBox {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--tg-border);
+  border-radius: 16px;
+  background: var(--tg-primary-soft);
+}
+
+.uploadLabel {
+  display: block !important;
+  border: 1px dashed var(--tg-primary);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: #fff;
+  color: var(--tg-primary);
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+  cursor: pointer;
+}
+
+.uploadLabel input {
+  display: none;
+}

@@ -28,7 +28,7 @@ public class User {
     @Column(nullable = false, length = 50)
     private String nickname;
 
-    @Column(length = 500)
+    @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
     private Double heightCm;
@@ -52,7 +52,7 @@ public class User {
     private BranchType branchType;
 
     @Column(name = "military_rank", length = 30)
-private String rank;
+    private String rank;
 
     private LocalDate dischargeDate;
 

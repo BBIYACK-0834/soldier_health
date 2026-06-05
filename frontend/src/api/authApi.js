@@ -1,6 +1,23 @@
 import httpClient, { unwrap } from './httpClient';
 
 export async function signup(payload) {
+  if (payload.profileImageFile) {
+    const formData = new FormData();
+    formData.append('email', payload.email);
+    formData.append('password', payload.password);
+    formData.append('nickname', payload.nickname);
+    formData.append('profileImageUrl', payload.profileImageUrl || '');
+    formData.append('profileImageFile', payload.profileImageFile);
+
+    const response = await httpClient.post('/api/auth/signup', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return unwrap(response);
+  }
+
   const response = await httpClient.post('/api/auth/signup', {
     email: payload.email,
     password: payload.password,

@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,13 +24,13 @@ import java.util.UUID;
 public class UserService {
 
     private static final int ARMY_SERVICE_MONTHS = 18;
-    private static final int PRIVATE_FIRST_CLASS_MONTH = 2;
-    private static final int CORPORAL_MONTH = 8;
-    private static final int SERGEANT_MONTH = 14;
-    private static final long MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
+    private static final int PRIVATE_FIRST_CLASS_PROMOTION_MONTH = 3;
+    private static final int CORPORAL_PROMOTION_MONTH = 9;
+    private static final int SERGEANT_PROMOTION_MONTH = 15;
 
     private final UserRepository userRepository;
     private final UserUnitSettingRepository userUnitSettingRepository;
+    private final ProfileImageStorageService profileImageStorageService;
 
     @Value("${app.upload.profile-images-dir:uploads/profile-images}")
     private String profileImagesDir;
@@ -60,23 +59,6 @@ public class UserService {
         if (request.getEnlistmentDate() != null) {
             user.setEnlistmentDate(request.getEnlistmentDate());
         }
-        return toResponse(user);
-    }
-
-
-    @Transactional
-    public UserProfileResponse uploadProfileImage(Long userId, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("업로드할 프로필 이미지를 선택해주세요.");
-        }
-        if (file.getSize() > MAX_PROFILE_IMAGE_BYTES) {
-            throw new IllegalArgumentException("프로필 이미지는 5MB 이하만 업로드할 수 있습니다.");
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
-            throw new IllegalArgumentException("이미지 파일만 업로드할 수 있습니다.");
-        }
 
         String extension = resolveImageExtension(contentType);
         String filename = UUID.randomUUID() + extension;
@@ -100,6 +82,13 @@ public class UserService {
     }
 
     @Transactional
+    public UserProfileResponse uploadProfileImage(Long userId, MultipartFile file) {
+        User user = getUser(userId);
+        user.setProfileImageUrl(profileImageStorageService.store(file));
+        return toResponse(user);
+    }
+
+    @Transactional
     public UserProfileResponse updateGoals(Long userId, UpdateGoalsRequest request) {
         User user = getUser(userId);
         user.setGoalType(request.getGoalType());
@@ -113,16 +102,6 @@ public class UserService {
     private User getUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
-    }
-
-    private String resolveImageExtension(String contentType) {
-        return switch (contentType.toLowerCase(Locale.ROOT)) {
-            case "image/png" -> ".png";
-            case "image/gif" -> ".gif";
-            case "image/webp" -> ".webp";
-            case "image/svg+xml" -> ".svg";
-            default -> ".jpg";
-        };
     }
 
     private String normalizeProfileImageUrl(String value) {
@@ -188,38 +167,35 @@ public class UserService {
         return new MilitaryServiceInfo(dischargeDate, rank, nextPromotionDate, daysUntilDischarge, progressPercent);
     }
 
-    private Long calculateDaysUntil(LocalDate date) {
-        if (date == null) {
-            return null;
-        }
-        return Math.max(0, ChronoUnit.DAYS.between(LocalDate.now(), date));
-    }
-
     private String calculateRank(LocalDate enlistmentDate, LocalDate baseDate) {
-        if (!baseDate.isBefore(enlistmentDate.plusMonths(SERGEANT_MONTH))) {
+        if (!baseDate.isBefore(getMonthlyPromotionDate(enlistmentDate, SERGEANT_PROMOTION_MONTH))) {
             return "병장";
         }
-        if (!baseDate.isBefore(enlistmentDate.plusMonths(CORPORAL_MONTH))) {
+        if (!baseDate.isBefore(getMonthlyPromotionDate(enlistmentDate, CORPORAL_PROMOTION_MONTH))) {
             return "상병";
         }
-        if (!baseDate.isBefore(enlistmentDate.plusMonths(PRIVATE_FIRST_CLASS_MONTH))) {
+        if (!baseDate.isBefore(getMonthlyPromotionDate(enlistmentDate, PRIVATE_FIRST_CLASS_PROMOTION_MONTH))) {
             return "일병";
         }
         return "이병";
     }
 
+    private LocalDate getMonthlyPromotionDate(LocalDate enlistmentDate, int monthsAfterEnlistmentMonth) {
+        return enlistmentDate.withDayOfMonth(1).plusMonths(monthsAfterEnlistmentMonth);
+    }
+
     private LocalDate calculateNextPromotionDate(LocalDate enlistmentDate, LocalDate baseDate) {
-        LocalDate privateFirstClassDate = enlistmentDate.plusMonths(PRIVATE_FIRST_CLASS_MONTH);
+        LocalDate privateFirstClassDate = getMonthlyPromotionDate(enlistmentDate, PRIVATE_FIRST_CLASS_PROMOTION_MONTH);
         if (baseDate.isBefore(privateFirstClassDate)) {
             return privateFirstClassDate;
         }
 
-        LocalDate corporalDate = enlistmentDate.plusMonths(CORPORAL_MONTH);
+        LocalDate corporalDate = getMonthlyPromotionDate(enlistmentDate, CORPORAL_PROMOTION_MONTH);
         if (baseDate.isBefore(corporalDate)) {
             return corporalDate;
         }
 
-        LocalDate sergeantDate = enlistmentDate.plusMonths(SERGEANT_MONTH);
+        LocalDate sergeantDate = getMonthlyPromotionDate(enlistmentDate, SERGEANT_PROMOTION_MONTH);
         if (baseDate.isBefore(sergeantDate)) {
             return sergeantDate;
         }

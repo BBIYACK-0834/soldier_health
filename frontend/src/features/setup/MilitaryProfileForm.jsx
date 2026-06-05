@@ -10,9 +10,9 @@ const DEFAULT_PROFILE_IMAGES = [
 ];
 
 const ARMY_SERVICE_MONTHS = 18;
-const PRIVATE_FIRST_CLASS_MONTH = 2;
-const CORPORAL_MONTH = 8;
-const SERGEANT_MONTH = 14;
+const PRIVATE_FIRST_CLASS_PROMOTION_MONTH = 3;
+const CORPORAL_PROMOTION_MONTH = 9;
+const SERGEANT_PROMOTION_MONTH = 15;
 
 function toDateInput(value) {
   if (!value) return '';
@@ -52,6 +52,12 @@ function addDays(value, days) {
   return result;
 }
 
+function getMonthlyPromotionDate(value, monthsAfterEnlistmentMonth) {
+  const result = new Date(value.getFullYear(), value.getMonth(), 1);
+  result.setMonth(result.getMonth() + monthsAfterEnlistmentMonth);
+  return result;
+}
+
 function calculateArmyService(enlistmentDate) {
   const enlistedAt = parseDateInput(enlistmentDate);
   if (!enlistedAt) {
@@ -60,9 +66,9 @@ function calculateArmyService(enlistmentDate) {
 
   const today = new Date();
   const dischargeAt = addDays(addMonths(enlistedAt, ARMY_SERVICE_MONTHS), -1);
-  const privateFirstClassAt = addMonths(enlistedAt, PRIVATE_FIRST_CLASS_MONTH);
-  const corporalAt = addMonths(enlistedAt, CORPORAL_MONTH);
-  const sergeantAt = addMonths(enlistedAt, SERGEANT_MONTH);
+  const privateFirstClassAt = getMonthlyPromotionDate(enlistedAt, PRIVATE_FIRST_CLASS_PROMOTION_MONTH);
+  const corporalAt = getMonthlyPromotionDate(enlistedAt, CORPORAL_PROMOTION_MONTH);
+  const sergeantAt = getMonthlyPromotionDate(enlistedAt, SERGEANT_PROMOTION_MONTH);
 
   let rank = '이병';
   let nextPromotionDate = privateFirstClassAt;
@@ -194,7 +200,7 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
           <span>전역 예정일 <strong>{formatDate(armyService?.dischargeAt)}</strong></span>
           <span>다음 진급 <strong>{armyService?.nextPromotionDate ? formatDate(armyService.nextPromotionDate) : '진급 일정 없음'}</strong></span>
         </div>
-        <small className={styles.helperText}>육군 병 복무 18개월, 이병 2개월·일병 6개월·상병 6개월 기준으로 자동 계산합니다.</small>
+        <small className={styles.helperText}>육군 병 복무 18개월, 월초 진급 원칙(입대월 포함 이병 3개월·일병 6개월·상병 6개월) 기준으로 자동 계산합니다.</small>
       </Card>
 
       {message ? <p className={styles.infoText}>{message}</p> : null}
