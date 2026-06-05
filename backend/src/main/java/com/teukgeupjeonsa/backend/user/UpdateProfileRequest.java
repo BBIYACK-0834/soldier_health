@@ -24,12 +24,6 @@ public class UpdateProfileRequest {
     @Positive
     private Double weightKg;
 
-    private String rank;
-
-    private LocalDate dischargeDate;
-
-    private LocalDate promotionDate;
-
     @PastOrPresent
     private LocalDate enlistmentDate;
 }

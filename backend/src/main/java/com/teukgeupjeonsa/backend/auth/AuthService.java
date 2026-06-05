@@ -1,5 +1,6 @@
 package com.teukgeupjeonsa.backend.auth;
 
+import com.teukgeupjeonsa.backend.user.ProfileImageStorageService;
 import com.teukgeupjeonsa.backend.user.User;
 import com.teukgeupjeonsa.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -18,18 +20,33 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final com.teukgeupjeonsa.backend.common.security.JwtTokenProvider jwtTokenProvider;
+    private final ProfileImageStorageService profileImageStorageService;
 
     @Transactional
     public SignupResponse signup(SignUpRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        return signup(request, null);
+    }
+
+    @Transactional
+    public SignupResponse signup(SignUpRequest request, MultipartFile profileImageFile) {
+        validateSignupRequest(request);
+
+        String email = request.getEmail().trim();
+        String nickname = request.getNickname().trim();
+
+        if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
 
+        String profileImageUrl = profileImageFile != null && !profileImageFile.isEmpty()
+                ? profileImageStorageService.store(profileImageFile)
+                : normalizeProfileImageUrl(request.getProfileImageUrl());
+
         User user = User.builder()
-                .email(request.getEmail())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
-                .nickname(request.getNickname())
-                .profileImageUrl(normalizeProfileImageUrl(request.getProfileImageUrl()))
+                .nickname(nickname)
+                .profileImageUrl(profileImageUrl)
                 .build();
 
         User saved = userRepository.save(user);
@@ -68,6 +85,14 @@ public class AuthService {
                 .build();
     }
 
+    private void validateSignupRequest(SignUpRequest request) {
+        if (request == null
+                || request.getEmail() == null || request.getEmail().isBlank()
+                || request.getPassword() == null || request.getPassword().isBlank()
+                || request.getNickname() == null || request.getNickname().isBlank()) {
+            throw new IllegalArgumentException("회원가입 정보를 모두 입력해주세요.");
+        }
+    }
 
     private String normalizeProfileImageUrl(String value) {
         if (value == null || value.isBlank()) {
