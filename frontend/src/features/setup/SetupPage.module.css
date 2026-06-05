@@ -45,3 +45,4 @@
 .formStack { display: flex; flex-direction: column; gap: 12px; }
 .formStack label { display: flex; flex-direction: column; gap: 8px; font-weight: 900; color: var(--color-primary); }
 .formStack input { border: 1px solid var(--color-border); border-radius: 12px; padding: 12px; font: inherit; font-weight: 800; color: var(--color-text); background: #fff; }
+.profilePreviewImage { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin-top: 10px; border: 2px solid #d1cdbf; }

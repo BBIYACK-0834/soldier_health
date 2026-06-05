@@ -5,6 +5,7 @@ export async function signup(payload) {
     email: payload.email,
     password: payload.password,
     nickname: payload.nickname,
+    profileImageUrl: payload.profileImageUrl,
   });
 
   return unwrap(response);

@@ -1,5 +1,6 @@
 .profileTop { display: grid; grid-template-columns: 58px 1fr 32px; align-items: center; gap: 12px; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: #fff; }
-.avatar { width: 58px; height: 58px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; font-size: 34px; }
+.avatar { width: 58px; height: 58px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; font-size: 34px; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
 .profileTop h2 { margin: 0; font-size: 20px; }
 .profileTop p { margin: 6px 0 0; color: rgba(255,255,255,.82); font-weight: 700; }
 .settings { border: 0; background: transparent; color: #fff; font-size: 20px; }

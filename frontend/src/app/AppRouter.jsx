@@ -68,6 +68,7 @@ export default function AppRouter() {
       <Route path="/community" element={<RequireAuth><CommunityPage /></RequireAuth>} />
       <Route path="/community/popular" element={<RequireAuth><CommunityPage /></RequireAuth>} />
       <Route path="/community/unit" element={<RequireAuth><CommunityPage /></RequireAuth>} />
+      <Route path="/community/posts/:postId" element={<RequireAuth><CommunityPage /></RequireAuth>} />
 
       <Route path="/mypage" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       <Route path="/mypage/settings" element={<RequireAuth><ProfileSettingsPage /></RequireAuth>} />
