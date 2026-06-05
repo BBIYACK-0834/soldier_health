@@ -1,19 +1,37 @@
-.iconBtn { border: 0; background: transparent; font-size: 22px; }
-.mainDietCard { padding: 16px; }
-.rowBetween { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.pill { background: var(--color-primary); color: #fff; padding: 7px 16px; border-radius: 999px; font-weight: 800; }
-.percent { width: 48px; height: 48px; border-radius: 50%; background: var(--color-primary-light); color: var(--color-primary); display: grid; place-items: center; font-weight: 900; }
-.smallBtn { width: 100%; border: 0; border-radius: 10px; padding: 12px 16px; background: var(--color-primary); color: #fff; font-weight: 800; margin-top: 12px; }
-.title { margin: 12px 0 4px; color: var(--color-text-secondary); font-weight: 700; }
-.kcal { margin: 0 0 10px; font-size: 38px; font-weight: 900; color: var(--color-primary-dark); line-height: 1.1; letter-spacing: -0.05em; }
-.kcal span { font-size: 17px; color: var(--color-text-primary); letter-spacing: -0.03em; }
-.macroGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
-.checkGrid { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 10px; gap: 6px; }
-.meta { margin: 0; color: var(--color-text-secondary); font-weight: 700; }
-.cardTitle { margin: 0; font-size: 18px; }
-.tipCard { display: flex; align-items: center; gap: 10px; background: var(--color-surface-soft); }
-.avatar { font-size: 42px; }
-.tipPill { display: inline-block; margin-bottom: 6px; background: var(--color-primary); color: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 900; }
-.tipCard p { margin: 0; color: #2d3728; font-weight: 700; line-height: 1.4; }
-.quickGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.quickGrid button { border: 1px solid var(--color-border); border-radius: 12px; background: #fff; color: var(--color-primary); min-height: 48px; font-weight: 900; }
+.heroHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 18px 14px 6px; }
+.heroHeader h1 { margin: 0; font-size: 27px; line-height: 1.22; letter-spacing: -0.06em; font-weight: 950; color: #070807; }
+.heroHeader p { margin: 10px 0 0; color: #555852; font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
+.iconBtn { border: 0; background: transparent; width: 46px; height: 46px; display: grid; place-items: center; font-size: 32px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.24)); }
+.loadingCard { min-height: 180px; display: grid; place-items: center; }
+.calorieCard { padding: 24px 22px; border-radius: 24px; box-shadow: 0 12px 34px rgba(43, 57, 34, 0.08); }
+.sectionLabel { margin: 0 0 8px; color: #595b58; font-size: 22px; font-weight: 950; letter-spacing: -0.04em; }
+.calorieValue { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; color: #050505; }
+.calorieValue strong { color: var(--color-primary-dark); font-size: 52px; line-height: 1; letter-spacing: -0.07em; font-weight: 950; }
+.calorieValue span { font-size: 22px; font-weight: 950; letter-spacing: -0.04em; }
+.macroGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
+.macroCard { min-width: 0; border-radius: 18px; padding: 17px 12px 14px; box-shadow: inset 0 0 26px rgba(255,255,255,.42); }
+.macroCard p { margin: 0 0 22px; font-size: 20px; font-weight: 950; letter-spacing: -0.04em; }
+.macroCard strong { display: block; margin-bottom: 18px; color: #050505; font-size: 24px; line-height: 1.28; letter-spacing: -0.05em; font-weight: 950; }
+.carbCard { background: linear-gradient(135deg, #dfe8f5, #eef2f7); }
+.proteinCard { background: linear-gradient(135deg, #e6ece0, #f0f3ec); }
+.fatCard { background: linear-gradient(135deg, #f1e2cf, #f7eee2); }
+.workoutCard { padding: 22px; border-radius: 22px; box-shadow: 0 12px 34px rgba(43, 57, 34, 0.08); }
+.rowBetween { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rowBetween strong { font-size: 22px; letter-spacing: -0.05em; }
+.cardTitle { margin: 0; font-size: 26px; line-height: 1.1; letter-spacing: -0.06em; font-weight: 950; }
+.checkGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0 20px; }
+.checkItem { display: grid; justify-items: center; gap: 8px; color: #0c0c0b; font-size: 16px; font-weight: 950; }
+.emptyCircle, .checkedCircle { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; font-weight: 950; }
+.emptyCircle { border: 2px solid #bcb6ad; background: #fff; }
+.checkedCircle { border: 2px solid var(--color-primary); background: var(--color-primary); color: #fff; box-shadow: 0 8px 16px rgba(63,79,50,.22); }
+.primaryButton { width: 100%; border: 0; border-radius: 14px; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: #fff; padding: 16px; font-size: 22px; font-weight: 950; letter-spacing: -0.04em; box-shadow: 0 12px 24px rgba(47,61,38,.18); }
+.meta { margin: 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 800; }
+
+@media (max-width: 360px) {
+  .heroHeader h1 { font-size: 24px; }
+  .calorieValue strong { font-size: 44px; }
+  .macroGrid { gap: 8px; }
+  .macroCard { padding: 14px 9px; }
+  .macroCard p { font-size: 17px; }
+  .macroCard strong { font-size: 20px; }
+}

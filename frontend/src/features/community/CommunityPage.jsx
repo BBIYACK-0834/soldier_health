@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
 import { createCommunityComment, createCommunityPost, getCommunityPostDetail, getCommunityPosts, likeCommunityPost } from '../../api/communityApi';
+import { getMyUnit } from '../../api/unitApi';
 import { useAppContext } from '../../app/AppContext';
 import styles from './CommunityPage.module.css';
 
@@ -11,6 +12,22 @@ const tabs = [
   { value: 'POPULAR', label: '인기', path: '/community/popular' },
   { value: 'UNIT', label: '우리 부대', path: '/community/unit' },
 ];
+
+function formatCommunityTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).split('.')[0].replace('T', ' ');
+
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${month}.${day} ${hours}:${minutes}`;
+}
+
+function replacePostById(postId, nextPost) {
+  return (post) => (post.id === postId ? nextPost : post);
+}
 
 function tabFromPath(pathname) {
   if (pathname.includes('/popular')) return 'POPULAR';
@@ -33,10 +50,11 @@ export default function CommunityPage() {
   const [postContent, setPostContent] = useState('');
   const [postImageUrl, setPostImageUrl] = useState('');
   const [routineText, setRoutineText] = useState('');
-  const [postCategory, setPostCategory] = useState(tab === 'UNIT' ? 'UNIT' : 'ALL');
   const [commentContent, setCommentContent] = useState('');
   const [suggestedRoutineText, setSuggestedRoutineText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [pendingLikeIds, setPendingLikeIds] = useState(() => new Set());
+  const [myUnit, setMyUnit] = useState(null);
 
   useEffect(() => {
     setTab(tabFromPath(location.pathname));
@@ -84,29 +102,46 @@ export default function CommunityPage() {
   }, [loadPosts, postId]);
 
   useEffect(() => {
-    setPostCategory(tab === 'UNIT' ? 'UNIT' : 'ALL');
-  }, [tab]);
+    let mounted = true;
+    getMyUnit()
+      .then((unit) => {
+        if (mounted) setMyUnit(unit ?? null);
+      })
+      .catch(() => {
+        if (mounted) setMyUnit(null);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const visiblePosts = useMemo(() => {
     if (tab === 'POPULAR') return [...posts].sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
-    if (tab === 'UNIT') return posts.filter((post) => !state.user?.unitName || !post.unitName || post.unitName === state.user.unitName);
     return posts;
-  }, [posts, state.user?.unitName, tab]);
+  }, [posts, tab]);
 
   const handleLike = async (targetPostId) => {
-    const optimistic = (post) => post.id === targetPostId ? { ...post, likeCount: (post.likeCount ?? 0) + 1 } : post;
-    setPosts((prev) => prev.map(optimistic));
-    if (postDetail?.post?.id === targetPostId) {
-      setPostDetail((prev) => ({ ...prev, post: optimistic(prev.post) }));
-    }
+    const targetPost = postDetail?.post?.id === targetPostId
+      ? postDetail.post
+      : posts.find((post) => post.id === targetPostId);
+
+    if (!targetPost || targetPost.likedByMe || pendingLikeIds.has(targetPostId)) return;
+
+    setErrorMessage('');
+    setPendingLikeIds((prev) => new Set(prev).add(targetPostId));
+
     try {
       const updated = await likeCommunityPost(targetPostId);
-      setPosts((prev) => prev.map((post) => (post.id === targetPostId ? updated : post)));
-      if (postDetail?.post?.id === targetPostId) {
-        setPostDetail((prev) => ({ ...prev, post: updated }));
-      }
-    } catch {
-      setErrorMessage('좋아요 반영에 실패했습니다.');
+      setPosts((prev) => prev.map(replacePostById(targetPostId, updated)));
+      setPostDetail((prev) => (prev?.post?.id === targetPostId ? { ...prev, post: updated } : prev));
+    } catch (error) {
+      setErrorMessage(error.message || '좋아요 반영에 실패했습니다.');
+    } finally {
+      setPendingLikeIds((prev) => {
+        const next = new Set(prev);
+        next.delete(targetPostId);
+        return next;
+      });
     }
   };
 
@@ -136,7 +171,6 @@ export default function CommunityPage() {
     try {
       setSubmitting(true);
       const created = await createCommunityPost({
-        category: postCategory,
         title: postTitle.trim(),
         content: postContent.trim(),
         imageUrl: postImageUrl.trim() || null,
@@ -144,8 +178,8 @@ export default function CommunityPage() {
       });
       setPosts((prev) => [created, ...prev]);
       closeComposer();
-      if (postCategory === 'UNIT' && tab !== 'UNIT') {
-        navigate('/community/unit');
+      if (tab === 'UNIT' && created?.unitName !== myUnit?.unitName) {
+        await loadPosts();
       }
     } catch (error) {
       setErrorMessage(error.message || '게시글 작성에 실패했습니다.');
@@ -181,21 +215,29 @@ export default function CommunityPage() {
     <Card key={post.id} className={detail ? styles.detailCard : ''} onClick={detail ? undefined : () => navigate(`/community/posts/${post.id}`)}>
       <div className={styles.postHead}>
         {tab === 'POPULAR' && !detail ? <strong className={styles.rank}>{index + 1}</strong> : <span className={styles.avatar}>🪖</span>}
-        <p className={styles.user}>{post.authorNickname || '익명'} <span>{post.unitName || '전 부대'} · {post.createdAt || ''}</span></p>
+        <p className={styles.user}>{post.authorNickname || '익명'} <span>{post.unitName || '부대 미설정'} · {formatCommunityTime(post.createdAt)}</span></p>
       </div>
       <h3 className={styles.title}>{post.title || '제목 없음'}</h3>
       <p className={styles.content}>{post.content || ''}</p>
       {post.imageUrl ? <img className={styles.postImage} src={post.imageUrl} alt="게시글 이미지" /> : null}
       {post.routineText ? <pre className={styles.routineBox}>{post.routineText}</pre> : null}
       <div className={styles.metaRow}>
-        <button type="button" onClick={(event) => { event.stopPropagation(); handleLike(post.id); }}>♡ {post.likeCount ?? 0}</button>
+        <button
+          type="button"
+          className={post.likedByMe ? styles.likedButton : ''}
+          onClick={(event) => { event.stopPropagation(); handleLike(post.id); }}
+          disabled={post.likedByMe || pendingLikeIds.has(post.id)}
+          aria-pressed={Boolean(post.likedByMe)}
+        >
+          {post.likedByMe ? '♥' : '♡'} {post.likeCount ?? 0}
+        </button>
         <span>댓글 {post.commentCount ?? 0}</span>
       </div>
     </Card>
   );
 
   return (
-    <AppLayout title={postId ? '게시글 상세' : (tab === 'UNIT' ? `${state.user?.unitName || '우리 부대'} 게시판` : '커뮤니티')} headerAction={!postId ? <button type="button" className={styles.edit} onClick={() => setShowComposer(true)} aria-label="게시글 작성">✏️</button> : <button type="button" className={styles.edit} onClick={() => navigate('/community')}>←</button>}>
+    <AppLayout title={postId ? '게시글 상세' : (tab === 'UNIT' ? `${myUnit?.unitName || state.user?.unitName || '우리 부대'} 게시판` : '커뮤니티')} headerAction={!postId ? <button type="button" className={styles.edit} onClick={() => setShowComposer(true)} aria-label="게시글 작성">✏️</button> : <button type="button" className={styles.edit} onClick={() => navigate('/community')}>←</button>}>
       {!postId ? (
         <div className={styles.tabWrap}>
           {tabs.map((item) => (
@@ -210,10 +252,7 @@ export default function CommunityPage() {
               <h3>게시글 작성</h3>
               <button type="button" onClick={closeComposer} aria-label="작성 취소">×</button>
             </div>
-            <div className={styles.categorySelect}>
-              <button type="button" className={postCategory === 'ALL' ? styles.selectedCategory : ''} onClick={() => setPostCategory('ALL')}>전체</button>
-              <button type="button" className={postCategory === 'UNIT' ? styles.selectedCategory : ''} onClick={() => setPostCategory('UNIT')}>우리 부대</button>
-            </div>
+            <p className={styles.meta}>작성한 글은 내 부대{myUnit?.unitName ? `(${myUnit.unitName})` : ''} 기준으로 자동 분류됩니다.</p>
             <input value={postTitle} onChange={(event) => setPostTitle(event.target.value)} placeholder="제목을 입력하세요" maxLength={80} />
             <textarea value={postContent} onChange={(event) => setPostContent(event.target.value)} placeholder="공유하고 싶은 내용을 작성하세요" rows={5} />
             <input value={postImageUrl} onChange={(event) => setPostImageUrl(event.target.value)} placeholder="이미지 URL (선택)" />
@@ -236,8 +275,8 @@ export default function CommunityPage() {
             <div className={styles.commentList}>
               {(postDetail.comments ?? []).map((comment) => (
                 <article key={comment.id} className={styles.commentItem}>
-                  <strong>{comment.authorNickname || '익명'}</strong>
-                  <p>{comment.content}</p>
+                  <strong>{comment.authorNickname || '익명'} <span>{formatCommunityTime(comment.createdAt)}</span></strong>
+                  {comment.content ? <p>{comment.content}</p> : null}
                   {comment.suggestedRoutineText ? <pre className={styles.routineBox}>{comment.suggestedRoutineText}</pre> : null}
                 </article>
               ))}

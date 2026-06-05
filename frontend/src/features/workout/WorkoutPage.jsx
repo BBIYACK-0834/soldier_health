@@ -38,7 +38,7 @@ function buildDefaultWorkout(data) {
 
 export default function WorkoutPage() {
   const navigate = useNavigate();
-  const [workout, setWorkout] = useState({ ...emptyWorkout, exercises: exerciseCatalog.map(toExercise) });
+  const [workout, setWorkout] = useState(emptyWorkout);
   const [completedSets, setCompletedSets] = useState({});
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -117,37 +117,42 @@ export default function WorkoutPage() {
           </div>
           <button type="button" onClick={startWorkout} disabled={exercises.length === 0}>운동 시작</button>
         </div>
-        <ul className={styles.list}>
-          {exercises.map((routine) => {
-            const doneSets = completedSets[routine.id] ?? 0;
-            const complete = doneSets >= routine.sets;
-            return (
-              <li key={routine.id} className={complete ? styles.completed : ''}>
-                <div className={styles.listItem}>
-                  <span>
-                    <strong>{routine.exerciseName}</strong>
-                    <small>{routine.category} · {routine.sets}세트 · {routine.reps}</small>
-                  </span>
-                  <em>{complete ? '완료' : `${doneSets}/${routine.sets}`}</em>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
         {loading ? <p className={screen.muted}>불러오는 중...</p> : null}
+        {!loading && exercises.length > 0 ? (
+          <ul className={styles.list}>
+            {exercises.map((routine) => {
+              const doneSets = completedSets[routine.id] ?? 0;
+              const complete = doneSets >= routine.sets;
+              return (
+                <li key={routine.id} className={complete ? styles.completed : ''}>
+                  <div className={styles.listItem}>
+                    <span>
+                      <strong>{routine.exerciseName}</strong>
+                      <small>{routine.category} · {routine.sets}세트 · {routine.reps}</small>
+                    </span>
+                    <em>{complete ? '완료' : `${doneSets}/${routine.sets}`}</em>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        {!loading && exercises.length === 0 ? <p className={screen.muted}>표시할 운동 데이터가 없습니다.</p> : null}
         {errorMessage ? <p className={screen.muted}>{errorMessage}</p> : null}
       </Card>
 
-      <Card className={workoutCompleted || allWorkoutComplete ? styles.completeHero : ''}>
-        <div className={styles.row}>
-          <span>{workoutCompleted || allWorkoutComplete ? '오늘 하루 운동 완료' : '오늘 운동 진행률'}</span>
-          <strong>{completedSetCount} / {totalSetCount}세트</strong>
-        </div>
-        <p className={screen.muted}>
-          운동 완료 버튼을 누르면 홈 화면의 이번 주 운동 잔디에 바로 반영됩니다.
-        </p>
-        {workoutCompleted || allWorkoutComplete ? <button type="button" className={styles.finishButton} onClick={resetTodayWorkout}>기록 초기화</button> : null}
-      </Card>
+      {!loading ? (
+        <Card className={workoutCompleted || allWorkoutComplete ? styles.completeHero : ''}>
+          <div className={styles.row}>
+            <span>{workoutCompleted || allWorkoutComplete ? '오늘 하루 운동 완료' : '오늘 운동 진행률'}</span>
+            <strong>{completedSetCount} / {totalSetCount}세트</strong>
+          </div>
+          <p className={screen.muted}>
+            운동 완료 버튼을 누르면 홈 화면의 이번 주 운동 잔디에 바로 반영됩니다.
+          </p>
+          {workoutCompleted || allWorkoutComplete ? <button type="button" className={styles.finishButton} onClick={resetTodayWorkout}>기록 초기화</button> : null}
+        </Card>
+      ) : null}
     </AppLayout>
   );
 }

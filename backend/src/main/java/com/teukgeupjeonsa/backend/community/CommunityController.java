@@ -32,13 +32,19 @@ public class CommunityController {
     }
 
     @GetMapping("/posts/{postId}")
-    public ApiResponse<CommunityDtos.PostDetailResponse> getPostDetail(@PathVariable Long postId) {
-        return ApiResponse.ok(communityService.getPostDetail(postId));
+    public ApiResponse<CommunityDtos.PostDetailResponse> getPostDetail(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long postId
+    ) {
+        return ApiResponse.ok(communityService.getPostDetail(user.getId(), postId));
     }
 
     @PostMapping("/posts/{postId}/likes")
-    public ApiResponse<CommunityDtos.PostResponse> likePost(@PathVariable Long postId) {
-        return ApiResponse.ok(communityService.likePost(postId));
+    public ApiResponse<CommunityDtos.PostResponse> likePost(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long postId
+    ) {
+        return ApiResponse.ok(communityService.likePost(user.getId(), postId));
     }
 
     @PostMapping("/posts/{postId}/comments")

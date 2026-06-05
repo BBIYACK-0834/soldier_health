@@ -31,3 +31,6 @@
 .commentList { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .commentItem { border-top: 1px solid var(--color-border); padding-top: 10px; }
 .commentItem p { margin: 6px 0; color: var(--color-text-primary); font-weight: 700; }
+.metaRow .likedButton { background: #d95a5a; color: #fff; cursor: default; }
+.metaRow button:disabled { opacity: 0.75; }
+.commentItem strong span { color: var(--color-text-secondary); font-size: 12px; font-weight: 700; margin-left: 6px; }
