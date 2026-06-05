@@ -1,5 +1,6 @@
 package com.teukgeupjeonsa.backend.auth;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -20,6 +21,7 @@ public class SignUpRequest {
     @NotBlank
     private String nickname;
 
+    @JsonAlias({"profileImage", "avatarUrl", "profilePictureUrl"})
     @Size(max = 500)
     private String profileImageUrl;
 }

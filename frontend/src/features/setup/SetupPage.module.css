@@ -46,3 +46,14 @@
 .formStack label { display: flex; flex-direction: column; gap: 8px; font-weight: 900; color: var(--color-primary); }
 .formStack input { border: 1px solid var(--color-border); border-radius: 12px; padding: 12px; font: inherit; font-weight: 800; color: var(--color-text); background: #fff; }
 .profilePreviewImage { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin-top: 10px; border: 2px solid #d1cdbf; }
+
+.profileImagePicker { display: grid; gap: 12px; justify-items: center; }
+.defaultProfileGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+.defaultProfileGrid button { border: 2px solid transparent; border-radius: 14px; background: #f8f7f2; padding: 8px; }
+.defaultProfileGrid img { width: 54px; height: 54px; border-radius: 50%; display: block; margin: 0 auto; object-fit: cover; }
+.activeProfileImage { border-color: #556a3b !important; background: #eef2e7 !important; }
+.uploadButton { width: 100%; border: 1px dashed #556a3b; border-radius: 12px; padding: 12px; background: #eff2e8; color: #3f4e2b; font-weight: 900; text-align: center; cursor: pointer; }
+.uploadButton input { display: none; }
+.serviceSummary { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border-radius: 14px; background: #f3f4ee; border: 1px solid #ddd8cc; }
+.serviceSummary span { display: flex; justify-content: space-between; gap: 12px; color: #596250; font-size: 13px; font-weight: 800; }
+.serviceSummary strong { color: #26351e; font-size: 14px; text-align: right; }

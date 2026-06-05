@@ -5,23 +5,36 @@ import com.teukgeupjeonsa.backend.unit.UserUnitSetting;
 import com.teukgeupjeonsa.backend.unit.UserUnitSettingRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private static final int ARMY_SERVICE_MONTHS = 18;
-    private static final int PRIVATE_FIRST_CLASS_MONTH = 3;
-    private static final int CORPORAL_MONTH = 9;
-    private static final int SERGEANT_MONTH = 12;
+    private static final int PRIVATE_FIRST_CLASS_MONTH = 2;
+    private static final int CORPORAL_MONTH = 8;
+    private static final int SERGEANT_MONTH = 14;
+    private static final long MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
 
     private final UserRepository userRepository;
     private final UserUnitSettingRepository userUnitSettingRepository;
+
+    @Value("${app.upload.profile-images-dir:uploads/profile-images}")
+    private String profileImagesDir;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(Long userId) {
@@ -44,18 +57,45 @@ public class UserService {
         if (request.getWeightKg() != null) {
             user.setWeightKg(request.getWeightKg());
         }
-        if (request.getRank() != null) {
-            user.setRank(normalizeRank(request.getRank()));
-        }
-        if (request.getDischargeDate() != null) {
-            user.setDischargeDate(request.getDischargeDate());
-        }
-        if (request.getPromotionDate() != null) {
-            user.setPromotionDate(request.getPromotionDate());
-        }
         if (request.getEnlistmentDate() != null) {
             user.setEnlistmentDate(request.getEnlistmentDate());
         }
+        return toResponse(user);
+    }
+
+
+    @Transactional
+    public UserProfileResponse uploadProfileImage(Long userId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 프로필 이미지를 선택해주세요.");
+        }
+        if (file.getSize() > MAX_PROFILE_IMAGE_BYTES) {
+            throw new IllegalArgumentException("프로필 이미지는 5MB 이하만 업로드할 수 있습니다.");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new IllegalArgumentException("이미지 파일만 업로드할 수 있습니다.");
+        }
+
+        String extension = resolveImageExtension(contentType);
+        String filename = UUID.randomUUID() + extension;
+        Path uploadPath = Paths.get(profileImagesDir).toAbsolutePath().normalize();
+
+        try {
+            Files.createDirectories(uploadPath);
+            file.transferTo(uploadPath.resolve(filename));
+        } catch (IOException e) {
+            throw new IllegalStateException("프로필 이미지를 저장하지 못했습니다.", e);
+        }
+
+        User user = getUser(userId);
+        String imageUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/uploads/profile-images/")
+                .path(filename)
+                .toUriString();
+        user.setProfileImageUrl(imageUrl);
+
         return toResponse(user);
     }
 
@@ -75,11 +115,14 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
     }
 
-    private String normalizeRank(String rank) {
-        if (rank == null || rank.isBlank()) {
-            return null;
-        }
-        return rank.trim();
+    private String resolveImageExtension(String contentType) {
+        return switch (contentType.toLowerCase(Locale.ROOT)) {
+            case "image/png" -> ".png";
+            case "image/gif" -> ".gif";
+            case "image/webp" -> ".webp";
+            case "image/svg+xml" -> ".svg";
+            default -> ".jpg";
+        };
     }
 
     private String normalizeProfileImageUrl(String value) {
@@ -101,7 +144,7 @@ public class UserService {
                         .dataSourceKey(selectedUnit.getDataSourceKey())
                         .build())
                 .orElse(null);
-        MilitaryServiceInfo serviceInfo = calculateMilitaryServiceInfo(user.getEnlistmentDate(), user.getDischargeDate(), user.getPromotionDate());
+        MilitaryServiceInfo serviceInfo = calculateMilitaryServiceInfo(user.getEnlistmentDate());
 
         return UserProfileResponse.builder()
                 .id(user.getId())
@@ -115,9 +158,9 @@ public class UserService {
                 .workoutDaysPerWeek(user.getWorkoutDaysPerWeek())
                 .preferredWorkoutMinutes(user.getPreferredWorkoutMinutes())
                 .branchType(user.getBranchType())
-                .rank(user.getRank() != null ? user.getRank() : serviceInfo.rank())
-                .dischargeDate(user.getDischargeDate() != null ? user.getDischargeDate() : serviceInfo.dischargeDate())
-                .promotionDate(user.getPromotionDate())
+                .rank(serviceInfo.rank())
+                .dischargeDate(serviceInfo.dischargeDate())
+                .promotionDate(null)
                 .enlistmentDate(user.getEnlistmentDate())
                 .nextPromotionDate(serviceInfo.nextPromotionDate())
                 .daysUntilDischarge(serviceInfo.daysUntilDischarge())
@@ -128,15 +171,15 @@ public class UserService {
                 .build();
     }
 
-    private MilitaryServiceInfo calculateMilitaryServiceInfo(LocalDate enlistmentDate, LocalDate manualDischargeDate, LocalDate manualPromotionDate) {
+    private MilitaryServiceInfo calculateMilitaryServiceInfo(LocalDate enlistmentDate) {
         if (enlistmentDate == null) {
-            return new MilitaryServiceInfo(manualDischargeDate, null, manualPromotionDate, calculateDaysUntil(manualDischargeDate), null);
+            return new MilitaryServiceInfo(null, null, null, null, null);
         }
 
         LocalDate today = LocalDate.now();
-        LocalDate dischargeDate = manualDischargeDate != null ? manualDischargeDate : enlistmentDate.plusMonths(ARMY_SERVICE_MONTHS).minusDays(1);
+        LocalDate dischargeDate = enlistmentDate.plusMonths(ARMY_SERVICE_MONTHS).minusDays(1);
         String rank = calculateRank(enlistmentDate, today);
-        LocalDate nextPromotionDate = manualPromotionDate != null ? manualPromotionDate : calculateNextPromotionDate(enlistmentDate, today);
+        LocalDate nextPromotionDate = calculateNextPromotionDate(enlistmentDate, today);
         long daysUntilDischarge = Math.max(0, ChronoUnit.DAYS.between(today, dischargeDate));
         long totalServiceDays = Math.max(1, ChronoUnit.DAYS.between(enlistmentDate, dischargeDate) + 1);
         long servedDays = Math.max(0, ChronoUnit.DAYS.between(enlistmentDate, today));

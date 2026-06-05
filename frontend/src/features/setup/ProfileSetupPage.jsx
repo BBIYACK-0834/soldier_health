@@ -6,7 +6,7 @@ export default function ProfileSetupPage() {
   const navigate = useNavigate();
 
   return (
-    <AppLayout title="나의 군 생활 설정" subtitle="계급과 전역·진급 일정을 입력해주세요." showBottomNav={false}>
+    <AppLayout title="나의 군 생활 설정" subtitle="입대일만 입력하면 계급과 전역 예정일을 자동 계산합니다." showBottomNav={false}>
       <MilitaryProfileForm submitLabel="설정 완료" onSaved={() => navigate('/unit/complete')} />
     </AppLayout>
   );

@@ -1,37 +1,130 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Card from '../../components/ui/Card';
-import { updateProfile } from '../../api/userApi';
+import { updateProfile, uploadProfileImage } from '../../api/userApi';
 import styles from './SetupPage.module.css';
 
-export const RANK_OPTIONS = ['이병', '일병', '상병', '병장', '하사', '중사', '상사', '원사', '소위', '중위', '대위'];
+const DEFAULT_PROFILE_IMAGES = [
+  'https://api.dicebear.com/9.x/thumbs/svg?seed=soldier-default',
+  'https://api.dicebear.com/9.x/thumbs/svg?seed=soldier-1',
+  'https://api.dicebear.com/9.x/thumbs/svg?seed=soldier-2',
+];
+
+const ARMY_SERVICE_MONTHS = 18;
+const PRIVATE_FIRST_CLASS_MONTH = 2;
+const CORPORAL_MONTH = 8;
+const SERGEANT_MONTH = 14;
 
 function toDateInput(value) {
   if (!value) return '';
   return String(value).slice(0, 10);
 }
 
+function parseDateInput(value) {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatDate(value) {
+  if (!value) return '-';
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}.${month}.${day}`;
+}
+
+function addMonths(value, months) {
+  const result = new Date(value);
+  const targetMonth = result.getMonth() + months;
+  result.setMonth(targetMonth);
+
+  if (result.getMonth() !== ((targetMonth % 12) + 12) % 12) {
+    result.setDate(0);
+  }
+
+  return result;
+}
+
+function addDays(value, days) {
+  const result = new Date(value);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function calculateArmyService(enlistmentDate) {
+  const enlistedAt = parseDateInput(enlistmentDate);
+  if (!enlistedAt) {
+    return null;
+  }
+
+  const today = new Date();
+  const dischargeAt = addDays(addMonths(enlistedAt, ARMY_SERVICE_MONTHS), -1);
+  const privateFirstClassAt = addMonths(enlistedAt, PRIVATE_FIRST_CLASS_MONTH);
+  const corporalAt = addMonths(enlistedAt, CORPORAL_MONTH);
+  const sergeantAt = addMonths(enlistedAt, SERGEANT_MONTH);
+
+  let rank = '이병';
+  let nextPromotionDate = privateFirstClassAt;
+
+  if (today >= sergeantAt) {
+    rank = '병장';
+    nextPromotionDate = null;
+  } else if (today >= corporalAt) {
+    rank = '상병';
+    nextPromotionDate = sergeantAt;
+  } else if (today >= privateFirstClassAt) {
+    rank = '일병';
+    nextPromotionDate = corporalAt;
+  }
+
+  return {
+    rank,
+    dischargeAt,
+    nextPromotionDate,
+  };
+}
+
 export default function MilitaryProfileForm({ initialProfile, submitLabel = '저장하기', onSaved }) {
-  const [nickname, setNickname] = useState('');
-  const [profileImageUrl, setProfileImageUrl] = useState('');
+  const [profileImageUrl, setProfileImageUrl] = useState(DEFAULT_PROFILE_IMAGES[0]);
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
-  const [rank, setRank] = useState('');
-  const [dischargeDate, setDischargeDate] = useState('');
-  const [promotionDate, setPromotionDate] = useState('');
   const [enlistmentDate, setEnlistmentDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
 
+  const armyService = useMemo(() => calculateArmyService(enlistmentDate), [enlistmentDate]);
+
   useEffect(() => {
-    setNickname(initialProfile?.nickname ?? '');
-    setProfileImageUrl(initialProfile?.profileImageUrl ?? '');
+    setProfileImageUrl(initialProfile?.profileImageUrl ?? DEFAULT_PROFILE_IMAGES[0]);
     setHeightCm(initialProfile?.heightCm ?? '');
     setWeightKg(initialProfile?.weightKg ?? '');
-    setRank(initialProfile?.rank ?? '');
-    setDischargeDate(toDateInput(initialProfile?.dischargeDate));
-    setPromotionDate(toDateInput(initialProfile?.promotionDate ?? initialProfile?.nextPromotionDate));
     setEnlistmentDate(toDateInput(initialProfile?.enlistmentDate));
   }, [initialProfile]);
+
+  const handleProfileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setMessage('이미지 파일만 업로드할 수 있습니다.');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setMessage('');
+      const savedProfile = await uploadProfileImage(file);
+      setProfileImageUrl(savedProfile.profileImageUrl ?? DEFAULT_PROFILE_IMAGES[0]);
+      setMessage('프로필 이미지가 업로드되었습니다.');
+    } catch (error) {
+      setMessage(error.message || '프로필 이미지를 업로드하지 못했습니다.');
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -40,13 +133,9 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
     try {
       setSubmitting(true);
       const savedProfile = await updateProfile({
-        nickname: nickname || null,
-        profileImageUrl: profileImageUrl || null,
+        profileImageUrl: profileImageUrl || DEFAULT_PROFILE_IMAGES[0],
         heightCm: heightCm === '' ? null : Number(heightCm),
         weightKg: weightKg === '' ? null : Number(weightKg),
-        rank: rank || null,
-        dischargeDate: dischargeDate || null,
-        promotionDate: promotionDate || null,
         enlistmentDate: enlistmentDate || null,
       });
       setMessage('나의 군 생활 정보가 저장되었습니다.');
@@ -61,22 +150,25 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
   return (
     <form className={styles.formStack} onSubmit={handleSubmit}>
       <Card>
-        <h3>0. 프로필</h3>
-        <div className={styles.formGrid}>
-          <label>
-            닉네임
-            <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="닉네임" />
-          </label>
-          <label>
-            프로필 사진 URL
-            <input value={profileImageUrl} onChange={(e) => setProfileImageUrl(e.target.value)} placeholder="https://..." />
+        <h3>1. 프로필 사진</h3>
+        <div className={styles.profileImagePicker}>
+          <img className={styles.profilePreviewImage} src={profileImageUrl} alt="프로필 미리보기" />
+          <div className={styles.defaultProfileGrid}>
+            {DEFAULT_PROFILE_IMAGES.map((imageUrl) => (
+              <button key={imageUrl} type="button" className={profileImageUrl === imageUrl ? styles.activeProfileImage : ''} onClick={() => setProfileImageUrl(imageUrl)}>
+                <img src={imageUrl} alt="기본 프로필" />
+              </button>
+            ))}
+          </div>
+          <label className={styles.uploadButton}>
+            {uploading ? '업로드 중...' : '내 이미지 업로드'}
+            <input type="file" accept="image/*" onChange={handleProfileUpload} disabled={uploading} />
           </label>
         </div>
-        {profileImageUrl ? <img className={styles.profilePreviewImage} src={profileImageUrl} alt="프로필 미리보기" /> : null}
       </Card>
 
       <Card>
-        <h3>1. 키와 몸무게</h3>
+        <h3>2. 키와 몸무게</h3>
         <div className={styles.inlineTwo}>
           <label>
             키(cm)
@@ -90,37 +182,23 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
       </Card>
 
       <Card>
-        <h3>2. 계급</h3>
-        <div className={styles.chips}>
-          {RANK_OPTIONS.map((item) => (
-            <button key={item} type="button" className={rank === item ? styles.activeChip : ''} onClick={() => setRank(item)}>
-              {item}
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      <Card>
         <h3>3. 군 생활 일정</h3>
         <div className={styles.formGrid}>
           <label>
-            입대일
+            육군 입대일
             <input type="date" value={enlistmentDate} onChange={(e) => setEnlistmentDate(e.target.value)} />
           </label>
-          <label>
-            전역 예정일
-            <input type="date" value={dischargeDate} onChange={(e) => setDischargeDate(e.target.value)} />
-          </label>
-          <label>
-            다음 진급 예정일
-            <input type="date" value={promotionDate} onChange={(e) => setPromotionDate(e.target.value)} />
-          </label>
         </div>
-        <small className={styles.helperText}>전역까지 남은 기간과 진급 예정일은 마이 페이지에서 함께 표시됩니다.</small>
+        <div className={styles.serviceSummary}>
+          <span>현재 계급 <strong>{armyService?.rank ?? '-'}</strong></span>
+          <span>전역 예정일 <strong>{formatDate(armyService?.dischargeAt)}</strong></span>
+          <span>다음 진급 <strong>{armyService?.nextPromotionDate ? formatDate(armyService.nextPromotionDate) : '진급 일정 없음'}</strong></span>
+        </div>
+        <small className={styles.helperText}>육군 병 복무 18개월, 이병 2개월·일병 6개월·상병 6개월 기준으로 자동 계산합니다.</small>
       </Card>
 
       {message ? <p className={styles.infoText}>{message}</p> : null}
-      <button type="submit" className={styles.primary} disabled={submitting}>{submitting ? '저장 중...' : submitLabel}</button>
+      <button type="submit" className={styles.primary} disabled={submitting || uploading}>{submitting ? '저장 중...' : submitLabel}</button>
     </form>
   );
 }
