@@ -85,6 +85,7 @@ public class UnitService {
                 .unitName(unit.getUnitName())
                 .branchType(unit.getBranchType())
                 .regionName(unit.getRegionName())
+                .dataSourceKey(unit.getDataSourceKey())
                 .build();
     }
 }

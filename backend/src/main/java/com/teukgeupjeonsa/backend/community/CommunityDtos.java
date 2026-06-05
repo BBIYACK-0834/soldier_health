@@ -39,6 +39,8 @@ public class CommunityDtos {
         private String authorNickname;
         private Long unitId;
         private String unitName;
+        private int likeCount;
+        private boolean likedByMe;
         private int commentCount;
         private LocalDateTime createdAt;
     }

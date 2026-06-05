@@ -1,16 +1,23 @@
 .calendar { font-size: 22px; }
+.headerActions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.unitBadge { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 999px; background: #eef2e7; color: #3e4f2d; padding: 6px 10px; font-size: 12px; font-weight: 900; border: 1px solid #d7ddcd; }
 .totalTitle { margin: 0; color: #516045; font-weight: 700; }
 .totalKcal { margin: 6px 0 10px; font-size: 44px; font-weight: 900; color: #2d3a24; }
+.calorieSummary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.calorieSummary div { border-radius: 16px; background: #f4f2eb; border: 1px solid #ded8ca; padding: 12px; }
+.calorieSummary span { display: block; color: #65705b; font-size: 12px; font-weight: 900; margin-bottom: 6px; }
+.calorieSummary strong { display: block; color: #25351f; font-size: 22px; font-weight: 950; letter-spacing: -0.04em; }
 .macroGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px; }
-.row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.row h3 { margin: 0; font-size: 24px; }
+.row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.row h3 { margin: 0 0 4px; font-size: 24px; }
 .mealKcal { font-weight: 800; color: #516045; }
-.row button { border: 0; border-radius: 999px; background: #556a3b; color: #fff; padding: 7px 12px; font-weight: 700; }
+.row button { border: 0; border-radius: 999px; background: #556a3b; color: #fff; padding: 7px 12px; font-weight: 700; white-space: nowrap; }
 .fixed { margin: 6px 0 0; color: #2a3522; font-weight: 800; font-size: 22px; }
 .base { margin: 8px 0; color: #414a3a; font-weight: 700; }
-.extraWrap { border: 1px dashed #d0cabd; border-radius: 12px; padding: 8px; background: #f7f5ef; }
+.extraWrap { border: 1px dashed #d0cabd; border-radius: 12px; padding: 8px; background: #f7f5ef; margin-top: 10px; }
 .extraWrap p { margin: 0 0 6px; color: #5f6958; font-weight: 700; }
 .item { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid #dfdbcf; padding: 6px 0; font-weight: 700; }
 .item:last-child { border-bottom: 0; }
 .item button { border: 0; background: transparent; font-size: 22px; color: #6b7260; }
 .save { border: 0; border-radius: 12px; padding: 14px; background: #556a3b; color: #fff; font-weight: 800; }
+.mealContext { display: inline-flex; align-items: center; border-radius: 999px; background: #eef2e7; color: #3e4f2d; padding: 7px 12px; font-size: 13px; font-weight: 900; margin-bottom: 4px; }

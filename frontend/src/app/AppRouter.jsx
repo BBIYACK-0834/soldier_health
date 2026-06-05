@@ -13,12 +13,14 @@ import NutritionPage from '../features/nutrition/NutritionPage';
 import DietAddPage from '../features/nutrition/DietAddPage';
 import WorkoutPage from '../features/workout/WorkoutPage';
 import WorkoutEditPage from '../features/workout/WorkoutEditPage';
+import WorkoutSessionPage from '../features/workout/WorkoutSessionPage';
 import CommunityPage from '../features/community/CommunityPage';
 import ProfilePage from '../features/profile/ProfilePage';
 import MyPostsPage from '../features/profile/MyPostsPage';
 import GoalSettingsPage from '../features/profile/GoalSettingsPage';
 import NotificationSettingsPage from '../features/profile/NotificationSettingsPage';
 import DataManagementPage from '../features/profile/DataManagementPage';
+import ProfileSettingsPage from '../features/profile/ProfileSettingsPage';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -55,6 +57,7 @@ export default function AppRouter() {
       <Route path="/diet/:date" element={<RequireAuth><NutritionPage /></RequireAuth>} />
 
       <Route path="/exercise" element={<RequireAuth><WorkoutPage /></RequireAuth>} />
+      <Route path="/exercise/session" element={<RequireAuth><WorkoutSessionPage /></RequireAuth>} />
       <Route path="/exercise/add/equipment" element={<RequireAuth><WorkoutEditPage /></RequireAuth>} />
       <Route path="/exercise/datasets" element={<RequireAuth><WorkoutEditPage /></RequireAuth>} />
       <Route path="/exercise/routine/edit" element={<RequireAuth><WorkoutEditPage /></RequireAuth>} />
@@ -65,8 +68,10 @@ export default function AppRouter() {
       <Route path="/community" element={<RequireAuth><CommunityPage /></RequireAuth>} />
       <Route path="/community/popular" element={<RequireAuth><CommunityPage /></RequireAuth>} />
       <Route path="/community/unit" element={<RequireAuth><CommunityPage /></RequireAuth>} />
+      <Route path="/community/posts/:postId" element={<RequireAuth><CommunityPage /></RequireAuth>} />
 
       <Route path="/mypage" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+      <Route path="/mypage/settings" element={<RequireAuth><ProfileSettingsPage /></RequireAuth>} />
       <Route path="/mypage/posts" element={<RequireAuth><MyPostsPage /></RequireAuth>} />
       <Route path="/mypage/goal" element={<RequireAuth><GoalSettingsPage /></RequireAuth>} />
       <Route path="/mypage/notifications" element={<RequireAuth><NotificationSettingsPage /></RequireAuth>} />

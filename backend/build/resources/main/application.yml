@@ -43,3 +43,6 @@ meal-collector:
   standard-service-code: "${MEAL_COLLECTOR_STANDARD_SERVICE_CODE:DS_TB_MNDT_DATEBYMLSVC_STANDARD}"
   auto-collect-cron: "${MEAL_COLLECTOR_AUTO_COLLECT_CRON:0 0 3 1 * *}"
   auto-collect-zone: "${MEAL_COLLECTOR_AUTO_COLLECT_ZONE:Asia/Seoul}"
+app:
+  cors:
+    allowed-origin-patterns: "${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://localhost:*,https://*.app.github.dev,https://*.github.dev,https://*.vercel.app,https://*.netlify.app}"

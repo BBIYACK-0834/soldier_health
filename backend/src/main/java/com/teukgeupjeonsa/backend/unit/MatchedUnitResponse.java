@@ -12,6 +12,7 @@ public class MatchedUnitResponse {
     private String unitName;
     private String branchType;
     private String regionName;
+    private String dataSourceKey;
     private double matchScore;
     private List<String> matchedMeals;
     private MealPreview mealPreview;

@@ -146,14 +146,18 @@ public class NutritionService {
     private Macro calculateTarget(User user) {
         GoalType goal = user.getGoalType() == null ? GoalType.GENERAL_FITNESS : user.getGoalType();
 
-        double weight = Optional.ofNullable(user.getWeightKg()).orElse(70.0);
-        double height = Optional.ofNullable(user.getHeightCm()).orElse(172.0);
+        if (user.getWeightKg() == null || user.getHeightCm() == null) {
+            return new Macro(0, 0, 0, 0);
+        }
+
+        double weight = user.getWeightKg();
+        double height = user.getHeightCm();
 
         // 나이/성별 정보가 없어 군인 기본값(남성 22세) 기반 Mifflin-St Jeor 근사 사용
         double bmr = 10 * weight + 6.25 * height - 5 * 22 + 5;
 
-        int workoutDays = Optional.ofNullable(user.getWorkoutDaysPerWeek()).orElse(3);
-        int preferredMinutes = Optional.ofNullable(user.getPreferredWorkoutMinutes()).orElse(50);
+        int workoutDays = Optional.ofNullable(user.getWorkoutDaysPerWeek()).orElse(0);
+        int preferredMinutes = Optional.ofNullable(user.getPreferredWorkoutMinutes()).orElse(0);
         double durationBoost = preferredMinutes >= 70 ? 0.08 : preferredMinutes >= 50 ? 0.04 : 0.0;
         double activityFactor = (workoutDays <= 2 ? 1.35 : workoutDays <= 4 ? 1.5 : 1.65) + durationBoost;
         double tdee = bmr * activityFactor;
@@ -165,8 +169,8 @@ public class NutritionService {
             case MAINTAIN, GENERAL_FITNESS -> tdee;
         };
 
-        if (targetCalories < 1500) {
-            targetCalories = 1500;
+        if (targetCalories < 0) {
+            targetCalories = 0;
         }
 
         double proteinPerKg = switch (goal) {
