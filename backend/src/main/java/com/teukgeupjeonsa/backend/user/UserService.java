@@ -5,12 +5,19 @@ import com.teukgeupjeonsa.backend.unit.UserUnitSetting;
 import com.teukgeupjeonsa.backend.unit.UserUnitSettingRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +31,9 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserUnitSettingRepository userUnitSettingRepository;
     private final ProfileImageStorageService profileImageStorageService;
+
+    @Value("${app.upload.profile-images-dir:uploads/profile-images}")
+    private String profileImagesDir;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(Long userId) {
@@ -49,6 +59,25 @@ public class UserService {
         if (request.getEnlistmentDate() != null) {
             user.setEnlistmentDate(request.getEnlistmentDate());
         }
+
+        String extension = resolveImageExtension(contentType);
+        String filename = UUID.randomUUID() + extension;
+        Path uploadPath = Paths.get(profileImagesDir).toAbsolutePath().normalize();
+
+        try {
+            Files.createDirectories(uploadPath);
+            file.transferTo(uploadPath.resolve(filename));
+        } catch (IOException e) {
+            throw new IllegalStateException("프로필 이미지를 저장하지 못했습니다.", e);
+        }
+
+        User user = getUser(userId);
+        String imageUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/uploads/profile-images/")
+                .path(filename)
+                .toUriString();
+        user.setProfileImageUrl(imageUrl);
+
         return toResponse(user);
     }
 
