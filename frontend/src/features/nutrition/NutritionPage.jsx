@@ -5,7 +5,7 @@ import Card from '../../components/ui/Card';
 import ProgressBar from '../../components/ui/ProgressBar';
 import MacroBox from '../../components/ui/MacroBox';
 import { getTodayMeal } from '../../api/mealApi';
-import { getTodayNutrition } from '../../api/nutritionApi';
+import { getTodayMealNutritionDetails, getTodayNutrition } from '../../api/nutritionApi';
 import { getMyUnit } from '../../api/unitApi';
 import { emptyDashboardSummary, emptyMealDay } from '../../constants/defaultData';
 import styles from './DietPage.module.css';
@@ -17,12 +17,8 @@ const mealSections = [
   { key: 'snackRaw', label: '간식', addKey: 'snack' },
 ];
 
-function parseMeal(raw) {
-  if (!raw) return [];
-  return raw.split(/[,/\n]/).map((s) => s.trim()).filter(Boolean);
-}
-
-function hasMealMenuData(meal) {
+function hasMealMenuData(meal, detail) {
+  if (detail?.meals?.some((section) => section.items?.length > 0)) return true;
   if (!meal) return false;
   return Boolean(
     meal.breakfastRaw ||
@@ -40,10 +36,15 @@ function formatKcal(value) {
   return `${value.toLocaleString()} kcal`;
 }
 
+function formatGram(value) {
+  return `${(Number(value) || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}g`;
+}
+
 export default function NutritionPage() {
   const navigate = useNavigate();
   const [nutrition, setNutrition] = useState(emptyDashboardSummary);
   const [meal, setMeal] = useState(emptyMealDay);
+  const [mealDetails, setMealDetails] = useState({ meals: [] });
   const [unit, setUnit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -53,19 +54,22 @@ export default function NutritionPage() {
     async function load() {
       try {
         setLoading(true);
-        const [nutritionData, mealData, unitData] = await Promise.all([
+        const [nutritionData, mealData, detailData, unitData] = await Promise.all([
           getTodayNutrition(),
           getTodayMeal(),
+          getTodayMealNutritionDetails(),
           getMyUnit(),
         ]);
         if (!mounted) return;
         setNutrition(nutritionData ? { ...emptyDashboardSummary, ...nutritionData } : emptyDashboardSummary);
         setMeal(mealData ? { ...emptyMealDay, ...mealData } : emptyMealDay);
+        setMealDetails(detailData ?? { meals: [] });
         setUnit(unitData ?? null);
       } catch (error) {
         if (!mounted) return;
         setNutrition(emptyDashboardSummary);
         setMeal(emptyMealDay);
+        setMealDetails({ meals: [] });
         setUnit(null);
         setErrorMessage('식단 데이터를 불러오지 못했습니다. 선택 부대의 실제 식단이 연결되면 표시됩니다.');
       } finally {
@@ -79,9 +83,14 @@ export default function NutritionPage() {
     };
   }, []);
 
-  const menuExists = hasMealMenuData(meal);
-  const mealTotalKcal = Number.isFinite(meal?.totalKcal)
-    ? meal.totalKcal
+  const detailByMealType = useMemo(
+    () => Object.fromEntries((mealDetails?.meals ?? []).map((detail) => [detail.mealType, detail])),
+    [mealDetails]
+  );
+
+  const menuExists = hasMealMenuData(meal, mealDetails);
+  const mealTotalKcal = Number.isFinite(mealDetails?.totalCalories)
+    ? mealDetails.totalCalories
     : [meal?.breakfastKcal, meal?.lunchKcal, meal?.dinnerKcal]
         .filter((value) => Number.isFinite(value))
         .reduce((sum, value) => sum + value, 0);
@@ -139,15 +148,15 @@ export default function NutritionPage() {
         <ProgressBar value={eatenKcal} max={targetKcal || 1} />
         <small>
           {menuExists
-            ? '필요 칼로리와 선택 부대 식단 기준 먹은 칼로리를 구분해서 계산했어요. 실제 섭취량이 다르면 끼니별 음식 추가로 수정할 수 있어요.'
+            ? '엑셀 식품 DB로 음식별 칼로리·탄수화물·단백질·지방을 계산하고, 직접 추가한 음식까지 반영했어요.'
             : '당일 식단 데이터가 없어 먹은 칼로리는 0으로 계산되었습니다.'}
         </small>
       </Card>
 
       {mealSections.map((section) => {
-        const items = section.key === 'snackRaw' ? [] : parseMeal(meal?.[section.key]);
-        const kcalKey = `${section.key.replace('Raw', 'Kcal')}`;
-        const mealKcal = section.key === 'snackRaw' ? 0 : meal?.[kcalKey];
+        const detail = detailByMealType[section.addKey];
+        const items = detail?.items ?? [];
+        const mealKcal = Number.isFinite(detail?.calories) ? detail.calories : section.key === 'snackRaw' ? 0 : meal?.[`${section.key.replace('Raw', 'Kcal')}`];
         return (
           <Card key={section.key}>
             <div className={styles.row}>
@@ -159,7 +168,22 @@ export default function NutritionPage() {
             </div>
             {items.length > 0 ? (
               <div className={styles.extraWrap}>
-                {items.map((item) => <div key={item} className={styles.item}><span>{item}</span></div>)}
+                <p>{section.label} 영양소 합계 · 탄 {formatGram(detail?.carbG)} · 단 {formatGram(detail?.proteinG)} · 지 {formatGram(detail?.fatG)}</p>
+                {items.map((item, index) => (
+                  <div key={`${item.foodName}-${item.id ?? index}`} className={styles.nutritionItem}>
+                    <div className={styles.itemHeader}>
+                      <strong>{item.foodName}</strong>
+                      <span>{formatKcal(item.calories)} · {item.calorieSharePct ?? 0}%</span>
+                    </div>
+                    {item.matchedFoodName && item.matchedFoodName !== item.foodName ? <small>DB 매칭: {item.matchedFoodName}</small> : null}
+                    <div className={styles.nutrientLine}>
+                      <span>탄 {formatGram(item.carbG)}</span>
+                      <span>단 {formatGram(item.proteinG)}</span>
+                      <span>지 {formatGram(item.fatG)}</span>
+                      {item.addedByUser ? <em>추가됨</em> : null}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className={styles.base}>{section.label === '간식' ? '추가한 간식이 아직 없습니다.' : '선택 부대의 당일 식단 데이터가 아직 없습니다.'}</p>

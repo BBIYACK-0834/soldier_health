@@ -25,6 +25,24 @@ public class NutritionController {
         return ApiResponse.ok(nutritionService.getTodayRecommendation(user.getId()));
     }
 
+    @GetMapping("/api/nutrition/today/meals")
+    public ApiResponse<NutritionDtos.TodayMealNutritionResponse> getTodayMealDetails(@AuthenticationPrincipal User user) {
+        return ApiResponse.ok(nutritionService.getTodayMealDetails(user.getId()));
+    }
+
+    @GetMapping("/api/foods/search")
+    public ApiResponse<List<NutritionDtos.FoodSearchResponse>> searchFoods(@RequestParam String q) {
+        return ApiResponse.ok(nutritionService.searchFoods(q));
+    }
+
+    @PostMapping("/api/users/me/meal-foods")
+    public ApiResponse<List<NutritionDtos.FoodNutritionItemResponse>> addMealFoods(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody NutritionDtos.AddMealFoodsRequest request
+    ) {
+        return ApiResponse.ok(nutritionService.addMealFoods(user.getId(), request));
+    }
+
     @GetMapping("/api/users/me/owned-foods")
     public ApiResponse<List<NutritionDtos.OwnedFoodResponse>> getOwnedFoods(@AuthenticationPrincipal User user) {
         return ApiResponse.ok(nutritionService.getOwnedFoods(user.getId()));

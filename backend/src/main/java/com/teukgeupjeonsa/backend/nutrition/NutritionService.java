@@ -1,5 +1,9 @@
 package com.teukgeupjeonsa.backend.nutrition;
 
+import com.teukgeupjeonsa.backend.food.Food;
+import com.teukgeupjeonsa.backend.food.FoodAlias;
+import com.teukgeupjeonsa.backend.food.FoodAliasRepository;
+import com.teukgeupjeonsa.backend.food.FoodRepository;
 import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
 import com.teukgeupjeonsa.backend.meal.repository.MealMenuRepository;
 import com.teukgeupjeonsa.backend.px.PxProduct;
@@ -10,12 +14,16 @@ import com.teukgeupjeonsa.backend.user.User;
 import com.teukgeupjeonsa.backend.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -26,6 +34,9 @@ public class NutritionService {
     private final UserUnitSettingRepository userUnitSettingRepository;
     private final MealMenuRepository mealMenuRepository;
     private final UserOwnedFoodRepository userOwnedFoodRepository;
+    private final UserMealFoodRepository userMealFoodRepository;
+    private final FoodRepository foodRepository;
+    private final FoodAliasRepository foodAliasRepository;
     private final PxProductRepository pxProductRepository;
 
     @Transactional(readOnly = true)
@@ -34,9 +45,10 @@ public class NutritionService {
         Optional<MealMenu> mealMenu = getTodayMealMenuOptional(user);
 
         Macro target = calculateTarget(user);
-        Macro intake = mealMenu.map(this::estimateMealNutrition).orElseGet(() -> new Macro(0, 0, 0, 0));
+        List<UserMealFood> addedFoods = userMealFoodRepository.findByUserAndMealDate(user, LocalDate.now());
+        Macro intake = calculateTodayIntake(mealMenu, addedFoods);
 
-        return toSummary(target, intake, mealMenu.isPresent());
+        return toSummary(target, intake, mealMenu.isPresent() || !addedFoods.isEmpty());
     }
 
     @Transactional(readOnly = true)
@@ -82,6 +94,80 @@ public class NutritionService {
     public List<NutritionDtos.OwnedFoodResponse> getOwnedFoods(Long userId) {
         User user = getUser(userId);
         return userOwnedFoodRepository.findByUser(user).stream().map(this::toOwnedResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<NutritionDtos.FoodSearchResponse> searchFoods(String query) {
+        String keyword = Optional.ofNullable(query).orElse("").trim();
+        if (keyword.isBlank()) {
+            return List.of();
+        }
+
+        String normalizedKeyword = normalizeSearchName(keyword);
+        Map<Long, NutritionDtos.FoodSearchResponse> results = new LinkedHashMap<>();
+
+        foodAliasRepository.findByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCase(
+                        keyword, normalizedKeyword, keyword, PageRequest.of(0, 12)
+                )
+                .forEach(alias -> results.putIfAbsent(alias.getFood().getId(), toFoodSearchResponse(alias.getFood(), alias.getOriginalName())));
+
+        foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase(keyword, normalizedKeyword, PageRequest.of(0, 12))
+                .forEach(food -> results.putIfAbsent(food.getId(), toFoodSearchResponse(food, food.getName())));
+
+        return results.values().stream().limit(20).toList();
+    }
+
+    @Transactional
+    public List<NutritionDtos.FoodNutritionItemResponse> addMealFoods(Long userId, NutritionDtos.AddMealFoodsRequest request) {
+        User user = getUser(userId);
+        String mealType = normalizeMealType(request.getMealType());
+        List<Long> foodIds = Optional.ofNullable(request.getFoodIds()).orElse(List.of());
+        if (foodIds.isEmpty()) {
+            return List.of();
+        }
+
+        return foodRepository.findAllById(foodIds).stream()
+                .map(food -> userMealFoodRepository.save(UserMealFood.builder()
+                        .user(user)
+                        .food(food)
+                        .mealDate(LocalDate.now())
+                        .mealType(mealType)
+                        .foodName(food.getName())
+                        .calories(toInt(food.getCalorie()))
+                        .proteinG(nvl(food.getProtein()))
+                        .carbG(nvl(food.getCarbohydrate()))
+                        .fatG(nvl(food.getFat()))
+                        .quantity(1.0)
+                        .build()))
+                .map(added -> toAddedFoodItem(added, 0))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public NutritionDtos.TodayMealNutritionResponse getTodayMealDetails(Long userId) {
+        User user = getUser(userId);
+        Optional<MealMenu> mealMenu = getTodayMealMenuOptional(user);
+        List<UserMealFood> addedFoods = userMealFoodRepository.findByUserAndMealDate(user, LocalDate.now());
+
+        List<NutritionDtos.MealNutritionDetailResponse> meals = List.of(
+                buildMealDetail("breakfast", "아침", mealMenu.map(MealMenu::getBreakfast).orElse(null), mealMenu.map(MealMenu::getBreakfastKcal).orElse(null), addedFoods),
+                buildMealDetail("lunch", "점심", mealMenu.map(MealMenu::getLunch).orElse(null), mealMenu.map(MealMenu::getLunchKcal).orElse(null), addedFoods),
+                buildMealDetail("dinner", "저녁", mealMenu.map(MealMenu::getDinner).orElse(null), mealMenu.map(MealMenu::getDinnerKcal).orElse(null), addedFoods),
+                buildMealDetail("snack", "간식", null, null, addedFoods)
+        );
+
+        int totalCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getCalories()).orElse(0)).sum();
+        double totalProtein = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getProteinG()).orElse(0.0)).sum();
+        double totalCarb = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getCarbG()).orElse(0.0)).sum();
+        double totalFat = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getFatG()).orElse(0.0)).sum();
+
+        return NutritionDtos.TodayMealNutritionResponse.builder()
+                .totalCalories(totalCalories)
+                .totalProteinG(round1(totalProtein))
+                .totalCarbG(round1(totalCarb))
+                .totalFatG(round1(totalFat))
+                .meals(meals)
+                .build();
     }
 
     @Transactional
@@ -194,18 +280,86 @@ public class NutritionService {
         return new Macro((int) Math.round(targetCalories), protein, carb, fat);
     }
 
-    private Macro estimateMealNutrition(MealMenu mealMenu) {
-        int calories;
-        if (mealMenu.getTotalKcal() != null) {
-            calories = mealMenu.getTotalKcal();
-        } else {
-            calories = Optional.ofNullable(mealMenu.getBreakfastKcal()).orElse(0)
-                    + Optional.ofNullable(mealMenu.getLunchKcal()).orElse(0)
-                    + Optional.ofNullable(mealMenu.getDinnerKcal()).orElse(0);
+    private Macro calculateTodayIntake(Optional<MealMenu> mealMenu, List<UserMealFood> addedFoods) {
+        Macro base = mealMenu.map(menu -> {
+            Macro breakfast = estimateMealNutrition(menu.getBreakfast(), menu.getBreakfastKcal());
+            Macro lunch = estimateMealNutrition(menu.getLunch(), menu.getLunchKcal());
+            Macro dinner = estimateMealNutrition(menu.getDinner(), menu.getDinnerKcal());
+            return add(add(breakfast, lunch), dinner);
+        }).orElseGet(() -> new Macro(0, 0, 0, 0));
+
+        Macro added = addedFoods.stream()
+                .map(food -> new Macro(Optional.ofNullable(food.getCalories()).orElse(0), nvl(food.getProteinG()), nvl(food.getCarbG()), nvl(food.getFatG())))
+                .reduce(new Macro(0, 0, 0, 0), this::add);
+        return add(base, added);
+    }
+
+    private NutritionDtos.MealNutritionDetailResponse buildMealDetail(String mealType, String mealLabel, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods) {
+        List<NutritionDtos.FoodNutritionItemResponse> items = new ArrayList<>(estimateMealItems(mealType, rawMenu, rawKcal));
+        addedFoods.stream()
+                .filter(food -> mealType.equals(food.getMealType()))
+                .map(food -> toAddedFoodItem(food, 0))
+                .forEach(items::add);
+
+        int calories = items.stream().mapToInt(item -> Optional.ofNullable(item.getCalories()).orElse(0)).sum();
+        double protein = items.stream().mapToDouble(item -> Optional.ofNullable(item.getProteinG()).orElse(0.0)).sum();
+        double carb = items.stream().mapToDouble(item -> Optional.ofNullable(item.getCarbG()).orElse(0.0)).sum();
+        double fat = items.stream().mapToDouble(item -> Optional.ofNullable(item.getFatG()).orElse(0.0)).sum();
+
+        List<NutritionDtos.FoodNutritionItemResponse> withShare = items.stream()
+                .map(item -> copyWithShare(item, calories))
+                .toList();
+
+        return NutritionDtos.MealNutritionDetailResponse.builder()
+                .mealType(mealType)
+                .mealLabel(mealLabel)
+                .calories(calories)
+                .proteinG(round1(protein))
+                .carbG(round1(carb))
+                .fatG(round1(fat))
+                .items(withShare)
+                .build();
+    }
+
+    private List<NutritionDtos.FoodNutritionItemResponse> estimateMealItems(String mealType, String rawMenu, Integer rawKcal) {
+        List<String> names = parseMealItems(rawMenu);
+        if (names.isEmpty()) {
+            return List.of();
         }
 
-        // meal_menus에는 칼로리만 안정적으로 수집되므로 탄/단/지는 0으로 둔다.
-        return new Macro(calories, 0, 0, 0);
+        List<MatchedFood> matches = names.stream().map(this::matchFood).toList();
+        double knownCalories = matches.stream().mapToDouble(match -> match.food().map(food -> nvl(food.getCalorie())).orElse(0.0)).sum();
+        int fallbackPerItem = rawKcal == null || rawKcal <= 0 ? 0 : Math.max(0, rawKcal / names.size());
+
+        return matches.stream().map(match -> {
+            Optional<Food> food = match.food();
+            int calories = food.map(value -> scaleCalories(value, rawKcal, knownCalories)).orElse(fallbackPerItem);
+            double scale = food.map(value -> {
+                double originalCalories = nvl(value.getCalorie());
+                return originalCalories > 0 ? calories / originalCalories : 1.0;
+            }).orElse(1.0);
+
+            return NutritionDtos.FoodNutritionItemResponse.builder()
+                    .foodId(food.map(Food::getId).orElse(null))
+                    .foodName(match.originalName())
+                    .matchedFoodName(food.map(Food::getName).orElse(null))
+                    .mealType(mealType)
+                    .category(food.map(Food::getCategory).orElse(null))
+                    .servingUnit(food.map(Food::getServingUnit).orElse(null))
+                    .calories(calories)
+                    .proteinG(round1(food.map(value -> nvl(value.getProtein()) * scale).orElse(0.0)))
+                    .carbG(round1(food.map(value -> nvl(value.getCarbohydrate()) * scale).orElse(0.0)))
+                    .fatG(round1(food.map(value -> nvl(value.getFat()) * scale).orElse(0.0)))
+                    .addedByUser(false)
+                    .matchStatus(food.isPresent() ? "MATCHED" : "UNMATCHED")
+                    .build();
+        }).toList();
+    }
+
+    private Macro estimateMealNutrition(String rawMenu, Integer rawKcal) {
+        return estimateMealItems("", rawMenu, rawKcal).stream()
+                .map(item -> new Macro(Optional.ofNullable(item.getCalories()).orElse(0), nvl(item.getProteinG()), nvl(item.getCarbG()), nvl(item.getFatG())))
+                .reduce(new Macro(0, 0, 0, 0), this::add);
     }
 
     private NutritionDtos.NutritionSummaryResponse toSummary(Macro target, Macro intake, boolean hasMealData) {
@@ -235,7 +389,7 @@ public class NutritionService {
                 .deficitCarbG(round1(remainingCarb))
                 .deficitFatG(round1(remainingFat))
                 .note(hasMealData
-                        ? "선택 부대의 오늘 식단을 기본 섭취량으로 계산했어요."
+                        ? "엑셀 식품 DB와 직접 추가 음식을 기준으로 오늘 섭취량을 계산했어요."
                         : "당일 식단 데이터가 없어 섭취량은 0으로 계산되었습니다.")
                 .build();
     }
@@ -246,6 +400,112 @@ public class NutritionService {
         }
         double pct = (intake / target) * 100.0;
         return round1(Math.min(100, Math.max(0, pct)));
+    }
+
+    private MatchedFood matchFood(String foodName) {
+        String keyword = Optional.ofNullable(foodName).orElse("").trim();
+        String normalizedKeyword = normalizeSearchName(keyword);
+        Optional<FoodAlias> alias = foodAliasRepository.findFirstByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCaseOrderByFood_SourceCountDesc(
+                keyword, normalizedKeyword, keyword
+        );
+        if (alias.isPresent()) {
+            return new MatchedFood(foodName, Optional.of(alias.get().getFood()));
+        }
+        return new MatchedFood(foodName, foodRepository.findFirstByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrderBySourceCountDesc(keyword, normalizedKeyword));
+    }
+
+    private int scaleCalories(Food food, Integer mealKcal, double knownCalories) {
+        double calories = nvl(food.getCalorie());
+        if (mealKcal != null && mealKcal > 0 && knownCalories > 0 && Math.abs(mealKcal - knownCalories) / knownCalories <= 0.5) {
+            calories = calories * mealKcal / knownCalories;
+        }
+        return (int) Math.round(calories);
+    }
+
+    private NutritionDtos.FoodNutritionItemResponse toAddedFoodItem(UserMealFood food, int mealCalories) {
+        return NutritionDtos.FoodNutritionItemResponse.builder()
+                .id(food.getId())
+                .foodId(food.getFood() == null ? null : food.getFood().getId())
+                .foodName(food.getFoodName())
+                .matchedFoodName(food.getFoodName())
+                .mealType(food.getMealType())
+                .category(food.getFood() == null ? null : food.getFood().getCategory())
+                .servingUnit(food.getFood() == null ? null : food.getFood().getServingUnit())
+                .calories(Optional.ofNullable(food.getCalories()).orElse(0))
+                .proteinG(round1(nvl(food.getProteinG())))
+                .carbG(round1(nvl(food.getCarbG())))
+                .fatG(round1(nvl(food.getFatG())))
+                .calorieSharePct(percent(Optional.ofNullable(food.getCalories()).orElse(0), mealCalories))
+                .addedByUser(true)
+                .matchStatus("ADDED")
+                .build();
+    }
+
+    private NutritionDtos.FoodNutritionItemResponse copyWithShare(NutritionDtos.FoodNutritionItemResponse item, int mealCalories) {
+        return NutritionDtos.FoodNutritionItemResponse.builder()
+                .id(item.getId())
+                .foodId(item.getFoodId())
+                .foodName(item.getFoodName())
+                .matchedFoodName(item.getMatchedFoodName())
+                .mealType(item.getMealType())
+                .category(item.getCategory())
+                .servingUnit(item.getServingUnit())
+                .calories(item.getCalories())
+                .proteinG(item.getProteinG())
+                .carbG(item.getCarbG())
+                .fatG(item.getFatG())
+                .calorieSharePct(percent(Optional.ofNullable(item.getCalories()).orElse(0), mealCalories))
+                .addedByUser(item.getAddedByUser())
+                .matchStatus(item.getMatchStatus())
+                .build();
+    }
+
+    private NutritionDtos.FoodSearchResponse toFoodSearchResponse(Food food, String matchedName) {
+        return NutritionDtos.FoodSearchResponse.builder()
+                .id(food.getId())
+                .foodName(food.getName())
+                .category(food.getCategory())
+                .servingUnit(food.getServingUnit())
+                .calories(toInt(food.getCalorie()))
+                .proteinG(round1(nvl(food.getProtein())))
+                .carbG(round1(nvl(food.getCarbohydrate())))
+                .fatG(round1(nvl(food.getFat())))
+                .matchedName(matchedName)
+                .build();
+    }
+
+    private List<String> parseMealItems(String rawMenu) {
+        if (rawMenu == null || rawMenu.isBlank()) {
+            return List.of();
+        }
+        return List.of(rawMenu.split("[,/\\n]")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .toList();
+    }
+
+    private String normalizeMealType(String mealType) {
+        String normalized = Optional.ofNullable(mealType).orElse("snack").toLowerCase(Locale.ROOT).trim();
+        return switch (normalized) {
+            case "breakfast", "lunch", "dinner", "snack" -> normalized;
+            default -> "snack";
+        };
+    }
+
+    private String normalizeSearchName(String value) {
+        return Optional.ofNullable(value).orElse("").replaceAll("\\s+", "");
+    }
+
+    private Macro add(Macro first, Macro second) {
+        return new Macro(first.calories + second.calories, first.protein + second.protein, first.carb + second.carb, first.fat + second.fat);
+    }
+
+    private int toInt(Double value) {
+        return value == null ? 0 : (int) Math.round(value);
+    }
+
+    private double nvl(Double value) {
+        return value == null ? 0.0 : value;
     }
 
     private NutritionDtos.OwnedFoodResponse toOwnedResponse(UserOwnedFood food) {
@@ -265,5 +525,8 @@ public class NutritionService {
     }
 
     private record Macro(int calories, double protein, double carb, double fat) {
+    }
+
+    private record MatchedFood(String originalName, Optional<Food> food) {
     }
 }

@@ -21,3 +21,19 @@
 .item button { border: 0; background: transparent; font-size: 22px; color: #6b7260; }
 .save { border: 0; border-radius: 12px; padding: 14px; background: #556a3b; color: #fff; font-weight: 800; }
 .mealContext { display: inline-flex; align-items: center; border-radius: 999px; background: #eef2e7; color: #3e4f2d; padding: 7px 12px; font-size: 13px; font-weight: 900; margin-bottom: 4px; }
+.nutritionItem { border-bottom: 1px solid #dfdbcf; padding: 8px 0; }
+.nutritionItem:last-child { border-bottom: 0; }
+.itemHeader { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; font-weight: 900; }
+.itemHeader strong { color: #1f2b1a; }
+.itemHeader span { color: #516045; white-space: nowrap; }
+.nutritionItem small { display: block; margin-top: 2px; color: #6f7669; font-weight: 700; }
+.nutrientLine { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; color: #414a3a; font-size: 13px; font-weight: 900; }
+.nutrientLine span { border-radius: 999px; background: #ebe8de; padding: 4px 8px; }
+.nutrientLine em { border-radius: 999px; background: #e2ead8; color: #3e4f2d; padding: 4px 8px; font-style: normal; }
+.selectedSummary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.selectedSummary span { border-radius: 12px; background: #f4f2eb; border: 1px solid #ded8ca; padding: 8px; color: #25351f; font-weight: 900; text-align: center; }
+.searchFoodCard { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.searchFoodCard strong { display: block; color: #1f2b1a; font-size: 17px; font-weight: 950; }
+.searchFoodCard p { margin: 5px 0; color: #414a3a; font-weight: 900; }
+.searchFoodCard small { color: #6f7669; font-weight: 700; }
+.searchFoodCard button { border: 0; border-radius: 999px; background: #556a3b; color: #fff; width: 38px; height: 38px; font-size: 22px; font-weight: 900; flex: 0 0 auto; }
