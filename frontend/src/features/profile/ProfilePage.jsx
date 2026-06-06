@@ -7,6 +7,7 @@ import { getMyProfile } from '../../api/userApi';
 import { emptyUser } from '../../constants/defaultData';
 import { calculateMilitaryService } from '../../utils/militaryService';
 import { getWeeklyWorkoutSummary } from '../../utils/workoutStorage';
+import { getProfileImageSrc } from '../../utils/profileImage';
 import styles from './MyPage.module.css';
 
 const menus = [
@@ -97,6 +98,7 @@ export default function ProfilePage() {
   const currentWeight = Number(profile?.weightKg ?? 0);
   const targetWeight = Number(profile?.targetWeight ?? 0);
   const targetGap = currentWeight && targetWeight ? targetWeight - currentWeight : null;
+  const profileImageSrc = getProfileImageSrc(profile?.profileImageUrl);
 
   const handleLogout = () => {
     actions.logout();
@@ -112,7 +114,7 @@ export default function ProfilePage() {
 
       <Card className={styles.profileHero}>
         <div className={styles.profileAvatarWrap}>
-          <div className={styles.avatar}>{profile?.profileImageUrl ? <img src={profile.profileImageUrl} alt="프로필" /> : '🪖'}</div>
+          <div className={styles.avatar}>{profileImageSrc ? <img src={profileImageSrc} alt="프로필" /> : '🪖'}</div>
           <button type="button" className={styles.cameraButton} onClick={() => navigate('/mypage/settings')} aria-label="프로필 사진 변경">📷</button>
         </div>
         <div className={styles.profileIdentity}>
