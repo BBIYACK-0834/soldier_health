@@ -1,9 +1,8 @@
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
-import TabSwitcher from '../../components/ui/TabSwitcher';
-import { getOwnedFoods } from '../../api/nutritionApi';
-import { useEffect, useMemo, useState } from 'react';
+import { addMealFoods, searchFoods } from '../../api/nutritionApi';
 import styles from './DietPage.module.css';
 import screen from '../../components/ui/Screen.module.css';
 
@@ -14,80 +13,110 @@ const mealLabels = {
   snack: '간식',
 };
 
-const tabs = [
-  { value: 'recent', label: '최근' },
-  { value: 'favorite', label: '즐겨찾기' },
-  { value: 'manual', label: '직접 입력' },
-];
+function formatGram(value) {
+  return `${(Number(value) || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}g`;
+}
 
 export default function DietAddPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const selectedMeal = mealLabels[searchParams.get('meal')] ?? '식단';
-  const [tab, setTab] = useState('recent');
+  const mealType = mealLabels[searchParams.get('meal')] ? searchParams.get('meal') : 'snack';
+  const selectedMeal = mealLabels[mealType] ?? '식단';
   const [keyword, setKeyword] = useState('');
   const [selected, setSelected] = useState([]);
-  const [ownedFoods, setOwnedFoods] = useState([]);
+  const [foods, setFoods] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    let mounted = true;
-    async function loadFoods() {
-      try {
-        const foods = await getOwnedFoods();
-        if (mounted) setOwnedFoods(foods ?? []);
-      } catch {
-        if (mounted) setOwnedFoods([]);
-      }
+    const trimmed = keyword.trim();
+    if (trimmed.length < 1) {
+      setFoods([]);
+      setMessage('원하는 음식을 입력하면 엑셀 식품 DB에서 비슷한 음식을 찾아드려요.');
+      return undefined;
     }
-    loadFoods();
-    return () => { mounted = false; };
-  }, []);
 
-  const foods = useMemo(() => {
-    if (tab === 'manual') return [];
-    return ownedFoods.filter((food) => {
-      const matchesTab = tab === 'favorite' ? food.isFavorite : true;
-      const matchesKeyword = keyword.trim() ? food.foodName.includes(keyword.trim()) : true;
-      return matchesTab && matchesKeyword;
-    });
-  }, [keyword, ownedFoods, tab]);
+    const timer = window.setTimeout(async () => {
+      try {
+        setLoading(true);
+        setMessage('');
+        const results = await searchFoods(trimmed);
+        setFoods(results ?? []);
+        if (!results?.length) setMessage('검색 결과가 없습니다. 다른 음식명으로 입력해보세요.');
+      } catch {
+        setFoods([]);
+        setMessage('음식 검색에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [keyword]);
+
+  const selectedIds = useMemo(() => new Set(selected.map((food) => food.id)), [selected]);
+
+  const selectedSummary = useMemo(() => selected.reduce((sum, food) => ({
+    calories: sum.calories + (food.calories || 0),
+    carbG: sum.carbG + (food.carbG || 0),
+    proteinG: sum.proteinG + (food.proteinG || 0),
+    fatG: sum.fatG + (food.fatG || 0),
+  }), { calories: 0, carbG: 0, proteinG: 0, fatG: 0 }), [selected]);
 
   const toggleFood = (food) => {
     setSelected((prev) => (prev.some((item) => item.id === food.id) ? prev.filter((item) => item.id !== food.id) : [...prev, food]));
   };
 
+  const saveSelected = async () => {
+    if (!selected.length) return;
+    try {
+      setSaving(true);
+      await addMealFoods(mealType, selected.map((food) => food.id));
+      navigate('/diet');
+    } catch {
+      setMessage('선택한 음식을 식단에 추가하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <AppLayout title={`${selectedMeal} 음식 추가`} subtitle="최근·즐겨찾기·직접 입력으로 식단을 추가하세요." showBottomNav={false}>
-      <span className={styles.mealContext}>{selectedMeal}에 추가할 음식을 선택해주세요.</span>
-      <input className={screen.input} placeholder="음식명을 입력하세요" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-      <TabSwitcher tabs={tabs} value={tab} onChange={setTab} />
+    <AppLayout title={`${selectedMeal} 음식 추가`} subtitle="엑셀 식품 DB에서 검색한 음식의 칼로리·탄단지를 식단에 반영하세요." showBottomNav={false}>
+      <span className={styles.mealContext}>{selectedMeal}에 추가할 음식을 검색해주세요.</span>
+      <input className={screen.input} placeholder="예: 짜장면, 닭가슴살, 우유" value={keyword} onChange={(e) => setKeyword(e.target.value)} autoFocus />
 
-      {tab === 'manual' ? (
-        <Card>
-          <h3 className={screen.sectionTitle}>직접 입력</h3>
-          <div className={screen.list}>
-            <input className={screen.input} placeholder="음식명" />
-            <input className={screen.input} placeholder="칼로리 kcal" type="number" />
-            <input className={screen.input} placeholder="탄수화물 g" type="number" />
-            <input className={screen.input} placeholder="단백질 g" type="number" />
-            <input className={screen.input} placeholder="지방 g" type="number" />
-            <button type="button" className={screen.primaryButton}>직접 입력 음식 추가</button>
-          </div>
-        </Card>
-      ) : (
-        <div className={screen.list}>
-          {foods.map((food) => (
-            <Card key={food.id}>
-              <div className={styles.item}>
-                <span>{food.foodName} <small>({food.calories} kcal)</small></span>
-                <button type="button" onClick={() => toggleFood(food)}>{selected.some((item) => item.id === food.id) ? '✓' : '+'}</button>
-              </div>
-              <p className={styles.base}>탄 {(food.carbG ?? food.carbg ?? 0)}g · 단 {(food.proteinG ?? food.proteing ?? 0)}g · 지 {(food.fatG ?? food.fatg ?? 0)}g · {food.servingUnit}</p>
-            </Card>
-          ))}
+      <Card>
+        <p className={styles.totalTitle}>선택한 음식 {selected.length}개</p>
+        <div className={styles.selectedSummary}>
+          <span>{selectedSummary.calories.toLocaleString()} kcal</span>
+          <span>탄 {formatGram(selectedSummary.carbG)}</span>
+          <span>단 {formatGram(selectedSummary.proteinG)}</span>
+          <span>지 {formatGram(selectedSummary.fatG)}</span>
         </div>
-      )}
+      </Card>
 
-      <button type="button" className={screen.primaryButton}>{selectedMeal}에 선택한 음식 {selected.length}개 추가</button>
+      {message ? <p className={styles.base}>{message}</p> : null}
+      {loading ? <p className={styles.base}>검색 중...</p> : null}
+
+      <div className={screen.list}>
+        {foods.map((food) => (
+          <Card key={food.id}>
+            <div className={styles.searchFoodCard}>
+              <div>
+                <strong>{food.foodName}</strong>
+                <p>{food.calories ?? 0} kcal · 탄 {formatGram(food.carbG)} · 단 {formatGram(food.proteinG)} · 지 {formatGram(food.fatG)}</p>
+                <small>{food.category || '분류 없음'} · {food.servingUnit || '기준량 없음'}{food.matchedName && food.matchedName !== food.foodName ? ` · 검색매칭 ${food.matchedName}` : ''}</small>
+              </div>
+              <button type="button" onClick={() => toggleFood(food)}>{selectedIds.has(food.id) ? '✓' : '+'}</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <button type="button" className={screen.primaryButton} onClick={saveSelected} disabled={!selected.length || saving}>
+        {saving ? '추가 중...' : `${selectedMeal}에 선택한 음식 ${selected.length}개 추가`}
+      </button>
     </AppLayout>
   );
 }
