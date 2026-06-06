@@ -20,11 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -328,18 +331,46 @@ public class NutritionService {
         }
 
         List<MatchedFood> matches = names.stream().map(this::matchFood).toList();
-        double knownCalories = matches.stream().mapToDouble(match -> match.food().map(food -> nvl(food.getCalorie())).orElse(0.0)).sum();
-        int fallbackPerItem = rawKcal == null || rawKcal <= 0 ? 0 : Math.max(0, rawKcal / names.size());
+        List<Double> calorieWeights = matches.stream()
+                .map(match -> match.food().map(food -> Math.max(nvl(food.getCalorie()), 0.0)).orElse(0.0))
+                .toList();
+        double knownCalories = calorieWeights.stream().mapToDouble(Double::doubleValue).sum();
+        double fallbackWeight = calorieWeights.stream()
+                .filter(value -> value > 0)
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(1.0);
+        List<Double> allocationWeights = calorieWeights.stream()
+                .map(value -> value > 0 ? value : fallbackWeight)
+                .toList();
+        double totalAllocationWeight = allocationWeights.stream().mapToDouble(Double::doubleValue).sum();
+        int targetMealCalories = rawKcal == null || rawKcal <= 0
+                ? (int) Math.round(knownCalories)
+                : rawKcal;
 
-        return matches.stream().map(match -> {
+        List<NutritionDtos.FoodNutritionItemResponse> items = new ArrayList<>();
+        int allocatedCalories = 0;
+        for (int index = 0; index < matches.size(); index++) {
+            MatchedFood match = matches.get(index);
             Optional<Food> food = match.food();
-            int calories = food.map(value -> scaleCalories(value, rawKcal, knownCalories)).orElse(fallbackPerItem);
+            int calories;
+            if (targetMealCalories > 0 && totalAllocationWeight > 0) {
+                if (index == matches.size() - 1) {
+                    calories = Math.max(0, targetMealCalories - allocatedCalories);
+                } else {
+                    calories = (int) Math.round(targetMealCalories * allocationWeights.get(index) / totalAllocationWeight);
+                    allocatedCalories += calories;
+                }
+            } else {
+                calories = food.map(value -> toInt(value.getCalorie())).orElse(0);
+            }
+
             double scale = food.map(value -> {
                 double originalCalories = nvl(value.getCalorie());
                 return originalCalories > 0 ? calories / originalCalories : 1.0;
-            }).orElse(1.0);
+            }).orElse(0.0);
 
-            return NutritionDtos.FoodNutritionItemResponse.builder()
+            items.add(NutritionDtos.FoodNutritionItemResponse.builder()
                     .foodId(food.map(Food::getId).orElse(null))
                     .foodName(match.originalName())
                     .matchedFoodName(food.map(Food::getName).orElse(null))
@@ -352,8 +383,10 @@ public class NutritionService {
                     .fatG(round1(food.map(value -> nvl(value.getFat()) * scale).orElse(0.0)))
                     .addedByUser(false)
                     .matchStatus(food.isPresent() ? "MATCHED" : "UNMATCHED")
-                    .build();
-        }).toList();
+                    .build());
+        }
+
+        return items;
     }
 
     private Macro estimateMealNutrition(String rawMenu, Integer rawKcal) {
@@ -403,23 +436,125 @@ public class NutritionService {
     }
 
     private MatchedFood matchFood(String foodName) {
-        String keyword = Optional.ofNullable(foodName).orElse("").trim();
-        String normalizedKeyword = normalizeSearchName(keyword);
-        Optional<FoodAlias> alias = foodAliasRepository.findFirstByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCaseOrderByFood_SourceCountDesc(
-                keyword, normalizedKeyword, keyword
-        );
-        if (alias.isPresent()) {
-            return new MatchedFood(foodName, Optional.of(alias.get().getFood()));
+        String originalName = Optional.ofNullable(foodName).orElse("").trim();
+        if (originalName.isBlank()) {
+            return new MatchedFood(originalName, Optional.empty());
         }
-        return new MatchedFood(foodName, foodRepository.findFirstByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrderBySourceCountDesc(keyword, normalizedKeyword));
+
+        for (String keyword : mealSearchVariants(originalName)) {
+            String normalizedKeyword = normalizeSearchName(keyword);
+            Optional<FoodAlias> alias = foodAliasRepository.findFirstByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCaseOrderByFood_SourceCountDesc(
+                    keyword, normalizedKeyword, keyword
+            );
+            if (alias.isPresent()) {
+                return new MatchedFood(originalName, Optional.of(alias.get().getFood()));
+            }
+
+            Optional<Food> food = foodRepository.findFirstByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrderBySourceCountDesc(keyword, normalizedKeyword);
+            if (food.isPresent()) {
+                return new MatchedFood(originalName, food);
+            }
+        }
+
+        return new MatchedFood(originalName, findClosestFood(originalName));
     }
 
-    private int scaleCalories(Food food, Integer mealKcal, double knownCalories) {
-        double calories = nvl(food.getCalorie());
-        if (mealKcal != null && mealKcal > 0 && knownCalories > 0 && Math.abs(mealKcal - knownCalories) / knownCalories <= 0.5) {
-            calories = calories * mealKcal / knownCalories;
+    private Optional<Food> findClosestFood(String foodName) {
+        String cleaned = normalizeSearchName(cleanMealFoodName(foodName));
+        if (cleaned.length() < 2) {
+            return Optional.empty();
         }
-        return (int) Math.round(calories);
+
+        Set<Food> candidates = new HashSet<>();
+        for (String variant : mealSearchVariants(foodName)) {
+            String normalized = normalizeSearchName(variant);
+            if (normalized.length() >= 2) {
+                candidates.addAll(foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase(variant, normalized, PageRequest.of(0, 30)));
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return candidates.stream()
+                .map(food -> new FoodMatchScore(food, similarityScore(cleaned, normalizeSearchName(food.getName()))))
+                .filter(score -> score.score() >= 0.45)
+                .max(Comparator.comparingDouble(FoodMatchScore::score)
+                        .thenComparing(score -> Optional.ofNullable(score.food().getSourceCount()).orElse(0)))
+                .map(FoodMatchScore::food);
+    }
+
+    private List<String> mealSearchVariants(String foodName) {
+        String cleaned = cleanMealFoodName(foodName);
+        String typoFixed = cleaned.replace("어그", "에그");
+        String withoutModifiers = removeCommonMenuModifiers(typoFixed);
+
+        LinkedHashMap<String, String> variants = new LinkedHashMap<>();
+        for (String value : List.of(foodName, cleaned, typoFixed, withoutModifiers)) {
+            String normalized = normalizeSearchName(value);
+            if (!normalized.isBlank()) {
+                variants.put(normalized, value.trim());
+            }
+        }
+        return new ArrayList<>(variants.values());
+    }
+
+    private String cleanMealFoodName(String foodName) {
+        return Optional.ofNullable(foodName).orElse("")
+                .replaceAll("\\([^)]*\\)", "")
+                .replaceAll("[0-9]", "")
+                .replaceAll("[★*•·]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private String removeCommonMenuModifiers(String foodName) {
+        return foodName
+                .replace("치즈", "")
+                .replace("에그", "")
+                .replace("계란", "")
+                .replace("더블", "")
+                .replace("디럭스", "")
+                .replace("스파이시", "")
+                .replace("리얼", "")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private double similarityScore(String source, String target) {
+        if (source.isBlank() || target.isBlank()) {
+            return 0;
+        }
+        if (target.contains(source) || source.contains(target)) {
+            return Math.min(source.length(), target.length()) / (double) Math.max(source.length(), target.length());
+        }
+
+        int longest = longestCommonSubstring(source, target);
+        double containment = longest / (double) Math.max(source.length(), target.length());
+        double overlap = characterOverlap(source, target);
+        return containment * 0.65 + overlap * 0.35;
+    }
+
+    private int longestCommonSubstring(String first, String second) {
+        int[][] lengths = new int[first.length() + 1][second.length() + 1];
+        int best = 0;
+        for (int i = 1; i <= first.length(); i++) {
+            for (int j = 1; j <= second.length(); j++) {
+                if (first.charAt(i - 1) == second.charAt(j - 1)) {
+                    lengths[i][j] = lengths[i - 1][j - 1] + 1;
+                    best = Math.max(best, lengths[i][j]);
+                }
+            }
+        }
+        return best;
+    }
+
+    private double characterOverlap(String first, String second) {
+        Set<Integer> firstChars = first.codePoints().boxed().collect(java.util.stream.Collectors.toSet());
+        Set<Integer> secondChars = second.codePoints().boxed().collect(java.util.stream.Collectors.toSet());
+        long common = firstChars.stream().filter(secondChars::contains).count();
+        return common / (double) Math.max(firstChars.size(), secondChars.size());
     }
 
     private NutritionDtos.FoodNutritionItemResponse toAddedFoodItem(UserMealFood food, int mealCalories) {
@@ -528,5 +663,8 @@ public class NutritionService {
     }
 
     private record MatchedFood(String originalName, Optional<Food> food) {
+    }
+
+    private record FoodMatchScore(Food food, double score) {
     }
 }
