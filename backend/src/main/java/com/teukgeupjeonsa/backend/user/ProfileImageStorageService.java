@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -45,10 +44,7 @@ public class ProfileImageStorageService {
             throw new IllegalStateException("프로필 이미지를 저장하지 못했습니다.", e);
         }
 
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/uploads/profile-images/")
-                .path(filename)
-                .toUriString();
+        return "/uploads/profile-images/" + filename;
     }
 
     private String resolveImageExtension(String contentType) {

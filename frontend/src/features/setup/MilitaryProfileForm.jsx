@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Card from '../../components/ui/Card';
 import { updateProfile, uploadProfileImage } from '../../api/userApi';
+import { getProfileImageSrc } from '../../utils/profileImage';
 import styles from './SetupPage.module.css';
 
 const DEFAULT_PROFILE_IMAGES = [
@@ -91,7 +92,7 @@ function calculateArmyService(enlistmentDate) {
   };
 }
 
-export default function MilitaryProfileForm({ initialProfile, submitLabel = '저장하기', onSaved }) {
+export default function MilitaryProfileForm({ initialProfile, submitLabel = '저장하기', onSaved, showProfileImage = true }) {
   const [profileImageUrl, setProfileImageUrl] = useState(DEFAULT_PROFILE_IMAGES[0]);
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
@@ -101,6 +102,7 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
   const [message, setMessage] = useState('');
 
   const armyService = useMemo(() => calculateArmyService(enlistmentDate), [enlistmentDate]);
+  const profilePreviewSrc = getProfileImageSrc(profileImageUrl);
 
   useEffect(() => {
     setProfileImageUrl(initialProfile?.profileImageUrl ?? DEFAULT_PROFILE_IMAGES[0]);
@@ -138,12 +140,17 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
 
     try {
       setSubmitting(true);
-      const savedProfile = await updateProfile({
-        profileImageUrl: profileImageUrl || DEFAULT_PROFILE_IMAGES[0],
+      const payload = {
         heightCm: heightCm === '' ? null : Number(heightCm),
         weightKg: weightKg === '' ? null : Number(weightKg),
         enlistmentDate: enlistmentDate || null,
-      });
+      };
+
+      if (showProfileImage) {
+        payload.profileImageUrl = profileImageUrl || DEFAULT_PROFILE_IMAGES[0];
+      }
+
+      const savedProfile = await updateProfile(payload);
       setMessage('나의 군 생활 정보가 저장되었습니다.');
       onSaved?.(savedProfile);
     } catch (error) {
@@ -155,26 +162,28 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
 
   return (
     <form className={styles.formStack} onSubmit={handleSubmit}>
-      <Card>
-        <h3>1. 프로필 사진</h3>
-        <div className={styles.profileImagePicker}>
-          <img className={styles.profilePreviewImage} src={profileImageUrl} alt="프로필 미리보기" />
-          <div className={styles.defaultProfileGrid}>
-            {DEFAULT_PROFILE_IMAGES.map((imageUrl) => (
-              <button key={imageUrl} type="button" className={profileImageUrl === imageUrl ? styles.activeProfileImage : ''} onClick={() => setProfileImageUrl(imageUrl)}>
-                <img src={imageUrl} alt="기본 프로필" />
-              </button>
-            ))}
+      {showProfileImage ? (
+        <Card>
+          <h3>프로필 사진</h3>
+          <div className={styles.profileImagePicker}>
+            {profilePreviewSrc ? <img className={styles.profilePreviewImage} src={profilePreviewSrc} alt="프로필 미리보기" /> : <div className={styles.profilePreviewFallback}>🪖</div>}
+            <div className={styles.defaultProfileGrid}>
+              {DEFAULT_PROFILE_IMAGES.map((imageUrl) => (
+                <button key={imageUrl} type="button" className={profileImageUrl === imageUrl ? styles.activeProfileImage : ''} onClick={() => setProfileImageUrl(imageUrl)}>
+                  <img src={imageUrl} alt="기본 프로필" />
+                </button>
+              ))}
+            </div>
+            <label className={styles.uploadButton}>
+              {uploading ? '업로드 중...' : '내 이미지 업로드'}
+              <input type="file" accept="image/*" onChange={handleProfileUpload} disabled={uploading} />
+            </label>
           </div>
-          <label className={styles.uploadButton}>
-            {uploading ? '업로드 중...' : '내 이미지 업로드'}
-            <input type="file" accept="image/*" onChange={handleProfileUpload} disabled={uploading} />
-          </label>
-        </div>
-      </Card>
+        </Card>
+      ) : null}
 
       <Card>
-        <h3>2. 키와 몸무게</h3>
+        <h3>1. 키와 몸무게</h3>
         <div className={styles.inlineTwo}>
           <label>
             키(cm)
@@ -188,7 +197,7 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
       </Card>
 
       <Card>
-        <h3>3. 군 생활 일정</h3>
+        <h3>2. 군 생활 일정</h3>
         <div className={styles.formGrid}>
           <label>
             육군 입대일
