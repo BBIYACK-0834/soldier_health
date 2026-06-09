@@ -4,6 +4,7 @@ import com.teukgeupjeonsa.backend.food.Food;
 import com.teukgeupjeonsa.backend.food.FoodAlias;
 import com.teukgeupjeonsa.backend.food.FoodAliasRepository;
 import com.teukgeupjeonsa.backend.food.FoodRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
@@ -11,11 +12,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import javax.sql.DataSource;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +56,8 @@ public class FoodXlsxImporter {
 
     private final FoodRepository foodRepository;
     private final FoodAliasRepository foodAliasRepository;
+    private final EntityManager entityManager;
+    private final DataSource dataSource;
 
     @Transactional
     public FoodImportResult importXlsx(Path xlsxPath) {
@@ -61,6 +70,7 @@ public class FoodXlsxImporter {
             List<Food> foods = readFoods(workbook);
 
             foodAliasRepository.deleteAllInBatch();
+            detachUserMealFoodReferencesIfPresent();
             foodRepository.deleteAllInBatch();
             foodRepository.flush();
 
@@ -171,6 +181,44 @@ public class FoodXlsxImporter {
         }
 
         return new AliasReadResult(aliases, skippedCount);
+    }
+
+    private void detachUserMealFoodReferencesIfPresent() {
+        if (!hasColumn("user_meal_foods", "food_id")) {
+            return;
+        }
+        entityManager.createNativeQuery("update user_meal_foods set food_id = null where food_id is not null")
+                .executeUpdate();
+        entityManager.flush();
+    }
+
+    private boolean hasColumn(String tableName, String columnName) {
+        try (Connection connection = dataSource.getConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            String catalog = connection.getCatalog();
+            for (String tableCandidate : tableNameCandidates(tableName)) {
+                try (ResultSet tables = metaData.getTables(catalog, null, tableCandidate, new String[]{"TABLE"})) {
+                    if (!tables.next()) {
+                        continue;
+                    }
+                }
+
+                for (String columnCandidate : tableNameCandidates(columnName)) {
+                    try (ResultSet columns = metaData.getColumns(catalog, null, tableCandidate, columnCandidate)) {
+                        if (columns.next()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        } catch (SQLException e) {
+            throw new IllegalStateException("식품 데이터 import를 위한 DB 메타데이터 확인 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    private List<String> tableNameCandidates(String value) {
+        return List.of(value, value.toUpperCase(Locale.ROOT), value.toLowerCase(Locale.ROOT));
     }
 
     private Sheet getRequiredSheet(Workbook workbook, String sheetName) {

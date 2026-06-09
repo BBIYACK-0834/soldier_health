@@ -47,9 +47,9 @@ tasks.named('test') {
 
 tasks.register('importFoods', JavaExec) {
     group = 'application'
-    description = 'Import curated food nutrition data from food_data_DB.xlsx into the database.'
+    description = 'Import curated food nutrition data from foods_final_user_friendly_100g.xlsx into the database.'
     dependsOn classes
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.teukgeupjeonsa.backend.food.importer.FoodImportApplication'
-    args "--app.food-import.file=${project.findProperty('foodFile') ?: '../food_data/food_data_DB.xlsx'}"
+    args "--app.food-import.file=${project.findProperty('foodFile') ?: '../food_data/foods_final_user_friendly_100g.xlsx'}"
 }

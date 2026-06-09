@@ -36,10 +36,10 @@ public class SeedService {
     private final FoodRepository foodRepository;
     private final FoodXlsxImporter foodXlsxImporter;
 
-    @Value("${app.food-import.auto:true}")
+    @Value("${app.food-import.auto:false}")
     private boolean autoImportFoods;
 
-    @Value("${app.food-import.file:../food_data/food_data_DB.xlsx}")
+    @Value("${app.food-import.file:../food_data/foods_final_user_friendly_100g.xlsx}")
     private String foodImportFile;
 
     @Transactional
@@ -78,6 +78,8 @@ public class SeedService {
     private Optional<Path> resolveFoodImportPath() {
         List<Path> candidates = List.of(
                 Path.of(foodImportFile),
+                Path.of("food_data/foods_final_user_friendly_100g.xlsx"),
+                Path.of("../food_data/foods_final_user_friendly_100g.xlsx"),
                 Path.of("food_data/food_data_DB.xlsx"),
                 Path.of("../food_data/food_data_DB.xlsx")
         );
