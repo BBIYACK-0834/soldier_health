@@ -56,3 +56,5 @@ app:
   food-import:
     auto: "${FOOD_IMPORT_AUTO:true}"
     file: "${FOOD_IMPORT_FILE:../food_data/food_data_DB.xlsx}"
+  startup-seed:
+    fail-on-error: "${STARTUP_SEED_FAIL_ON_ERROR:false}"
