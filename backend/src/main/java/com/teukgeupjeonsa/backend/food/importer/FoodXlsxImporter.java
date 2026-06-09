@@ -19,8 +19,6 @@ import java.sql.SQLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -67,7 +65,8 @@ public class FoodXlsxImporter {
 
         try (InputStream inputStream = Files.newInputStream(xlsxPath);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
-            List<Food> foods = readFoods(workbook);
+            FoodReadResult foodReadResult = readFoods(workbook);
+            List<Food> foods = foodReadResult.foods();
 
             foodAliasRepository.deleteAllInBatch();
             detachUserMealFoodReferencesIfPresent();
@@ -77,24 +76,24 @@ public class FoodXlsxImporter {
             List<Food> savedFoods = foodRepository.saveAll(foods);
             foodRepository.flush();
 
-            Map<String, Food> foodByName = savedFoods.stream()
-                    .collect(Collectors.toMap(Food::getName, Function.identity(), (first, second) -> first));
+            Map<String, Food> foodByName = toFoodByNormalizedName(savedFoods);
 
             AliasReadResult aliasReadResult = readAliases(workbook, foodByName);
             foodAliasRepository.saveAll(aliasReadResult.aliases());
 
-            return new FoodImportResult(savedFoods.size(), aliasReadResult.aliases().size(), aliasReadResult.skippedCount());
+            return new FoodImportResult(savedFoods.size(), aliasReadResult.aliases().size(), foodReadResult.skippedCount(), aliasReadResult.skippedCount());
         } catch (IOException e) {
             throw new IllegalStateException("식품 xlsx 파일을 읽는 중 오류가 발생했습니다: " + xlsxPath.toAbsolutePath(), e);
         }
     }
 
-    private List<Food> readFoods(Workbook workbook) {
+    private FoodReadResult readFoods(Workbook workbook) {
         Sheet sheet = getRequiredSheet(workbook, FOOD_MASTER_SHEET);
         Map<String, Integer> columns = readHeader(sheet, FOOD_MASTER_SHEET);
         requireColumns(columns, FOOD_MASTER_COLUMNS.values(), FOOD_MASTER_SHEET);
 
         Map<String, Food> foodsByName = new LinkedHashMap<>();
+        int skippedCount = 0;
         for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
             Row row = sheet.getRow(rowIndex);
             if (row == null) {
@@ -102,10 +101,12 @@ public class FoodXlsxImporter {
             }
 
             String name = maxLength(text(row, columns.get(FOOD_MASTER_COLUMNS.get("name"))), 200);
-            if (name == null) {
+            if (isInvalidFoodName(name)) {
+                skippedCount++;
                 continue;
             }
 
+            String dedupeKey = dedupeKey(name);
             Food food = Food.builder()
                     .name(name)
                     .searchName(maxLength(normalizeSearchName(name), 200))
@@ -122,10 +123,17 @@ public class FoodXlsxImporter {
                     .transFat(number(row, columns.get(FOOD_MASTER_COLUMNS.get("transFat"))))
                     .sourceCount(integer(row, columns.get(FOOD_MASTER_COLUMNS.get("sourceCount"))))
                     .build();
-            foodsByName.put(name, food);
+
+            Food previous = foodsByName.get(dedupeKey);
+            if (previous == null || hasGreaterSourceCount(food, previous)) {
+                foodsByName.put(dedupeKey, food);
+            }
+            if (previous != null) {
+                skippedCount++;
+            }
         }
 
-        return new ArrayList<>(foodsByName.values());
+        return new FoodReadResult(new ArrayList<>(foodsByName.values()), skippedCount);
     }
 
     private AliasReadResult readAliases(Workbook workbook, Map<String, Food> foodByName) {
@@ -154,7 +162,7 @@ public class FoodXlsxImporter {
                 mappedFoodName = aliasName;
             }
 
-            Food food = foodByName.get(mappedFoodName);
+            Food food = foodByName.get(dedupeKey(mappedFoodName));
             if (food == null) {
                 skippedCount++;
                 continue;
@@ -166,7 +174,7 @@ public class FoodXlsxImporter {
                 originalName = maxLength(aliasName + "(" + makerName + ")", 300);
             }
 
-            String key = food.getId() + "\n" + aliasName + "\n" + originalName;
+            String key = food.getId() + "\n" + dedupeKey(aliasName) + "\n" + dedupeKey(originalName);
             if (!seen.add(key)) {
                 continue;
             }
@@ -335,6 +343,45 @@ public class FoodXlsxImporter {
         return Double.toString(value);
     }
 
+    private Map<String, Food> toFoodByNormalizedName(List<Food> foods) {
+        Map<String, Food> foodByName = new LinkedHashMap<>();
+        for (Food food : foods) {
+            foodByName.putIfAbsent(dedupeKey(food.getName()), food);
+        }
+        return foodByName;
+    }
+
+    private boolean hasGreaterSourceCount(Food candidate, Food current) {
+        int candidateSourceCount = Optional.ofNullable(candidate.getSourceCount()).orElse(0);
+        int currentSourceCount = Optional.ofNullable(current.getSourceCount()).orElse(0);
+        return candidateSourceCount > currentSourceCount;
+    }
+
+    private boolean isInvalidFoodName(String name) {
+        if (name == null) {
+            return true;
+        }
+
+        String normalized = normalizeSearchName(name).toLowerCase(Locale.ROOT);
+        if (normalized.length() < 2) {
+            return true;
+        }
+        if (normalized.matches("^\\d+(\\.\\d+)?$")) {
+            return true;
+        }
+        if (normalized.matches("^\\d+(\\.\\d+)?(g|kg|mg|ml|l|개|봉|팩|회|인분)$")) {
+            return true;
+        }
+        return !normalized.matches(".*[a-z가-힣].*");
+    }
+
+    private String dedupeKey(String value) {
+        if (value == null) {
+            return "";
+        }
+        return normalizeSearchName(value.trim()).toLowerCase(Locale.ROOT);
+    }
+
     private String normalizeSearchName(String value) {
         return value.replaceAll("\\s+", "");
     }
@@ -344,6 +391,9 @@ public class FoodXlsxImporter {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private record FoodReadResult(List<Food> foods, int skippedCount) {
     }
 
     private record AliasReadResult(List<FoodAlias> aliases, int skippedCount) {

@@ -28,6 +28,7 @@ public class FoodImportApplication {
             System.out.println("식품 데이터 import 완료");
             System.out.println("foods 삽입 개수: " + result.foodCount());
             System.out.println("food_aliases 삽입 개수: " + result.aliasCount());
+            System.out.println("잘못되었거나 중복되어 건너뛴 food 개수: " + result.skippedFoodCount());
             System.out.println("매핑 실패로 건너뛴 alias 개수: " + result.skippedAliasCount());
         }
     }
