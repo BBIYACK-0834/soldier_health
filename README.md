@@ -223,13 +223,13 @@ curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/DS_T
 
 ### 3.8 정제 식품 영양성분 xlsx 수동 import
 
-정제된 `food_data/food_data_DB.xlsx` 파일은 서버 시작 시 자동 적재하지 않고, 필요할 때 Gradle 태스크로 수동 실행합니다. import 대상은 `food_master` 시트와 `food_alias` 시트이며, `review_needed`, `정제기준` 시트는 DB에 적재하지 않습니다.
+최종 정제된 `food_data/foods_final_user_friendly_100g.xlsx` 파일은 앱 요청마다 직접 읽지 않고, 필요할 때 Gradle 태스크로 한 번 DB에 적재합니다. import 대상은 `food_master` 시트와 `food_alias` 시트이며, `review_needed`, `정제기준` 시트는 DB에 적재하지 않습니다.
 
 #### import 전에 확인할 것
 
 1. MySQL이 실행 중이어야 합니다.
 2. `backend/.env`의 DB 접속 정보가 실제 DB와 맞아야 합니다.
-3. 정제 xlsx 파일이 저장소 루트 기준 `food_data/food_data_DB.xlsx`에 있어야 합니다.
+3. 정제 xlsx 파일이 저장소 루트 기준 `food_data/foods_final_user_friendly_100g.xlsx`에 있어야 합니다.
 4. 현재 import는 재실행 가능하도록 기존 `food_aliases`와 `foods` 데이터를 지운 뒤 xlsx 기준으로 다시 넣습니다. 운영 DB에서 실행하기 전에는 백업 여부를 먼저 확인하세요.
 
 #### 기본 실행 방법
@@ -242,7 +242,7 @@ set -a; source .env; set +a
 ./gradlew importFoods
 ```
 
-`importFoods`의 기본 파일 경로는 백엔드 폴더 기준 `../food_data/food_data_DB.xlsx`입니다. 즉 저장소 전체 경로가 `/workspaces/soldier_health`라면 기본으로 `/workspaces/soldier_health/food_data/food_data_DB.xlsx` 파일을 읽습니다.
+`importFoods`의 기본 파일 경로는 백엔드 폴더 기준 `../food_data/foods_final_user_friendly_100g.xlsx`입니다. 즉 저장소 전체 경로가 `/workspaces/soldier_health`라면 기본으로 `/workspaces/soldier_health/food_data/foods_final_user_friendly_100g.xlsx` 파일을 읽습니다.
 
 #### 파일 경로를 직접 지정해서 실행하기
 
@@ -251,7 +251,7 @@ Codespaces나 로컬 환경에서 절대 경로를 명확히 지정하고 싶다
 ```bash
 cd backend
 set -a; source .env; set +a
-./gradlew importFoods -PfoodFile="/workspaces/soldier_health/food_data/food_data_DB.xlsx"
+./gradlew importFoods -PfoodFile="/workspaces/soldier_health/food_data/foods_final_user_friendly_100g.xlsx"
 ```
 
 현재 컨테이너처럼 저장소가 `/workspace/soldier_health`에 있는 환경에서는 아래처럼 지정할 수도 있습니다.
@@ -259,8 +259,24 @@ set -a; source .env; set +a
 ```bash
 cd backend
 set -a; source .env; set +a
-./gradlew importFoods -PfoodFile="/workspace/soldier_health/food_data/food_data_DB.xlsx"
+./gradlew importFoods -PfoodFile="/workspace/soldier_health/food_data/foods_final_user_friendly_100g.xlsx"
 ```
+
+
+#### import 전용 실행 범위
+
+`importFoods`는 `food-import` profile과 non-web Spring 컨텍스트를 사용하며, 식품 Entity/Repository와 `FoodXlsxImporter`만 로딩합니다. 따라서 일반 서버 실행에 필요한 `SecurityConfig`, `AuthController`, `AuthService` 등 인증/웹 Bean은 import 컨텍스트에 포함되지 않습니다. 일반 서버는 기존처럼 `./gradlew bootRun`으로 실행하면 보안 설정이 그대로 적용됩니다.
+
+#### import 후 검색 확인
+
+import가 완료되면 `/api/foods/search`는 xlsx 파일을 다시 읽지 않고 DB의 `foods`, `food_aliases` 테이블을 검색합니다. 로그인 후 발급받은 토큰으로 다음처럼 확인할 수 있습니다.
+
+```bash
+curl "http://localhost:8080/api/foods/search?q=짜" \
+  -H "Authorization: Bearer <valid-token>"
+```
+
+응답 데이터에는 프론트 음식 추가 화면이 사용하는 `id`, `foodName`, `calories`, `carbG`, `proteinG`, `fatG`, `category`, `servingUnit`, `matchedName` 필드가 포함됩니다.
 
 #### import 처리 방식
 
