@@ -38,6 +38,10 @@ public class WorkoutRecommendationService {
         GoalType goal = user.getGoalType() == null ? GoalType.GENERAL_FITNESS : user.getGoalType();
         Set<EquipmentTag> availableEquipment = detectAvailableEquipment(user);
 
+        if (goal == GoalType.FITNESS_TEST) {
+            return buildFitnessTestRoutine(level);
+        }
+
         List<RoutineTemplate> templates = getRoutineTemplates(days);
         int seed = LocalDate.now().getDayOfYear();
         RoutineTemplate template = templates.get(seed % templates.size());
@@ -54,6 +58,9 @@ public class WorkoutRecommendationService {
             exercises.add(toExercise(main, goal, alt.name(), level));
         }
 
+        if (goal == GoalType.CUT) {
+            exercises.add(cardioFinisher(level));
+        }
         exercises.add(cooldown(template));
 
         return WorkoutDtos.WorkoutRecommendationResponse.builder()
@@ -61,6 +68,70 @@ public class WorkoutRecommendationService {
                 .todayFocus(template.focus())
                 .exercises(exercises)
                 .note("운동별 필수 기구 태그를 매칭한 뒤, 목표/숙련도/분할 부위/동작 패턴 균형 점수로 추천")
+                .build();
+    }
+
+    private WorkoutDtos.WorkoutRecommendationResponse buildFitnessTestRoutine(WorkoutLevel level) {
+        int mainSets = level == WorkoutLevel.BEGINNER ? 4 : 5;
+        List<WorkoutDtos.WorkoutExercise> exercises = List.of(
+                WorkoutDtos.WorkoutExercise.builder()
+                        .name("3km 목표 페이스 조깅/인터벌")
+                        .category("뜀걸음 · 특급전사")
+                        .sets(1)
+                        .reps("12분 30초 목표 페이스까지 점진 단축")
+                        .durationSeconds(900)
+                        .restSeconds(60)
+                        .intensity("High")
+                        .requiredEquipment("러닝 코스")
+                        .recommendationReason("특급전사 3km 12분 30초 목표 달성을 위한 주 운동")
+                        .alternative("400m 반복주 6~8회")
+                        .build(),
+                WorkoutDtos.WorkoutExercise.builder()
+                        .name("푸시업")
+                        .category("푸시업 · 특급전사")
+                        .sets(mainSets)
+                        .reps("목표 72개를 향해 세트당 최대반복")
+                        .durationSeconds(60)
+                        .restSeconds(60)
+                        .intensity("High")
+                        .requiredEquipment("없음")
+                        .recommendationReason("특급전사 팔굽혀펴기 목표 72개를 위한 특이성 훈련")
+                        .alternative("무릎 푸시업 또는 템포 푸시업")
+                        .build(),
+                WorkoutDtos.WorkoutExercise.builder()
+                        .name("윗몸일으키기")
+                        .category("윗몸 · 특급전사")
+                        .sets(mainSets)
+                        .reps("목표 86개를 향해 세트당 최대반복")
+                        .durationSeconds(60)
+                        .restSeconds(60)
+                        .intensity("High")
+                        .requiredEquipment("매트")
+                        .recommendationReason("특급전사 윗몸일으키기 목표 86개를 위한 특이성 훈련")
+                        .alternative("크런치 또는 발 고정 윗몸일으키기")
+                        .build()
+        );
+
+        return WorkoutDtos.WorkoutRecommendationResponse.builder()
+                .routineType("특급전사 3종 집중 루틴")
+                .todayFocus("윗몸 86개 · 푸시업 72개 · 3km 12분 30초")
+                .exercises(exercises)
+                .note("특급전사는 윗몸/푸시업/뜀걸음 3종만 메인으로 구성")
+                .build();
+    }
+
+    private WorkoutDtos.WorkoutExercise cardioFinisher(WorkoutLevel level) {
+        return WorkoutDtos.WorkoutExercise.builder()
+                .name("감량 유산소 피니셔")
+                .category("유산소 · 다이어트")
+                .sets(1)
+                .reps(level == WorkoutLevel.BEGINNER ? "15분 빠른 걷기" : "20분 인터벌 러닝")
+                .durationSeconds(level == WorkoutLevel.BEGINNER ? 900 : 1200)
+                .restSeconds(0)
+                .intensity(level == WorkoutLevel.BEGINNER ? "Medium" : "High")
+                .requiredEquipment("러닝 코스 또는 트레드밀")
+                .recommendationReason("벌크업과 동일한 근력 분할을 유지하되 다이어트 목표에서만 유산소를 추가")
+                .alternative("실내 자전거 또는 버피 저강도 변형")
                 .build();
     }
 

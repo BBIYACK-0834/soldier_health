@@ -16,6 +16,11 @@ public class UpdateGoalsRequest {
     private WorkoutLevel workoutLevel;
 
     @NotNull
+    @Min(30)
+    @Max(160)
+    private Double targetWeight;
+
+    @NotNull
     private BranchType branchType;
 
     @NotNull

@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
-import { getTodayWorkoutRecommendation } from '../../api/workoutApi';
+import { getMyProfile } from '../../api/userApi';
 import { emptyWorkout, exerciseCatalog } from '../../constants/defaultData';
+import { buildWorkoutFromProfile } from '../../utils/workoutPlanner';
 import { readWorkoutProgress, resetWorkoutProgress, saveWorkoutPlan } from '../../utils/workoutStorage';
 import styles from './WorkoutPage.module.css';
 import screen from '../../components/ui/Screen.module.css';
@@ -49,9 +50,9 @@ export default function WorkoutPage() {
     async function load() {
       try {
         setLoading(true);
-        const data = await getTodayWorkoutRecommendation();
+        const profile = await getMyProfile();
+        const nextWorkout = buildWorkoutFromProfile(profile);
         if (!mounted) return;
-        const nextWorkout = buildDefaultWorkout(data);
         const saved = saveWorkoutPlan(nextWorkout);
         setWorkout(nextWorkout);
         setCompletedSets(saved?.completedSets ?? {});
@@ -60,12 +61,12 @@ export default function WorkoutPage() {
         if (!mounted) return;
         const saved = readWorkoutProgress();
         const nextWorkout = saved?.exercises?.length
-          ? { todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises }
+          ? { routineKey: saved.routineKey, todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises }
           : buildDefaultWorkout();
         setWorkout(nextWorkout);
         setCompletedSets(saved?.completedSets ?? {});
         setWorkoutCompleted(Boolean(saved?.workoutCompleted));
-        setErrorMessage('서버 추천을 불러오지 못해 저장된 운동 또는 기본 운동 목록을 표시합니다.');
+        setErrorMessage('프로필 기반 루틴을 만들지 못해 저장된 운동 또는 기본 운동 목록을 표시합니다.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -83,7 +84,7 @@ export default function WorkoutPage() {
       setCompletedSets(saved?.completedSets ?? {});
       setWorkoutCompleted(Boolean(saved?.workoutCompleted));
       if (saved?.exercises?.length) {
-        setWorkout({ todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises });
+        setWorkout({ routineKey: saved.routineKey, todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises });
       }
     };
 

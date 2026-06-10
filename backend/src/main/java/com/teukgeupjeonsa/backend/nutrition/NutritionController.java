@@ -14,6 +14,7 @@ import java.util.List;
 public class NutritionController {
 
     private final NutritionService nutritionService;
+    private final MealNutritionService mealNutritionService;
 
     @GetMapping("/api/nutrition/today")
     public ApiResponse<NutritionDtos.NutritionSummaryResponse> getToday(@AuthenticationPrincipal User user) {
@@ -28,6 +29,11 @@ public class NutritionController {
     @GetMapping("/api/nutrition/today/meals")
     public ApiResponse<NutritionDtos.TodayMealNutritionResponse> getTodayMealDetails(@AuthenticationPrincipal User user) {
         return ApiResponse.ok(nutritionService.getTodayMealDetails(user.getId()));
+    }
+
+    @GetMapping("/api/nutrition/debug/sample-meal-match")
+    public ApiResponse<NutritionDtos.MealNutritionResponse> getSampleMealMatch() {
+        return ApiResponse.ok(mealNutritionService.buildSampleMealNutritionResponse());
     }
 
     @GetMapping("/api/foods/search")

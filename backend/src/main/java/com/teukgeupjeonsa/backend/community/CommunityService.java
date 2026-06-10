@@ -81,13 +81,20 @@ public class CommunityService {
         CommunityPost post = communityPostRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new EntityNotFoundException("게시글을 찾을 수 없습니다."));
 
-        if (!communityPostLikeRepository.existsByPostAndUser(post, user)) {
-            communityPostLikeRepository.save(CommunityPostLike.builder()
-                    .post(post)
-                    .user(user)
-                    .build());
-            post.setLikeCount(post.getLikeCount() + 1);
-        }
+        communityPostLikeRepository.findByPostAndUser(post, user)
+                .ifPresentOrElse(
+                        like -> {
+                            communityPostLikeRepository.delete(like);
+                            post.setLikeCount(Math.max(0, post.getLikeCount() - 1));
+                        },
+                        () -> {
+                            communityPostLikeRepository.save(CommunityPostLike.builder()
+                                    .post(post)
+                                    .user(user)
+                                    .build());
+                            post.setLikeCount(post.getLikeCount() + 1);
+                        }
+                );
         return toPostResponse(post, user);
     }
 

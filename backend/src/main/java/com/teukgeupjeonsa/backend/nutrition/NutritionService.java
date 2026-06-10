@@ -1,7 +1,6 @@
 package com.teukgeupjeonsa.backend.nutrition;
 
 import com.teukgeupjeonsa.backend.food.Food;
-import com.teukgeupjeonsa.backend.food.FoodAlias;
 import com.teukgeupjeonsa.backend.food.FoodAliasRepository;
 import com.teukgeupjeonsa.backend.food.FoodRepository;
 import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
@@ -20,16 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 @Service
 @RequiredArgsConstructor
@@ -43,8 +37,8 @@ public class NutritionService {
     private final FoodRepository foodRepository;
     private final FoodAliasRepository foodAliasRepository;
     private final PxProductRepository pxProductRepository;
+    private final MealNutritionService mealNutritionService;
 
-    private final ConcurrentMap<String, Optional<Food>> foodMatchCache = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
     public NutritionDtos.NutritionSummaryResponse getTodaySummary(Long userId) {
@@ -156,20 +150,23 @@ public class NutritionService {
         Optional<MealMenu> mealMenu = getTodayMealMenuOptional(user);
         List<UserMealFood> addedFoods = userMealFoodRepository.findByUserAndMealDate(user, LocalDate.now());
 
-        List<NutritionDtos.MealNutritionDetailResponse> meals = List.of(
-                buildMealDetail("breakfast", "아침", mealMenu.map(MealMenu::getBreakfast).orElse(null), mealMenu.map(MealMenu::getBreakfastKcal).orElse(null), addedFoods),
-                buildMealDetail("lunch", "점심", mealMenu.map(MealMenu::getLunch).orElse(null), mealMenu.map(MealMenu::getLunchKcal).orElse(null), addedFoods),
-                buildMealDetail("dinner", "저녁", mealMenu.map(MealMenu::getDinner).orElse(null), mealMenu.map(MealMenu::getDinnerKcal).orElse(null), addedFoods),
-                buildMealDetail("snack", "간식", null, null, addedFoods)
+        List<NutritionDtos.MealNutritionResponse> meals = List.of(
+                buildMealDetail("breakfast", mealMenu.map(MealMenu::getBreakfast).orElse(null), mealMenu.map(MealMenu::getBreakfastKcal).orElse(null), addedFoods),
+                buildMealDetail("lunch", mealMenu.map(MealMenu::getLunch).orElse(null), mealMenu.map(MealMenu::getLunchKcal).orElse(null), addedFoods),
+                buildMealDetail("dinner", mealMenu.map(MealMenu::getDinner).orElse(null), mealMenu.map(MealMenu::getDinnerKcal).orElse(null), addedFoods),
+                buildMealDetail("snack", null, null, addedFoods)
         );
 
-        int totalCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getCalories()).orElse(0)).sum();
+        int totalEstimatedCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getEstimatedCalorieKcal()).orElse(0)).sum();
+        int totalOfficialCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getOfficialCalorieKcal()).orElse(0)).sum();
         double totalProtein = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getProteinG()).orElse(0.0)).sum();
         double totalCarb = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getCarbG()).orElse(0.0)).sum();
         double totalFat = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getFatG()).orElse(0.0)).sum();
 
         return NutritionDtos.TodayMealNutritionResponse.builder()
-                .totalCalories(totalCalories)
+                .totalCalories(totalEstimatedCalories)
+                .totalOfficialCalories(totalOfficialCalories)
+                .totalEstimatedCalories(totalEstimatedCalories)
                 .totalProteinG(round1(totalProtein))
                 .totalCarbG(round1(totalCarb))
                 .totalFatG(round1(totalFat))
@@ -239,11 +236,11 @@ public class NutritionService {
     private Macro calculateTarget(User user) {
         GoalType goal = user.getGoalType() == null ? GoalType.GENERAL_FITNESS : user.getGoalType();
 
-        if (user.getWeightKg() == null || user.getHeightCm() == null) {
+        if (user.getTargetWeight() == null || user.getHeightCm() == null) {
             return new Macro(0, 0, 0, 0);
         }
 
-        double weight = user.getWeightKg();
+        double weight = user.getTargetWeight();
         double height = user.getHeightCm();
 
         // 나이/성별 정보가 없어 군인 기본값(남성 22세) 기반 Mifflin-St Jeor 근사 사용
@@ -289,8 +286,8 @@ public class NutritionService {
 
     private Macro calculateTodayIntake(Optional<MealMenu> mealMenu, List<UserMealFood> addedFoods) {
         Macro base = mealMenu.map(menu -> add(
-                add(estimateMealNutritionQuick(menu.getBreakfastKcal()), estimateMealNutritionQuick(menu.getLunchKcal())),
-                estimateMealNutritionQuick(menu.getDinnerKcal())
+                add(estimateMealNutrition(menu.getBreakfast(), menu.getBreakfastKcal()), estimateMealNutrition(menu.getLunch(), menu.getLunchKcal())),
+                estimateMealNutrition(menu.getDinner(), menu.getDinnerKcal())
         )).orElseGet(() -> new Macro(0, 0, 0, 0));
 
         Macro added = addedFoods.stream()
@@ -299,110 +296,20 @@ public class NutritionService {
         return add(base, added);
     }
 
-    private Macro estimateMealNutritionQuick(Integer rawKcal) {
-        int calories = Optional.ofNullable(rawKcal).orElse(0);
-        if (calories <= 0) {
-            return new Macro(0, 0, 0, 0);
-        }
-
-        return new Macro(calories, calories * 0.20 / 4.0, calories * 0.55 / 4.0, calories * 0.25 / 9.0);
-    }
-
-    private NutritionDtos.MealNutritionDetailResponse buildMealDetail(String mealType, String mealLabel, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods) {
-        List<NutritionDtos.FoodNutritionItemResponse> items = new ArrayList<>(estimateMealItems(mealType, rawMenu, rawKcal));
+    private NutritionDtos.MealNutritionResponse buildMealDetail(String mealType, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods) {
+        NutritionDtos.MealNutritionResponse baseMeal = mealNutritionService.analyzeMeal(mealType, rawMenu, rawKcal);
+        List<NutritionDtos.MealNutritionItemResponse> items = new ArrayList<>(baseMeal.getItems());
         addedFoods.stream()
                 .filter(food -> mealType.equals(food.getMealType()))
-                .map(food -> toAddedFoodItem(food, 0))
+                .map(food -> toAddedMealNutritionItem(food, mealType))
                 .forEach(items::add);
-
-        int calories = items.stream().mapToInt(item -> Optional.ofNullable(item.getCalories()).orElse(0)).sum();
-        double protein = items.stream().mapToDouble(item -> Optional.ofNullable(item.getProteinG()).orElse(0.0)).sum();
-        double carb = items.stream().mapToDouble(item -> Optional.ofNullable(item.getCarbG()).orElse(0.0)).sum();
-        double fat = items.stream().mapToDouble(item -> Optional.ofNullable(item.getFatG()).orElse(0.0)).sum();
-
-        List<NutritionDtos.FoodNutritionItemResponse> withShare = items.stream()
-                .map(item -> copyWithShare(item, calories))
-                .toList();
-
-        return NutritionDtos.MealNutritionDetailResponse.builder()
-                .mealType(mealType)
-                .mealLabel(mealLabel)
-                .calories(calories)
-                .proteinG(round1(protein))
-                .carbG(round1(carb))
-                .fatG(round1(fat))
-                .items(withShare)
-                .build();
-    }
-
-    private List<NutritionDtos.FoodNutritionItemResponse> estimateMealItems(String mealType, String rawMenu, Integer rawKcal) {
-        List<String> names = parseMealItems(rawMenu);
-        if (names.isEmpty()) {
-            return List.of();
-        }
-
-        List<MatchedFood> matches = names.stream().map(this::matchFood).toList();
-        List<Double> calorieWeights = matches.stream()
-                .map(match -> match.food().map(food -> Math.max(nvl(food.getCalorie()), 0.0)).orElse(0.0))
-                .toList();
-        double knownCalories = calorieWeights.stream().mapToDouble(Double::doubleValue).sum();
-        double fallbackWeight = calorieWeights.stream()
-                .filter(value -> value > 0)
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(1.0);
-        List<Double> allocationWeights = calorieWeights.stream()
-                .map(value -> value > 0 ? value : fallbackWeight)
-                .toList();
-        double totalAllocationWeight = allocationWeights.stream().mapToDouble(Double::doubleValue).sum();
-        int targetMealCalories = rawKcal == null || rawKcal <= 0
-                ? (int) Math.round(knownCalories)
-                : rawKcal;
-
-        List<NutritionDtos.FoodNutritionItemResponse> items = new ArrayList<>();
-        int allocatedCalories = 0;
-        for (int index = 0; index < matches.size(); index++) {
-            MatchedFood match = matches.get(index);
-            Optional<Food> food = match.food();
-            int calories;
-            if (targetMealCalories > 0 && totalAllocationWeight > 0) {
-                if (index == matches.size() - 1) {
-                    calories = Math.max(0, targetMealCalories - allocatedCalories);
-                } else {
-                    calories = (int) Math.round(targetMealCalories * allocationWeights.get(index) / totalAllocationWeight);
-                    allocatedCalories += calories;
-                }
-            } else {
-                calories = food.map(value -> toInt(value.getCalorie())).orElse(0);
-            }
-
-            double scale = food.map(value -> {
-                double originalCalories = nvl(value.getCalorie());
-                return originalCalories > 0 ? calories / originalCalories : 1.0;
-            }).orElse(0.0);
-
-            items.add(NutritionDtos.FoodNutritionItemResponse.builder()
-                    .foodId(food.map(Food::getId).orElse(null))
-                    .foodName(match.originalName())
-                    .matchedFoodName(food.map(Food::getName).orElse(null))
-                    .mealType(mealType)
-                    .category(food.map(Food::getCategory).orElse(null))
-                    .servingUnit(food.map(Food::getServingUnit).orElse(null))
-                    .calories(calories)
-                    .proteinG(round1(food.map(value -> nvl(value.getProtein()) * scale).orElse(0.0)))
-                    .carbG(round1(food.map(value -> nvl(value.getCarbohydrate()) * scale).orElse(0.0)))
-                    .fatG(round1(food.map(value -> nvl(value.getFat()) * scale).orElse(0.0)))
-                    .addedByUser(false)
-                    .matchStatus(food.isPresent() ? "MATCHED" : "UNMATCHED")
-                    .build());
-        }
-
-        return items;
+        return mealNutritionService.buildResponse(mealType, rawKcal, items);
     }
 
     private Macro estimateMealNutrition(String rawMenu, Integer rawKcal) {
-        return estimateMealItems("", rawMenu, rawKcal).stream()
-                .map(item -> new Macro(Optional.ofNullable(item.getCalories()).orElse(0), nvl(item.getProteinG()), nvl(item.getCarbG()), nvl(item.getFatG())))
+        NutritionDtos.MealNutritionResponse meal = mealNutritionService.analyzeMeal("", rawMenu, rawKcal);
+        return meal.getItems().stream()
+                .map(item -> new Macro(Optional.ofNullable(item.getCalorieKcal()).orElse(0), nvl(item.getProteinG()), nvl(item.getCarbohydrateG()), nvl(item.getFatG())))
                 .reduce(new Macro(0, 0, 0, 0), this::add);
     }
 
@@ -446,160 +353,33 @@ public class NutritionService {
         return round1(Math.min(100, Math.max(0, pct)));
     }
 
-    private MatchedFood matchFood(String foodName) {
-        String originalName = Optional.ofNullable(foodName).orElse("").trim();
-        if (originalName.isBlank()) {
-            return new MatchedFood(originalName, Optional.empty());
-        }
-
-        String cacheKey = normalizeSearchName(cleanMealFoodName(originalName));
-        if (cacheKey.isBlank()) {
-            return new MatchedFood(originalName, Optional.empty());
-        }
-
-        return new MatchedFood(originalName, foodMatchCache.computeIfAbsent(cacheKey, ignored -> findBestFoodMatch(originalName)));
-    }
-
-    private Optional<Food> findBestFoodMatch(String originalName) {
-        for (String keyword : mealSearchVariants(originalName)) {
-            String normalizedKeyword = normalizeSearchName(keyword);
-            Optional<FoodAlias> exactAlias = foodAliasRepository.findFirstBySearchNameOrderByFood_SourceCountDesc(normalizedKeyword);
-            if (exactAlias.isPresent()) {
-                return Optional.of(initializeFood(exactAlias.get().getFood()));
-            }
-
-            Optional<Food> exactFood = foodRepository.findFirstBySearchNameOrderBySourceCountDesc(normalizedKeyword);
-            if (exactFood.isPresent()) {
-                return exactFood;
-            }
-        }
-
-        for (String keyword : mealSearchVariants(originalName)) {
-            String normalizedKeyword = normalizeSearchName(keyword);
-            Optional<FoodAlias> alias = foodAliasRepository.findFirstByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCaseOrderByFood_SourceCountDesc(
-                    keyword, normalizedKeyword, keyword
-            );
-            if (alias.isPresent()) {
-                return Optional.of(initializeFood(alias.get().getFood()));
-            }
-
-            Optional<Food> food = foodRepository.findFirstByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrderBySourceCountDesc(keyword, normalizedKeyword);
-            if (food.isPresent()) {
-                return food;
-            }
-        }
-
-        return findClosestFood(originalName);
-    }
-
-    private Food initializeFood(Food food) {
-        food.getId();
-        food.getName();
-        food.getCategory();
-        food.getServingUnit();
-        food.getCalorie();
-        food.getProtein();
-        food.getCarbohydrate();
-        food.getFat();
-        return food;
-    }
-
-    private Optional<Food> findClosestFood(String foodName) {
-        String cleaned = normalizeSearchName(cleanMealFoodName(foodName));
-        if (cleaned.length() < 2) {
-            return Optional.empty();
-        }
-
-        Set<Food> candidates = new HashSet<>();
-        for (String variant : mealSearchVariants(foodName)) {
-            String normalized = normalizeSearchName(variant);
-            if (normalized.length() >= 2) {
-                candidates.addAll(foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase(variant, normalized, PageRequest.of(0, 30)));
-            }
-        }
-
-        if (candidates.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return candidates.stream()
-                .map(food -> new FoodMatchScore(food, similarityScore(cleaned, normalizeSearchName(food.getName()))))
-                .filter(score -> score.score() >= 0.45)
-                .max(Comparator.comparingDouble(FoodMatchScore::score)
-                        .thenComparing(score -> Optional.ofNullable(score.food().getSourceCount()).orElse(0)))
-                .map(FoodMatchScore::food);
-    }
-
-    private List<String> mealSearchVariants(String foodName) {
-        String cleaned = cleanMealFoodName(foodName);
-        String typoFixed = cleaned.replace("어그", "에그");
-        String withoutModifiers = removeCommonMenuModifiers(typoFixed);
-
-        LinkedHashMap<String, String> variants = new LinkedHashMap<>();
-        for (String value : List.of(foodName, cleaned, typoFixed, withoutModifiers)) {
-            String normalized = normalizeSearchName(value);
-            if (!normalized.isBlank()) {
-                variants.put(normalized, value.trim());
-            }
-        }
-        return new ArrayList<>(variants.values());
-    }
-
-    private String cleanMealFoodName(String foodName) {
-        return Optional.ofNullable(foodName).orElse("")
-                .replaceAll("\\([^)]*\\)", "")
-                .replaceAll("[0-9]", "")
-                .replaceAll("[★*•·]", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
-    }
-
-    private String removeCommonMenuModifiers(String foodName) {
-        return foodName
-                .replace("치즈", "")
-                .replace("에그", "")
-                .replace("계란", "")
-                .replace("더블", "")
-                .replace("디럭스", "")
-                .replace("스파이시", "")
-                .replace("리얼", "")
-                .replaceAll("\\s+", " ")
-                .trim();
-    }
-
-    private double similarityScore(String source, String target) {
-        if (source.isBlank() || target.isBlank()) {
-            return 0;
-        }
-        if (target.contains(source) || source.contains(target)) {
-            return Math.min(source.length(), target.length()) / (double) Math.max(source.length(), target.length());
-        }
-
-        int longest = longestCommonSubstring(source, target);
-        double containment = longest / (double) Math.max(source.length(), target.length());
-        double overlap = characterOverlap(source, target);
-        return containment * 0.65 + overlap * 0.35;
-    }
-
-    private int longestCommonSubstring(String first, String second) {
-        int[][] lengths = new int[first.length() + 1][second.length() + 1];
-        int best = 0;
-        for (int i = 1; i <= first.length(); i++) {
-            for (int j = 1; j <= second.length(); j++) {
-                if (first.charAt(i - 1) == second.charAt(j - 1)) {
-                    lengths[i][j] = lengths[i - 1][j - 1] + 1;
-                    best = Math.max(best, lengths[i][j]);
-                }
-            }
-        }
-        return best;
-    }
-
-    private double characterOverlap(String first, String second) {
-        Set<Integer> firstChars = first.codePoints().boxed().collect(java.util.stream.Collectors.toSet());
-        Set<Integer> secondChars = second.codePoints().boxed().collect(java.util.stream.Collectors.toSet());
-        long common = firstChars.stream().filter(secondChars::contains).count();
-        return common / (double) Math.max(firstChars.size(), secondChars.size());
+    private NutritionDtos.MealNutritionItemResponse toAddedMealNutritionItem(UserMealFood food, String mealType) {
+        Integer calories = food.getCalories();
+        Double carb = food.getCarbG();
+        Double protein = food.getProteinG();
+        Double fat = food.getFatG();
+        return NutritionDtos.MealNutritionItemResponse.builder()
+                .menuName(food.getFoodName())
+                .normalizedName(food.getFoodName())
+                .matched(true)
+                .matchedFoodName(food.getFoodName())
+                .matchType("USER_ADDED")
+                .confidence(MatchConfidence.HIGH)
+                .servingGram(null)
+                .calorieKcal(calories)
+                .carbohydrateG(carb)
+                .proteinG(protein)
+                .fatG(fat)
+                .foodId(food.getFood() == null ? null : food.getFood().getId())
+                .foodName(food.getFoodName())
+                .mealType(mealType)
+                .category(food.getFood() == null ? null : food.getFood().getCategory())
+                .servingUnit(food.getFood() == null ? null : food.getFood().getServingUnit())
+                .calories(calories)
+                .carbG(carb)
+                .addedByUser(true)
+                .matchStatus("ADDED")
+                .build();
     }
 
     private NutritionDtos.FoodNutritionItemResponse toAddedFoodItem(UserMealFood food, int mealCalories) {
@@ -654,24 +434,6 @@ public class NutritionService {
                 .build();
     }
 
-    private List<String> parseMealItems(String rawMenu) {
-        if (rawMenu == null || rawMenu.isBlank()) {
-            return List.of();
-        }
-        return List.of(rawMenu.split("[,/\\n]")).stream()
-                .map(String::trim)
-                .filter(item -> !item.isBlank())
-                .toList();
-    }
-
-    private String normalizeMealType(String mealType) {
-        String normalized = Optional.ofNullable(mealType).orElse("snack").toLowerCase(Locale.ROOT).trim();
-        return switch (normalized) {
-            case "breakfast", "lunch", "dinner", "snack" -> normalized;
-            default -> "snack";
-        };
-    }
-
     private String normalizeSearchName(String value) {
         return Optional.ofNullable(value).orElse("").replaceAll("\\s+", "");
     }
@@ -705,11 +467,5 @@ public class NutritionService {
     }
 
     private record Macro(int calories, double protein, double carb, double fat) {
-    }
-
-    private record MatchedFood(String originalName, Optional<Food> food) {
-    }
-
-    private record FoodMatchScore(Food food, double score) {
     }
 }

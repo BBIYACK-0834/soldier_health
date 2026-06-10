@@ -59,24 +59,61 @@ public class NutritionDtos {
 
     @Getter
     @Builder
-    public static class MealNutritionDetailResponse {
+    public static class MealNutritionItemResponse {
+        private String menuName;
+        private String normalizedName;
+        private Boolean matched;
+        private String matchedFoodName;
+        private String matchType;
+        private MatchConfidence confidence;
+        private Double servingGram;
+        private Integer calorieKcal;
+        private Double carbohydrateG;
+        private Double proteinG;
+        private Double fatG;
+
+        // 기존 프론트 호환 필드
+        private Long foodId;
+        private String foodName;
         private String mealType;
+        private String category;
+        private String servingUnit;
+        private Integer calories;
+        private Double carbG;
+        private Double calorieSharePct;
+        private Boolean addedByUser;
+        private String matchStatus;
+    }
+
+    @Getter
+    @Builder
+    public static class MealNutritionResponse {
+        private String mealType;
+        private Integer officialCalorieKcal;
+        private Integer estimatedCalorieKcal;
+        private Integer matchedItemCount;
+        private Integer totalItemCount;
+        private Double matchedRatio;
+        private List<MealNutritionItemResponse> items;
+
+        // 기존 프론트 호환 필드
         private String mealLabel;
         private Integer calories;
         private Double proteinG;
         private Double carbG;
         private Double fatG;
-        private List<FoodNutritionItemResponse> items;
     }
 
     @Getter
     @Builder
     public static class TodayMealNutritionResponse {
         private Integer totalCalories;
+        private Integer totalOfficialCalories;
+        private Integer totalEstimatedCalories;
         private Double totalProteinG;
         private Double totalCarbG;
         private Double totalFatG;
-        private List<MealNutritionDetailResponse> meals;
+        private List<MealNutritionResponse> meals;
     }
 
     @Getter

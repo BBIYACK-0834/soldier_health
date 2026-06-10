@@ -21,6 +21,7 @@ import GoalSettingsPage from '../features/profile/GoalSettingsPage';
 import NotificationSettingsPage from '../features/profile/NotificationSettingsPage';
 import DataManagementPage from '../features/profile/DataManagementPage';
 import ProfileSettingsPage from '../features/profile/ProfileSettingsPage';
+import RequiredSetupModal from '../components/layout/RequiredSetupModal';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -29,7 +30,12 @@ function RequireAuth({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return (
+    <>
+      {children}
+      <RequiredSetupModal />
+    </>
+  );
 }
 
 export default function AppRouter() {

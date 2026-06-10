@@ -74,17 +74,17 @@ export default function HomePage() {
   ) : (
     <>
       <Card className={styles.calorieCard}>
-        <p className={styles.sectionLabel}>총 섭취 칼로리</p>
+        <p className={styles.sectionLabel}>필요 / 먹은 칼로리</p>
         <div className={styles.calorieValue}>
-          <strong>{intakeCalories.toLocaleString()}</strong>
-          <span>/ {targetCalories.toLocaleString()} kcal</span>
+          <strong>{targetCalories.toLocaleString()}</strong>
+          <span>/ {intakeCalories.toLocaleString()} kcal</span>
         </div>
         <ProgressBar value={intakeCalories} max={targetCalories || 1} />
         <div className={styles.macroGrid}>
           {macroData.map((macro) => (
             <div key={macro.label} className={`${styles.macroCard} ${macro.tone}`}>
               <p style={{ color: macro.color }}>{macro.label}</p>
-              <strong>{macro.intake}g /<br />{macro.target}g</strong>
+              <strong>{macro.target}g /<br />{macro.intake}g</strong>
               <ProgressBar value={macro.intake} max={macro.target || 1} color={macro.color} />
             </div>
           ))}
