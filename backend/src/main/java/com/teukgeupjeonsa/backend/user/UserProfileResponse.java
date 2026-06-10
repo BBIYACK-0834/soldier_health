@@ -15,6 +15,7 @@ public class UserProfileResponse {
     private String profileImageUrl;
     private Double heightCm;
     private Double weightKg;
+    private Double targetWeight;
     private GoalType goalType;
     private WorkoutLevel workoutLevel;
     private Integer workoutDaysPerWeek;

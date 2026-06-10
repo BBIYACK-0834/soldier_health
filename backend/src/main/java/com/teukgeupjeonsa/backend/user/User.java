@@ -35,6 +35,8 @@ public class User {
 
     private Double weightKg;
 
+    private Double targetWeight;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
     private GoalType goalType;

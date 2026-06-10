@@ -125,7 +125,7 @@ export default function CommunityPage() {
       ? postDetail.post
       : posts.find((post) => post.id === targetPostId);
 
-    if (!targetPost || targetPost.likedByMe || pendingLikeIds.has(targetPostId)) return;
+    if (!targetPost || pendingLikeIds.has(targetPostId)) return;
 
     setErrorMessage('');
     setPendingLikeIds((prev) => new Set(prev).add(targetPostId));
@@ -226,7 +226,7 @@ export default function CommunityPage() {
           type="button"
           className={post.likedByMe ? styles.likedButton : ''}
           onClick={(event) => { event.stopPropagation(); handleLike(post.id); }}
-          disabled={post.likedByMe || pendingLikeIds.has(post.id)}
+          disabled={pendingLikeIds.has(post.id)}
           aria-pressed={Boolean(post.likedByMe)}
         >
           {post.likedByMe ? '♥' : '♡'} {post.likeCount ?? 0}

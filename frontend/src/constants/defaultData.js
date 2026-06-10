@@ -12,6 +12,9 @@ export const emptyUser = {
   targetWeight: 0,
   targetDate: '',
   goalType: 'GENERAL_FITNESS',
+  workoutLevel: '',
+  workoutDaysPerWeek: 0,
+  preferredWorkoutMinutes: 0,
 };
 
 export const emptyDashboardSummary = {

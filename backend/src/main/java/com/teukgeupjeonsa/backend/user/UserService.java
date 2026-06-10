@@ -65,6 +65,7 @@ public class UserService {
         User user = getUser(userId);
         user.setGoalType(request.getGoalType());
         user.setWorkoutLevel(request.getWorkoutLevel());
+        user.setTargetWeight(request.getTargetWeight());
         user.setBranchType(request.getBranchType());
         user.setWorkoutDaysPerWeek(request.getWorkoutDaysPerWeek());
         user.setPreferredWorkoutMinutes(request.getPreferredWorkoutMinutes());
@@ -104,6 +105,7 @@ public class UserService {
                 .profileImageUrl(user.getProfileImageUrl())
                 .heightCm(user.getHeightCm())
                 .weightKg(user.getWeightKg())
+                .targetWeight(user.getTargetWeight())
                 .goalType(user.getGoalType())
                 .workoutLevel(user.getWorkoutLevel())
                 .workoutDaysPerWeek(user.getWorkoutDaysPerWeek())

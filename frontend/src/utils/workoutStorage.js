@@ -1,5 +1,6 @@
 const WORKOUT_LOG_KEY = 'tg_workout_log_v1';
 const WEEKLY_WORKOUT_TARGET = 4;
+const WORKOUT_ROUTINE_INDEX_KEY = 'tg_workout_routine_index_v1';
 
 export function formatWorkoutDate(date = new Date()) {
   const year = date.getFullYear();
@@ -47,14 +48,17 @@ export function saveWorkoutPlan(workout, dateKey = formatWorkoutDate()) {
     Object.entries(current.completedSets ?? {}).filter(([exerciseId]) => validExerciseIds.has(exerciseId))
   );
 
+  const sameRoutine = !current.routineKey || current.routineKey === workout.routineKey;
+
   return saveWorkoutProgress({
     ...current,
+    routineKey: workout.routineKey,
     routineType: workout.routineType,
     todayFocus: workout.todayFocus,
     exercises: workout.exercises,
-    completedSets,
-    workoutCompleted: Boolean(current.workoutCompleted),
-    completedAt: current.completedAt ?? null,
+    completedSets: sameRoutine ? completedSets : {},
+    workoutCompleted: sameRoutine ? Boolean(current.workoutCompleted) : false,
+    completedAt: sameRoutine ? current.completedAt ?? null : null,
   }, dateKey);
 }
 
@@ -62,8 +66,23 @@ export function saveCompletedSets(completedSets, dateKey = formatWorkoutDate()) 
   return saveWorkoutProgress({ completedSets }, dateKey);
 }
 
+export function getWorkoutRoutineIndex() {
+  return Number(localStorage.getItem(WORKOUT_ROUTINE_INDEX_KEY) || 0) || 0;
+}
+
+export function advanceWorkoutRoutineIndex() {
+  const next = getWorkoutRoutineIndex() + 1;
+  localStorage.setItem(WORKOUT_ROUTINE_INDEX_KEY, String(next));
+  return next;
+}
+
 export function markWorkoutComplete(workout, dateKey = formatWorkoutDate()) {
+  const current = readWorkoutProgress(dateKey);
+  if (!current?.workoutCompleted) {
+    advanceWorkoutRoutineIndex();
+  }
   return saveWorkoutProgress({
+    routineKey: workout?.routineKey,
     routineType: workout?.routineType,
     todayFocus: workout?.todayFocus,
     exercises: workout?.exercises,
