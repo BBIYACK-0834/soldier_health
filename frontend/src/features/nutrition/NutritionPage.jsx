@@ -40,6 +40,14 @@ function formatGram(value) {
   return `${(Number(value) || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}g`;
 }
 
+function parseRawMealItems(rawMenu) {
+  if (!rawMenu) return [];
+  return String(rawMenu)
+    .split(/[,/\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export default function NutritionPage() {
   const navigate = useNavigate();
   const [nutrition, setNutrition] = useState(emptyDashboardSummary);
@@ -47,37 +55,73 @@ export default function NutritionPage() {
   const [mealDetails, setMealDetails] = useState({ meals: [] });
   const [unit, setUnit] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     let mounted = true;
-    async function load() {
+
+    async function loadBasicDietData() {
+      setLoading(true);
+      setErrorMessage('');
+
+      const [nutritionResult, mealResult, unitResult] = await Promise.allSettled([
+        getTodayNutrition(),
+        getTodayMeal(),
+        getMyUnit(),
+      ]);
+
+      if (!mounted) return;
+
+      if (nutritionResult.status === 'fulfilled') {
+        setNutrition(nutritionResult.value ? { ...emptyDashboardSummary, ...nutritionResult.value } : emptyDashboardSummary);
+      } else {
+        setNutrition(emptyDashboardSummary);
+      }
+
+      if (mealResult.status === 'fulfilled') {
+        setMeal(mealResult.value ? { ...emptyMealDay, ...mealResult.value } : emptyMealDay);
+      } else {
+        setMeal(emptyMealDay);
+      }
+
+      setUnit(unitResult.status === 'fulfilled' ? unitResult.value ?? null : null);
+
+      if ([nutritionResult, mealResult, unitResult].some((result) => result.status === 'rejected')) {
+        setErrorMessage('일부 식단 데이터를 불러오지 못했습니다. 가능한 정보부터 먼저 표시합니다.');
+      }
+
+      setLoading(false);
+    }
+
+    async function loadMealDetails() {
+      setDetailLoading(true);
       try {
-        setLoading(true);
-        const [nutritionData, mealData, detailData, unitData] = await Promise.all([
-          getTodayNutrition(),
-          getTodayMeal(),
-          getTodayMealNutritionDetails(),
-          getMyUnit(),
-        ]);
+        const detailData = await getTodayMealNutritionDetails();
         if (!mounted) return;
-        setNutrition(nutritionData ? { ...emptyDashboardSummary, ...nutritionData } : emptyDashboardSummary);
-        setMeal(mealData ? { ...emptyMealDay, ...mealData } : emptyMealDay);
         setMealDetails(detailData ?? { meals: [] });
-        setUnit(unitData ?? null);
+        if (detailData) {
+          setNutrition((prev) => ({
+            ...prev,
+            intakeCalories: detailData.totalCalories ?? prev.intakeCalories,
+            intakeProteinG: detailData.totalProteinG ?? prev.intakeProteinG,
+            intakeCarbG: detailData.totalCarbG ?? prev.intakeCarbG,
+            intakeFatG: detailData.totalFatG ?? prev.intakeFatG,
+          }));
+        }
       } catch (error) {
         if (!mounted) return;
-        setNutrition(emptyDashboardSummary);
-        setMeal(emptyMealDay);
         setMealDetails({ meals: [] });
-        setUnit(null);
-        setErrorMessage('식단 데이터를 불러오지 못했습니다. 선택 부대의 실제 식단이 연결되면 표시됩니다.');
+        setErrorMessage('음식별 영양소 계산이 지연되고 있습니다. 잠시 후 식단 화면을 다시 열어주세요.');
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) setDetailLoading(false);
       }
     }
 
-    load();
+    loadBasicDietData().then(() => {
+      if (mounted) loadMealDetails();
+    });
+
     return () => {
       mounted = false;
     };
@@ -156,6 +200,7 @@ export default function NutritionPage() {
       {mealSections.map((section) => {
         const detail = detailByMealType[section.addKey];
         const items = detail?.items ?? [];
+        const rawItems = section.key === 'snackRaw' ? [] : parseRawMealItems(meal?.[section.key]);
         const mealKcal = Number.isFinite(detail?.calories) ? detail.calories : section.key === 'snackRaw' ? 0 : meal?.[`${section.key.replace('Raw', 'Kcal')}`];
         return (
           <Card key={section.key}>
@@ -185,6 +230,15 @@ export default function NutritionPage() {
                   </div>
                 ))}
               </div>
+            ) : rawItems.length > 0 ? (
+              <div className={styles.extraWrap}>
+                <p>{detailLoading ? '음식별 영양소 계산 전 부대 식단을 먼저 표시합니다.' : '부대 식단'}</p>
+                {rawItems.map((item, index) => (
+                  <div key={`${section.key}-${item}-${index}`} className={styles.item}>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
             ) : (
               <p className={styles.base}>{section.label === '간식' ? '추가한 간식이 아직 없습니다.' : '선택 부대의 당일 식단 데이터가 아직 없습니다.'}</p>
             )}
@@ -192,6 +246,7 @@ export default function NutritionPage() {
         );
       })}
 
+      {detailLoading ? <p className={styles.base}>음식별 영양소를 계산하는 중입니다...</p> : null}
       {errorMessage ? <p className={styles.base}>{errorMessage}</p> : null}
     </AppLayout>
   );

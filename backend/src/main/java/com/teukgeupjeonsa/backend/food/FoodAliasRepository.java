@@ -10,4 +10,5 @@ public interface FoodAliasRepository extends JpaRepository<FoodAlias, Long> {
     List<FoodAlias> findByAliasNameContainingOrSearchNameContainingOrOriginalNameContaining(String aliasName, String searchName, String originalName);
     List<FoodAlias> findByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCase(String aliasName, String searchName, String originalName, Pageable pageable);
     Optional<FoodAlias> findFirstByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCaseOrderByFood_SourceCountDesc(String aliasName, String searchName, String originalName);
+    Optional<FoodAlias> findFirstBySearchNameOrderByFood_SourceCountDesc(String searchName);
 }
