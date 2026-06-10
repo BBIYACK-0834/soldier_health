@@ -1,35 +1,35 @@
-.heroHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 18px 14px 6px; }
-.heroHeader h1 { margin: 0; font-size: 27px; line-height: 1.22; letter-spacing: -0.06em; font-weight: 950; color: #070807; }
-.heroHeader p { margin: 10px 0 0; color: #555852; font-size: 17px; font-weight: 800; letter-spacing: -0.03em; }
-.iconBtn { border: 0; background: transparent; width: 46px; height: 46px; display: grid; place-items: center; font-size: 32px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.24)); }
+.heroHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 10px 2px; }
+.heroHeader h1 { margin: 0; font-size: 25px; line-height: 1.22; letter-spacing: -0.065em; font-weight: 950; color: #070807; }
+.heroHeader p { margin: 10px 0 0; color: #555852; font-size: 16px; line-height: 1.42; font-weight: 800; letter-spacing: -0.035em; }
+.iconBtn { border: 0; background: transparent; width: 42px; height: 42px; display: grid; place-items: center; font-size: 29px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.22)); }
 .loadingCard { min-height: 180px; display: grid; place-items: center; }
-.calorieCard { padding: 24px 22px; border-radius: 24px; box-shadow: 0 12px 34px rgba(43, 57, 34, 0.08); }
-.sectionLabel { margin: 0 0 8px; color: #595b58; font-size: 22px; font-weight: 950; letter-spacing: -0.04em; }
-.calorieValue { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; color: #050505; }
-.calorieValue strong { color: var(--color-primary-dark); font-size: 52px; line-height: 1; letter-spacing: -0.07em; font-weight: 950; }
-.calorieValue span { font-size: 22px; font-weight: 950; letter-spacing: -0.04em; }
-.macroGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
-.macroCard { min-width: 0; border-radius: 18px; padding: 17px 12px 14px; box-shadow: inset 0 0 26px rgba(255,255,255,.42); }
-.macroCard p { margin: 0 0 22px; font-size: 20px; font-weight: 950; letter-spacing: -0.04em; }
-.macroCard strong { display: block; margin-bottom: 18px; color: #050505; font-size: 24px; line-height: 1.28; letter-spacing: -0.05em; font-weight: 950; }
-.carbCard { background: linear-gradient(135deg, #dfe8f5, #eef2f7); }
-.proteinCard { background: linear-gradient(135deg, #e6ece0, #f0f3ec); }
-.fatCard { background: linear-gradient(135deg, #f1e2cf, #f7eee2); }
-.workoutCard { padding: 22px; border-radius: 22px; box-shadow: 0 12px 34px rgba(43, 57, 34, 0.08); }
+.calorieCard { padding: 22px 20px; border-radius: 18px; box-shadow: none; }
+.sectionLabel { margin: 0 0 14px; color: #565950; font-size: 22px; font-weight: 950; letter-spacing: -0.045em; }
+.calorieValue { display: flex; align-items: baseline; gap: 7px; margin-bottom: 14px; color: #050505; }
+.calorieValue strong { color: #2f3d26; font-size: 52px; line-height: 0.98; letter-spacing: -0.075em; font-weight: 950; }
+.calorieValue span { font-size: 22px; font-weight: 950; letter-spacing: -0.05em; }
+.macroGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 23px; }
+.macroCard { min-width: 0; border-radius: 16px; padding: 16px 12px 14px; box-shadow: none; }
+.macroCard p { margin: 0 0 22px; font-size: 19px; font-weight: 950; letter-spacing: -0.05em; }
+.macroCard strong { display: block; margin-bottom: 18px; color: #050505; font-size: 23px; line-height: 1.3; letter-spacing: -0.055em; font-weight: 950; }
+.carbCard { background: #e8eef7; }
+.proteinCard { background: #edf2e9; }
+.fatCard { background: #f4e6d4; }
+.workoutCard { padding: 22px; border-radius: 18px; box-shadow: none; }
 .rowBetween { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rowBetween strong { font-size: 22px; letter-spacing: -0.05em; }
-.cardTitle { margin: 0; font-size: 26px; line-height: 1.1; letter-spacing: -0.06em; font-weight: 950; }
+.cardTitle { margin: 0; font-size: 25px; line-height: 1.1; letter-spacing: -0.06em; font-weight: 950; }
 .checkGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0 20px; }
-.checkItem { display: grid; justify-items: center; gap: 8px; color: #0c0c0b; font-size: 16px; font-weight: 950; }
-.emptyCircle, .checkedCircle { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; font-weight: 950; }
-.emptyCircle { border: 2px solid #bcb6ad; background: #fff; }
-.checkedCircle { border: 2px solid var(--color-primary); background: var(--color-primary); color: #fff; box-shadow: 0 8px 16px rgba(63,79,50,.22); }
-.primaryButton { width: 100%; border: 0; border-radius: 14px; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: #fff; padding: 16px; font-size: 22px; font-weight: 950; letter-spacing: -0.04em; box-shadow: 0 12px 24px rgba(47,61,38,.18); }
+.checkItem { display: grid; justify-items: center; gap: 8px; color: #0c0c0b; font-size: 14px; font-weight: 950; }
+.emptyCircle, .checkedCircle { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 28px; font-weight: 950; }
+.emptyCircle { border: 2px solid #bdb6ab; background: #fffefa; }
+.checkedCircle { border: 2px solid var(--color-primary); background: var(--color-primary); color: #fff; box-shadow: none; }
+.primaryButton { width: 100%; border: 0; border-radius: 12px; background: var(--color-primary); color: #fff; padding: 15px; font-size: 22px; font-weight: 950; letter-spacing: -0.04em; box-shadow: none; }
 .meta { margin: 0; color: var(--color-text-secondary); font-size: 13px; font-weight: 800; }
 
 @media (max-width: 360px) {
-  .heroHeader h1 { font-size: 24px; }
-  .calorieValue strong { font-size: 44px; }
+  .heroHeader h1 { font-size: 23px; }
+  .calorieValue strong { font-size: 46px; }
   .macroGrid { gap: 8px; }
   .macroCard { padding: 14px 9px; }
   .macroCard p { font-size: 17px; }

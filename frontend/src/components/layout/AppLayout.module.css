@@ -2,46 +2,49 @@
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding: 20px 12px;
+  padding: 8px 8px;
   background: transparent;
 }
 
 .phone {
   width: 100%;
   max-width: var(--tg-phone-width);
-  min-height: min(852px, calc(100vh - 40px));
+  min-height: min(852px, calc(100vh - 16px));
+  max-height: calc(100vh - 16px);
   border-radius: var(--tg-radius-phone);
   overflow: hidden;
-  border: 1px solid rgba(216, 211, 200, 0.95);
+  border: 1px solid rgba(232, 224, 211, 0.98);
   background: var(--tg-surface);
   box-shadow: var(--tg-shadow);
   display: flex;
   flex-direction: column;
 }
 
-
 .header {
-  padding: 8px 18px 9px;
+  padding: 16px 16px 8px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
+  background: linear-gradient(180deg, rgba(255, 253, 250, 0.98), rgba(255, 253, 250, 0.92));
 }
 
 .header h1 {
   margin: 0;
   font-size: 20px;
-  line-height: 1.28;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  line-height: 1.25;
+  font-weight: 950;
+  letter-spacing: -0.05em;
+  color: #10120e;
 }
 
 .header p {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   color: var(--tg-muted);
   font-size: 13px;
   line-height: 1.45;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.025em;
 }
 
 .headerAction {
@@ -52,9 +55,11 @@
 
 .content {
   flex: 1;
-  padding: 9px 12px 12px;
+  padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(85, 104, 47, 0.36) transparent;
 }

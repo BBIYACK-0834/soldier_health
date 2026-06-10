@@ -10,4 +10,5 @@ public interface FoodRepository extends JpaRepository<Food, Long> {
     List<Food> findByNameContainingOrSearchNameContaining(String name, String searchName);
     List<Food> findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase(String name, String searchName, Pageable pageable);
     Optional<Food> findFirstByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrderBySourceCountDesc(String name, String searchName);
+    Optional<Food> findFirstBySearchNameOrderBySourceCountDesc(String searchName);
 }

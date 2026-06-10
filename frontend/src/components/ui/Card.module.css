@@ -3,5 +3,5 @@
   border: 1px solid var(--tg-border);
   border-radius: var(--tg-radius-card);
   padding: 14px;
-  box-shadow: 0 4px 16px rgba(45, 54, 36, 0.05);
+  box-shadow: none;
 }

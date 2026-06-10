@@ -1,21 +1,21 @@
 :root {
-  --color-primary: #3F4F32;
-  --color-primary-dark: #2F3D26;
-  --color-primary-light: #EEF2E8;
-  --color-secondary: #8A9574;
-  --color-accent: #D99A3D;
-  --color-background: #FAF8F2;
-  --color-surface: #FFFFFF;
-  --color-surface-soft: #F4F1E8;
-  --color-text-primary: #1E1E1E;
-  --color-text-secondary: #666666;
-  --color-text-muted: #999999;
-  --color-border: #E2DED3;
-  --color-danger: #D9534F;
-  --color-success: #4E7D45;
+  --color-primary: #55682f;
+  --color-primary-dark: #31401f;
+  --color-primary-light: #eef2e7;
+  --color-secondary: #7f8f68;
+  --color-accent: #c47b17;
+  --color-background: #fbfaf5;
+  --color-surface: #fffdfa;
+  --color-surface-soft: #f7f5ee;
+  --color-text-primary: #11130f;
+  --color-text-secondary: #5f6358;
+  --color-text-muted: #9a9b92;
+  --color-border: #e8e0d3;
+  --color-danger: #d9534f;
+  --color-success: #55682f;
   --tg-bg: var(--color-background);
   --tg-surface: var(--color-surface);
-  --tg-card: var(--color-surface);
+  --tg-card: #fffefa;
   --tg-card-strong: var(--color-surface-soft);
   --tg-border: var(--color-border);
   --tg-text: var(--color-text-primary);
@@ -25,9 +25,9 @@
   --tg-primary-soft: var(--color-primary-light);
   --tg-accent: var(--color-accent);
   --tg-danger: var(--color-danger);
-  --tg-shadow: 0 14px 40px rgba(46, 56, 36, 0.12);
-  --tg-radius-phone: 24px;
-  --tg-radius-card: 16px;
+  --tg-shadow: 0 0 0 1px rgba(232, 224, 211, 0.52);
+  --tg-radius-phone: 18px;
+  --tg-radius-card: 12px;
   --tg-phone-width: 393px;
   font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: var(--tg-text);
@@ -36,11 +36,15 @@
 
 * { box-sizing: border-box; }
 
+html { min-height: 100%; background: var(--tg-bg); }
+
 body {
   margin: 0;
+  min-height: 100%;
   background:
-    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.7), transparent 36%),
-    var(--tg-bg);
+    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.92), transparent 34%),
+    linear-gradient(180deg, #fffefa 0%, var(--tg-bg) 58%, #f7f3ea 100%);
+  color: var(--tg-text);
 }
 
 a { color: inherit; }

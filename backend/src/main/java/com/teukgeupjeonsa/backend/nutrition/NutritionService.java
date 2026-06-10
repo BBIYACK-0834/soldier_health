@@ -28,6 +28,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +43,8 @@ public class NutritionService {
     private final FoodRepository foodRepository;
     private final FoodAliasRepository foodAliasRepository;
     private final PxProductRepository pxProductRepository;
+
+    private final ConcurrentMap<String, Optional<Food>> foodMatchCache = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
     public NutritionDtos.NutritionSummaryResponse getTodaySummary(Long userId) {
@@ -284,17 +288,24 @@ public class NutritionService {
     }
 
     private Macro calculateTodayIntake(Optional<MealMenu> mealMenu, List<UserMealFood> addedFoods) {
-        Macro base = mealMenu.map(menu -> {
-            Macro breakfast = estimateMealNutrition(menu.getBreakfast(), menu.getBreakfastKcal());
-            Macro lunch = estimateMealNutrition(menu.getLunch(), menu.getLunchKcal());
-            Macro dinner = estimateMealNutrition(menu.getDinner(), menu.getDinnerKcal());
-            return add(add(breakfast, lunch), dinner);
-        }).orElseGet(() -> new Macro(0, 0, 0, 0));
+        Macro base = mealMenu.map(menu -> add(
+                add(estimateMealNutritionQuick(menu.getBreakfastKcal()), estimateMealNutritionQuick(menu.getLunchKcal())),
+                estimateMealNutritionQuick(menu.getDinnerKcal())
+        )).orElseGet(() -> new Macro(0, 0, 0, 0));
 
         Macro added = addedFoods.stream()
                 .map(food -> new Macro(Optional.ofNullable(food.getCalories()).orElse(0), nvl(food.getProteinG()), nvl(food.getCarbG()), nvl(food.getFatG())))
                 .reduce(new Macro(0, 0, 0, 0), this::add);
         return add(base, added);
+    }
+
+    private Macro estimateMealNutritionQuick(Integer rawKcal) {
+        int calories = Optional.ofNullable(rawKcal).orElse(0);
+        if (calories <= 0) {
+            return new Macro(0, 0, 0, 0);
+        }
+
+        return new Macro(calories, calories * 0.20 / 4.0, calories * 0.55 / 4.0, calories * 0.25 / 9.0);
     }
 
     private NutritionDtos.MealNutritionDetailResponse buildMealDetail(String mealType, String mealLabel, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods) {
@@ -441,22 +452,56 @@ public class NutritionService {
             return new MatchedFood(originalName, Optional.empty());
         }
 
+        String cacheKey = normalizeSearchName(cleanMealFoodName(originalName));
+        if (cacheKey.isBlank()) {
+            return new MatchedFood(originalName, Optional.empty());
+        }
+
+        return new MatchedFood(originalName, foodMatchCache.computeIfAbsent(cacheKey, ignored -> findBestFoodMatch(originalName)));
+    }
+
+    private Optional<Food> findBestFoodMatch(String originalName) {
+        for (String keyword : mealSearchVariants(originalName)) {
+            String normalizedKeyword = normalizeSearchName(keyword);
+            Optional<FoodAlias> exactAlias = foodAliasRepository.findFirstBySearchNameOrderByFood_SourceCountDesc(normalizedKeyword);
+            if (exactAlias.isPresent()) {
+                return Optional.of(initializeFood(exactAlias.get().getFood()));
+            }
+
+            Optional<Food> exactFood = foodRepository.findFirstBySearchNameOrderBySourceCountDesc(normalizedKeyword);
+            if (exactFood.isPresent()) {
+                return exactFood;
+            }
+        }
+
         for (String keyword : mealSearchVariants(originalName)) {
             String normalizedKeyword = normalizeSearchName(keyword);
             Optional<FoodAlias> alias = foodAliasRepository.findFirstByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCaseOrderByFood_SourceCountDesc(
                     keyword, normalizedKeyword, keyword
             );
             if (alias.isPresent()) {
-                return new MatchedFood(originalName, Optional.of(alias.get().getFood()));
+                return Optional.of(initializeFood(alias.get().getFood()));
             }
 
             Optional<Food> food = foodRepository.findFirstByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrderBySourceCountDesc(keyword, normalizedKeyword);
             if (food.isPresent()) {
-                return new MatchedFood(originalName, food);
+                return food;
             }
         }
 
-        return new MatchedFood(originalName, findClosestFood(originalName));
+        return findClosestFood(originalName);
+    }
+
+    private Food initializeFood(Food food) {
+        food.getId();
+        food.getName();
+        food.getCategory();
+        food.getServingUnit();
+        food.getCalorie();
+        food.getProtein();
+        food.getCarbohydrate();
+        food.getFat();
+        return food;
     }
 
     private Optional<Food> findClosestFood(String foodName) {

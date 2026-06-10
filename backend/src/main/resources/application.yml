@@ -29,7 +29,7 @@ jwt:
 
 logging:
   level:
-    org.hibernate.SQL: debug
+    org.hibernate.SQL: warn
     com.teukgeupjeonsa.backend.meal: info
     com.teukgeupjeonsa.backend.collector: info
 
