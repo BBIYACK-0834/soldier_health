@@ -1,15 +1,16 @@
 package com.teukgeupjeonsa.backend.nutrition;
 
-import com.teukgeupjeonsa.backend.food.Food;
+import com.teukgeupjeonsa.backend.food.ManualFoodOverride;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 @Component
+@ConditionalOnMissingBean(FoodMatchOverrideProvider.class)
 public class EmptyFoodMatchOverrideProvider implements FoodMatchOverrideProvider {
     @Override
-    public Optional<Food> findOverride(String normalizedMenuName) {
-        // TODO: food_match_override 테이블이 추가되면 이 구현체를 Repository 기반으로 교체한다.
+    public Optional<ManualFoodOverride> findOverride(String normalizedMenuName) {
         return Optional.empty();
     }
 }

@@ -201,13 +201,14 @@ export default function NutritionPage() {
         const detail = detailByMealType[section.addKey];
         const items = detail?.items ?? [];
         const rawItems = section.key === 'snackRaw' ? [] : parseRawMealItems(meal?.[section.key]);
-        const mealKcal = Number.isFinite(detail?.calories) ? detail.calories : section.key === 'snackRaw' ? 0 : meal?.[`${section.key.replace('Raw', 'Kcal')}`];
+        const officialKcal = section.key === 'snackRaw' ? 0 : meal?.[`${section.key.replace('Raw', 'Kcal')}`];
+        const mealKcal = Number.isFinite(detail?.estimatedCalorieKcal) ? detail.estimatedCalorieKcal : officialKcal;
         return (
           <Card key={section.key}>
             <div className={styles.row}>
               <div>
                 <h3>{section.label}</h3>
-                <span className={styles.mealKcal}>{formatKcal(mealKcal)}</span>
+                <span className={styles.mealKcal}>공식 {formatKcal(officialKcal)} · 추정 {formatKcal(mealKcal)}</span>
               </div>
               <button type="button" onClick={() => navigate(`/diet/add?meal=${section.addKey}`)}>{section.label} 추가</button>
             </div>
@@ -218,13 +219,17 @@ export default function NutritionPage() {
                   <div key={`${item.foodName}-${item.id ?? index}`} className={styles.nutritionItem}>
                     <div className={styles.itemHeader}>
                       <strong>{item.foodName}</strong>
-                      <span>{formatKcal(item.calories)} · {item.calorieSharePct ?? 0}%</span>
+                      <span>{item.matched === false ? '영양정보 매칭 필요' : `${formatKcal(item.calories)} · ${item.calorieSharePct ?? 0}%`}</span>
                     </div>
-                    {item.matchedFoodName && item.matchedFoodName !== item.foodName ? <small>DB 매칭: {item.matchedFoodName}</small> : null}
+{item.matchedFoodName && item.matchedFoodName !== item.foodName ? <small>DB 매칭: {item.matchedFoodName}</small> : null}
+                    {item.confidence === 'LOW' ? <small>추정 낮음</small> : null}
+                    {item.confidence === 'NONE' || item.matched === false ? <small>NO_MATCH · 매칭 필요</small> : null}
                     <div className={styles.nutrientLine}>
-                      <span>탄 {formatGram(item.carbG)}</span>
-                      <span>단 {formatGram(item.proteinG)}</span>
-                      <span>지 {formatGram(item.fatG)}</span>
+                      {item.matched === false ? null : (<>
+                        <span>탄 {formatGram(item.carbG)}</span>
+                        <span>단 {formatGram(item.proteinG)}</span>
+                        <span>지 {formatGram(item.fatG)}</span>
+                      </>)}
                       {item.addedByUser ? <em>추가됨</em> : null}
                     </div>
                   </div>

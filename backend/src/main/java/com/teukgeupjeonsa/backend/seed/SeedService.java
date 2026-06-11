@@ -39,7 +39,7 @@ public class SeedService {
     @Value("${app.food-import.auto:false}")
     private boolean autoImportFoods;
 
-    @Value("${app.food-import.file:../food_data/foods_final_user_friendly_100g.xlsx}")
+    @Value("${app.food-import.file:src/main/resources/food_data/foods_refined_for_military_meal_matching.xlsx}")
     private String foodImportFile;
 
     @Transactional
@@ -71,13 +71,17 @@ public class SeedService {
         }
 
         FoodImportResult result = foodXlsxImporter.importXlsx(xlsxPath.get());
-        return String.format("식품 DB 자동 import 완료 - foods %d개, aliases %d개, skipped aliases %d개.",
-                result.foodCount(), result.aliasCount(), result.skippedAliasCount());
+        return String.format("식품 DB 자동 import 완료 - foods %d개, aliases %d개, skipped aliases %d개, overrides %d개, serving defaults %d개.",
+                result.foodCount(), result.aliasCount(), result.skippedAliasCount(), result.manualOverrideCount(), result.servingDefaultCount());
     }
 
     private Optional<Path> resolveFoodImportPath() {
         List<Path> candidates = List.of(
                 Path.of(foodImportFile),
+                Path.of("src/main/resources/food_data/foods_refined_for_military_meal_matching.xlsx"),
+                Path.of("backend/src/main/resources/food_data/foods_refined_for_military_meal_matching.xlsx"),
+                Path.of("food_data/foods_refined_for_military_meal_matching.xlsx"),
+                Path.of("../food_data/foods_refined_for_military_meal_matching.xlsx"),
                 Path.of("food_data/foods_final_user_friendly_100g.xlsx"),
                 Path.of("../food_data/foods_final_user_friendly_100g.xlsx"),
                 Path.of("food_data/food_data_DB.xlsx"),

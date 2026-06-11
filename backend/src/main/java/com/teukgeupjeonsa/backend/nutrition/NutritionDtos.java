@@ -64,6 +64,7 @@ public class NutritionDtos {
         private String normalizedName;
         private Boolean matched;
         private String matchedFoodName;
+        private String displayCategory;
         private String matchType;
         private MatchConfidence confidence;
         private Double servingGram;
@@ -119,6 +120,28 @@ public class NutritionDtos {
     @Getter
     @Builder
     public static class FoodSearchResponse {
+        private String query;
+        private String normalizedQuery;
+        private List<FoodSearchItemResponse> results;
+    }
+
+    @Getter
+    @Builder
+    public static class FoodSearchItemResponse {
+        private Long foodMasterId;
+        private String representativeName;
+        private String displayCategory;
+        private Double kcalPer100g;
+        private Double carbohydratePer100g;
+        private Double proteinPer100g;
+        private Double fatPer100g;
+        private Double defaultServingGram;
+        private Double estimatedKcalForDefaultServing;
+        private Long matchedAliasCount;
+        private MatchConfidence confidence;
+        private String qualityFlag;
+
+        // 기존 프론트 호환 필드
         private Long id;
         private String foodName;
         private String category;
@@ -135,6 +158,7 @@ public class NutritionDtos {
     public static class AddMealFoodsRequest {
         private String mealType;
         private List<Long> foodIds;
+        private java.util.Map<Long, Double> servingGramByFoodId;
     }
 
     @Getter

@@ -4,6 +4,7 @@ import com.teukgeupjeonsa.backend.food.Food;
 import com.teukgeupjeonsa.backend.food.FoodAlias;
 import com.teukgeupjeonsa.backend.food.FoodAliasRepository;
 import com.teukgeupjeonsa.backend.food.FoodRepository;
+import com.teukgeupjeonsa.backend.food.ManualFoodOverride;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
@@ -19,14 +20,15 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class FoodMatcher {
 
-    private static final Set<String> RICE_NAMES = Set.of("밥", "쌀밥", "백미밥", "잡곡밥", "흰밥", "현미밥");
-    private static final List<String> DESSERT_KEYWORDS = List.of("아이스크림", "빙수", "음료", "주스", "쥬스", "라떼", "푸딩", "젤리", "케이크", "쿠키", "초코");
+    private static final Set<String> RICE_NAMES = Set.of("밥", "쌀밥", "백미밥", "잡곡밥", "흰밥", "현미밥", "멥쌀밥");
+    private static final List<String> DESSERT_KEYWORDS = List.of("아이스크림", "빙수", "음료", "주스", "쥬스", "라떼", "푸딩", "젤리", "케이크", "쿠키", "초코", "디저트");
     private static final double SIMILARITY_THRESHOLD = 0.72;
 
     private final FoodRepository foodRepository;
     private final FoodAliasRepository foodAliasRepository;
     private final FoodNameNormalizer normalizer;
     private final FoodMatchOverrideProvider overrideProvider;
+    private final ServingEstimator servingEstimator;
 
     @Transactional(readOnly = true)
     public FoodMatchResult match(String originalMenuName) {
@@ -37,35 +39,41 @@ public class FoodMatcher {
             return FoodMatchResult.noMatch(original, normalized);
         }
 
-        Optional<Food> override = overrideProvider.findOverride(searchName);
+        Optional<ManualFoodOverride> override = overrideProvider.findOverride(searchName);
         if (override.isPresent()) {
-            return matched(original, normalized, override.get(), "OVERRIDE_EXACT", MatchConfidence.HIGH, 1.0);
+            ManualFoodOverride foodOverride = override.get();
+            return matched(original, normalized, foodOverride.getFood(), "OVERRIDE_EXACT",
+                    Optional.ofNullable(foodOverride.getConfidence()).orElse(MatchConfidence.HIGH), 1.0, foodOverride.getDefaultServingGram());
         }
 
         Optional<FoodAlias> alias = foodAliasRepository.findFirstBySearchNameOrderByFood_SourceCountDesc(searchName);
         if (alias.isPresent() && isCompatible(searchName, alias.get().getFood())) {
-            return matched(original, normalized, initializeFood(alias.get().getFood()), "ALIAS_EXACT", MatchConfidence.HIGH, 1.0);
+            return matched(original, normalized, initializeFood(alias.get().getFood()), "ALIAS_EXACT", MatchConfidence.HIGH, 1.0, null);
         }
 
         Optional<Food> exactFood = foodRepository.findFirstBySearchNameOrderBySourceCountDesc(searchName);
         if (exactFood.isPresent() && isCompatible(searchName, exactFood.get())) {
-            return matched(original, normalized, exactFood.get(), "FOOD_EXACT", MatchConfidence.HIGH, 1.0);
+            return matched(original, normalized, exactFood.get(), "FOOD_EXACT", MatchConfidence.HIGH, 1.0, null);
+        }
+
+        if (isShortRiskyQuery(searchName)) {
+            return FoodMatchResult.noMatch(original, normalized);
         }
 
         if (isRiceMenu(searchName)) {
             return findRiceContains(searchName)
-                    .map(food -> matched(original, normalized, food, "CONTAINS", MatchConfidence.MEDIUM, 0.88))
+                    .map(food -> matched(original, normalized, food, "CONTAINS", MatchConfidence.MEDIUM, 0.88, null))
                     .orElseGet(() -> FoodMatchResult.noMatch(original, normalized));
         }
 
         Optional<Food> contains = findContains(searchName);
         if (contains.isPresent()) {
-            return matched(original, normalized, contains.get(), "CONTAINS", MatchConfidence.MEDIUM, containsScore(searchName, contains.get()));
+            return matched(original, normalized, contains.get(), "CONTAINS", MatchConfidence.MEDIUM, containsScore(searchName, contains.get()), null);
         }
 
         Optional<FoodScore> similarity = findSimilarity(searchName);
         return similarity
-                .map(score -> matched(original, normalized, score.food(), "SIMILARITY", MatchConfidence.LOW, score.score()))
+                .map(score -> matched(original, normalized, score.food(), "SIMILARITY", MatchConfidence.LOW, score.score(), null))
                 .orElseGet(() -> FoodMatchResult.noMatch(original, normalized));
     }
 
@@ -79,7 +87,7 @@ public class FoodMatcher {
         if (searchName.length() < 2) {
             return Optional.empty();
         }
-        return foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase(searchName, searchName, PageRequest.of(0, 50)).stream()
+        return foodRepository.searchContains(searchName, PageRequest.of(0, 50)).stream()
                 .filter(food -> isCompatible(searchName, food))
                 .max(Comparator
                         .comparingDouble((Food food) -> containsScore(searchName, food))
@@ -87,14 +95,14 @@ public class FoodMatcher {
     }
 
     private Optional<FoodScore> findSimilarity(String searchName) {
-        if (searchName.length() <= 2) {
+        if (searchName.length() <= 2 || isShortRiskyQuery(searchName)) {
             return Optional.empty();
         }
 
         Set<Food> candidates = new HashSet<>();
         for (int end = Math.min(searchName.length(), 5); end >= 2; end--) {
             String token = searchName.substring(0, end);
-            candidates.addAll(foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase(token, token, PageRequest.of(0, 30)));
+            candidates.addAll(foodRepository.searchContains(token, PageRequest.of(0, 30)));
         }
 
         return candidates.stream()
@@ -110,9 +118,14 @@ public class FoodMatcher {
         if (food == null) {
             return false;
         }
+        String foodName = toComparableName(food);
+        String category = Optional.ofNullable(food.getCategory()).orElse("");
         if (isRiceMenu(searchName)) {
-            String foodName = toComparableName(food);
-            return containsAny(foodName, "밥", "쌀", "백미", "잡곡", "현미") && !containsAny(foodName, DESSERT_KEYWORDS.toArray(String[]::new));
+            return (containsAny(foodName, "밥", "쌀", "백미", "잡곡", "현미", "멥쌀") || containsAny(category, "밥", "곡류"))
+                    && !containsAny(foodName + category, DESSERT_KEYWORDS.toArray(String[]::new));
+        }
+        if (containsAny(searchName, "소스") && containsAny(category, "면", "라면")) {
+            return false;
         }
         return true;
     }
@@ -121,9 +134,13 @@ public class FoodMatcher {
         return RICE_NAMES.contains(searchName);
     }
 
+    private boolean isShortRiskyQuery(String searchName) {
+        return searchName.length() <= 1 || (searchName.length() <= 2 && !isRiceMenu(searchName));
+    }
+
     private boolean containsAny(String value, String... keywords) {
         for (String keyword : keywords) {
-            if (value.contains(keyword)) {
+            if (value != null && value.contains(keyword)) {
                 return true;
             }
         }
@@ -192,17 +209,20 @@ public class FoodMatcher {
         return food;
     }
 
-    private FoodMatchResult matched(String original, String normalized, Food food, String matchType, MatchConfidence confidence, double score) {
+    private FoodMatchResult matched(String original, String normalized, Food food, String matchType, MatchConfidence confidence, double score, Double overrideServingGram) {
         Food initialized = initializeFood(food);
+        double defaultServingGram = overrideServingGram != null ? overrideServingGram : servingEstimator.estimateGram(normalized, initialized.getCategory());
         return FoodMatchResult.builder()
                 .originalMenuName(original)
                 .normalizedMenuName(normalized)
                 .matched(true)
                 .matchedFoodId(initialized.getId())
                 .matchedFoodName(initialized.getName())
+                .displayCategory(initialized.getCategory())
                 .matchType(matchType)
                 .confidence(confidence)
                 .score(score)
+                .defaultServingGram(defaultServingGram)
                 .matchedFood(initialized)
                 .build();
     }
