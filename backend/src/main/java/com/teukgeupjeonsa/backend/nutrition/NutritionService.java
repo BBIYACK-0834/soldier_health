@@ -438,6 +438,17 @@ public class NutritionService {
         return Optional.ofNullable(value).orElse("").replaceAll("\\s+", "");
     }
 
+    private String normalizeMealType(String value) {
+        String normalized = Optional.ofNullable(value).orElse("").trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "breakfast", "morning", "아침", "조식" -> "breakfast";
+            case "lunch", "noon", "점심", "중식" -> "lunch";
+            case "dinner", "evening", "저녁", "석식" -> "dinner";
+            case "snack", "간식" -> "snack";
+            default -> throw new IllegalArgumentException("mealType은 breakfast/lunch/dinner/snack 중 하나여야 합니다.");
+        };
+    }
+
     private Macro add(Macro first, Macro second) {
         return new Macro(first.calories + second.calories, first.protein + second.protein, first.carb + second.carb, first.fat + second.fat);
     }

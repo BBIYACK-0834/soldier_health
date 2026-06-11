@@ -67,7 +67,7 @@ public class WorkoutRecommendationService {
                 .routineType(template.routineType())
                 .todayFocus(template.focus())
                 .exercises(exercises)
-                .note("운동별 필수 기구 태그를 매칭한 뒤, 목표/숙련도/분할 부위/동작 패턴 균형 점수로 추천")
+                .note(recommendationPolicyNote(goal, level, days))
                 .build();
     }
 
@@ -116,8 +116,31 @@ public class WorkoutRecommendationService {
                 .routineType("특급전사 3종 집중 루틴")
                 .todayFocus("윗몸 86개 · 푸시업 72개 · 3km 12분 30초")
                 .exercises(exercises)
-                .note("특급전사는 윗몸/푸시업/뜀걸음 3종만 메인으로 구성")
+                .note("체력시험 목표는 종목 특이성이 최우선이므로 3km 달리기, 푸시업, 윗몸일으키기와 코어 보강을 우선 추천합니다. 강도는 현재 숙련도에 맞춰 반복 수와 페이스를 점진적으로 올립니다.")
                 .build();
+    }
+
+    private String recommendationPolicyNote(GoalType goal, WorkoutLevel level, int days) {
+        String frequencyPolicy = days <= 2
+                ? "주 1~2회는 분할보다 전신 루틴으로 주요 근육군을 매번 자극"
+                : days == 3
+                ? "주 3회는 전신 A/B/C로 주요 근육군을 주 2회 이상 반복 자극"
+                : days == 4
+                ? "주 4회는 상하체 분할로 회복과 부위별 볼륨을 균형화"
+                : "주 5~6회는 세분화 분할로 숙련자 볼륨과 장비 활용도를 확대";
+        String goalPolicy = switch (goal) {
+            case BULK -> "벌크업은 복합 고중량과 근비대 볼륨을 우선";
+            case CUT -> "감량은 근력운동을 유지하면서 유산소/컨디셔닝 피니셔를 추가";
+            case MAINTAIN -> "유지는 중간 강도와 전신 균형을 우선";
+            case GENERAL_FITNESS -> "일반 체력은 지속 가능한 중간 강도와 전신 균형을 우선";
+            case FITNESS_TEST -> "체력시험은 실제 평가 종목 특이성을 우선";
+        };
+        String levelPolicy = switch (level) {
+            case BEGINNER -> "초보자는 2세트 중심으로 동작 학습과 안전성을 우선";
+            case NOVICE -> "초급자는 3세트 중심으로 점진적 과부하를 적용";
+            case INTERMEDIATE -> "중급자는 3~4세트와 높은 강도로 주간 볼륨을 확대";
+        };
+        return String.join(" · ", frequencyPolicy, goalPolicy, levelPolicy, "분할은 권장안이며 사용자가 선택한 주 운동 횟수를 우선 반영", "보유 장비와 움직임 패턴 균형 점수로 운동을 추천");
     }
 
     private WorkoutDtos.WorkoutExercise cardioFinisher(WorkoutLevel level) {
@@ -130,7 +153,7 @@ public class WorkoutRecommendationService {
                 .restSeconds(0)
                 .intensity(level == WorkoutLevel.BEGINNER ? "Medium" : "High")
                 .requiredEquipment("러닝 코스 또는 트레드밀")
-                .recommendationReason("벌크업과 동일한 근력 분할을 유지하되 다이어트 목표에서만 유산소를 추가")
+                .recommendationReason("감량 목표에서는 근력운동으로 근육 자극을 유지하고, 추가 유산소로 주간 에너지 소비와 심폐 자극을 확보")
                 .alternative("실내 자전거 또는 버피 저강도 변형")
                 .build();
     }
@@ -206,7 +229,14 @@ public class WorkoutRecommendationService {
     }
 
     private List<RoutineTemplate> getRoutineTemplates(int days) {
-        if (days <= 3) {
+        if (days <= 2) {
+            return List.of(
+                    new RoutineTemplate("주 1~2회 전신 기초 루틴", "전신 · 스쿼트+푸시+풀+코어", List.of(BodyPart.LEGS, BodyPart.CHEST, BodyPart.BACK, BodyPart.CORE), List.of(MovementPattern.SQUAT, MovementPattern.HORIZONTAL_PUSH, MovementPattern.HORIZONTAL_PULL, MovementPattern.CORE, MovementPattern.CONDITIONING)),
+                    new RoutineTemplate("주 1~2회 전신 기초 루틴", "전신 · 힌지+어깨+등+코어", List.of(BodyPart.LEGS, BodyPart.SHOULDERS, BodyPart.BACK, BodyPart.CORE), List.of(MovementPattern.HINGE, MovementPattern.VERTICAL_PUSH, MovementPattern.VERTICAL_PULL, MovementPattern.CORE, MovementPattern.CONDITIONING))
+            );
+        }
+
+        if (days == 3) {
             return List.of(
                     new RoutineTemplate("주 3회 전신 루틴", "전신 A · 하체+가슴+등", List.of(BodyPart.LEGS, BodyPart.CHEST, BodyPart.BACK), List.of(MovementPattern.SQUAT, MovementPattern.HORIZONTAL_PUSH, MovementPattern.VERTICAL_PULL, MovementPattern.HINGE, MovementPattern.CORE)),
                     new RoutineTemplate("주 3회 전신 루틴", "전신 B · 등+어깨+팔", List.of(BodyPart.BACK, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.HORIZONTAL_PULL, MovementPattern.VERTICAL_PUSH, MovementPattern.BICEPS, MovementPattern.TRICEPS, MovementPattern.CORE)),
@@ -352,25 +382,61 @@ public class WorkoutRecommendationService {
     private WorkoutDtos.WorkoutExercise toExercise(ExerciseCandidate candidate, GoalType goal, String alternative, WorkoutLevel level) {
         String reps = switch (goal) {
             case BULK -> candidate.loadProfile() == LoadProfile.HEAVY ? "5-8회" : "8-12회";
-            case CUT, FITNESS_TEST -> candidate.loadProfile() == LoadProfile.CONDITIONING ? "30-45초" : "12-20회";
-            case MAINTAIN, GENERAL_FITNESS -> "8-15회";
+            case CUT, FITNESS_TEST -> candidate.loadProfile() == LoadProfile.CONDITIONING ? "30-45초" : "10-15회";
+            case MAINTAIN, GENERAL_FITNESS -> candidate.loadProfile() == LoadProfile.CONDITIONING ? "30초" : "8-15회";
         };
-        int sets = level == WorkoutLevel.BEGINNER ? 3 : 4;
-        int restSeconds = candidate.loadProfile() == LoadProfile.HEAVY ? 90 : candidate.loadProfile() == LoadProfile.CONDITIONING ? 30 : 45;
-        String intensity = level == WorkoutLevel.INTERMEDIATE && candidate.loadProfile() != LoadProfile.MOBILITY ? "High" : "Medium";
+        int sets = prescribedSets(candidate.loadProfile(), level);
+        int restSeconds = prescribedRestSeconds(candidate.loadProfile());
+        String intensity = prescribedIntensity(candidate.loadProfile(), level);
 
         return WorkoutDtos.WorkoutExercise.builder()
                 .name(candidate.name())
                 .category(candidate.category() + " · " + candidate.equipmentLabel())
                 .sets(sets)
                 .reps(reps)
-                .durationSeconds(45)
+                .durationSeconds(candidate.loadProfile() == LoadProfile.CONDITIONING ? 45 : 60)
                 .restSeconds(restSeconds)
                 .intensity(intensity)
                 .requiredEquipment(candidate.requiredEquipmentLabel())
                 .recommendationReason(candidate.reason())
                 .alternative(alternative)
                 .build();
+    }
+
+    private int prescribedSets(LoadProfile loadProfile, WorkoutLevel level) {
+        if (loadProfile == LoadProfile.MOBILITY) {
+            return 2;
+        }
+        if (loadProfile == LoadProfile.HEAVY) {
+            return level == WorkoutLevel.BEGINNER ? 2 : 3;
+        }
+        if (loadProfile == LoadProfile.CONDITIONING) {
+            return level == WorkoutLevel.INTERMEDIATE ? 4 : 3;
+        }
+        return switch (level) {
+            case BEGINNER -> 2;
+            case NOVICE -> 3;
+            case INTERMEDIATE -> 4;
+        };
+    }
+
+    private int prescribedRestSeconds(LoadProfile loadProfile) {
+        return switch (loadProfile) {
+            case HEAVY -> 150;
+            case MODERATE -> 75;
+            case CONDITIONING -> 30;
+            case MOBILITY -> 45;
+        };
+    }
+
+    private String prescribedIntensity(LoadProfile loadProfile, WorkoutLevel level) {
+        if (loadProfile == LoadProfile.MOBILITY) {
+            return "Low";
+        }
+        if (loadProfile == LoadProfile.HEAVY || (loadProfile == LoadProfile.CONDITIONING && level != WorkoutLevel.BEGINNER)) {
+            return "High";
+        }
+        return "Medium";
     }
 
     private List<ExerciseCandidate> exerciseLibrary() {
