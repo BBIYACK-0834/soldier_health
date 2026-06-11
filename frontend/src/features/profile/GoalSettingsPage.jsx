@@ -19,6 +19,26 @@ const levels = [
   { value: 'INTERMEDIATE', label: '중급' },
 ];
 
+const splitGuides = {
+  BEGINNER: [
+    { days: 2, label: '주 2회 전신', detail: '회복 여유가 크고 동작을 익히기 좋음' },
+    { days: 3, label: '주 3회 전신 A/B/C', detail: '근력운동 습관을 빠르게 만들기 좋음' },
+  ],
+  NOVICE: [
+    { days: 3, label: '주 3회 전신/Push-Pull-Legs', detail: '기본 동작 볼륨을 안정적으로 확보' },
+    { days: 4, label: '주 4회 상하체', detail: '부위별 볼륨과 회복 균형' },
+  ],
+  INTERMEDIATE: [
+    { days: 4, label: '주 4회 상하체', detail: '강도와 회복을 함께 관리' },
+    { days: 5, label: '주 5회 부위 분할', detail: '가슴/등/어깨/팔/하체 세분화' },
+    { days: 6, label: '주 6회 PPL 반복', detail: '운동 경험과 회복력이 충분할 때 선택' },
+  ],
+};
+
+function getSplitGuide(level) {
+  return splitGuides[level] ?? splitGuides.BEGINNER;
+}
+
 export default function GoalSettingsPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -57,6 +77,7 @@ export default function GoalSettingsPage() {
   }, []);
 
   const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const currentSplitGuides = getSplitGuide(form.workoutLevel);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -100,6 +121,25 @@ export default function GoalSettingsPage() {
           <div className={styles.optionGrid}>
             {levels.map((level) => <button key={level.value} type="button" className={form.workoutLevel === level.value ? styles.active : ''} onClick={() => setField('workoutLevel', level.value)}>{level.label}</button>)}
           </div>
+          <section className={styles.splitGuide} aria-label="운동 분할 선택 가이드">
+            <div>
+              <strong>분할 추천은 참고용입니다</strong>
+              <p>숙련도별 권장안을 보여드리지만, 실제 주 운동 횟수와 분할은 본인이 선택하세요. 선택한 횟수가 오늘 운동 루틴에 반영됩니다.</p>
+            </div>
+            <div className={styles.splitOptions}>
+              {currentSplitGuides.map((guide) => (
+                <button
+                  key={`${form.workoutLevel}-${guide.days}`}
+                  type="button"
+                  className={Number(form.workoutDaysPerWeek) === guide.days ? styles.selectedSplit : ''}
+                  onClick={() => setField('workoutDaysPerWeek', guide.days)}
+                >
+                  <span>{guide.label}</span>
+                  <small>{guide.detail}</small>
+                </button>
+              ))}
+            </div>
+          </section>
           {message ? <p className={styles.muted}>{message}</p> : null}
           <button type="submit" className={screen.primaryButton} disabled={submitting}>{submitting ? '저장 중...' : '저장하기'}</button>
         </form>
