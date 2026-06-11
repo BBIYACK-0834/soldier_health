@@ -13,9 +13,11 @@ public class FoodMatchResult {
     private boolean matched;
     private Long matchedFoodId;
     private String matchedFoodName;
+    private String displayCategory;
     private String matchType;
     private MatchConfidence confidence;
     private Double score;
+    private Double defaultServingGram;
 
     @JsonIgnore
     private Food matchedFood;

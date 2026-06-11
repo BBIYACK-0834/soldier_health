@@ -25,7 +25,7 @@ export async function searchFoods(query) {
   return unwrap(response);
 }
 
-export async function addMealFoods(mealType, foodIds) {
-  const response = await httpClient.post('/api/users/me/meal-foods', { mealType, foodIds });
+export async function addMealFoods(mealType, foodIds, servingGramByFoodId = {}) {
+  const response = await httpClient.post('/api/users/me/meal-foods', { mealType, foodIds, servingGramByFoodId });
   return unwrap(response);
 }

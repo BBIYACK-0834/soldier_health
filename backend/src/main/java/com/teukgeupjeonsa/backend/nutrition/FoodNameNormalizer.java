@@ -18,8 +18,8 @@ public class FoodNameNormalizer {
                 .replaceAll("\\[[^]]*]", " ")
                 .replaceAll("(?<![가-힣A-Za-z])\\d{1,2}(?![가-힣A-Za-z])", " ")
                 .replaceAll("[★*•·]", " ")
-                .replace('&', ' ')
-                .replace('+', ' ')
+                .replace("&", "")
+                .replace("+", "")
                 .replace('/', ' ');
 
         for (String word : OPERATION_WORDS) {

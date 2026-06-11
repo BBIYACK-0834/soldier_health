@@ -41,9 +41,10 @@ export default function DietAddPage() {
       try {
         setLoading(true);
         setMessage('');
-        const results = await searchFoods(trimmed);
-        setFoods(results ?? []);
-        if (!results?.length) setMessage('검색 결과가 없습니다. 다른 음식명으로 입력해보세요.');
+        const response = await searchFoods(trimmed);
+        const results = Array.isArray(response) ? response : (response?.results ?? []);
+        setFoods(results);
+        if (!results.length) setMessage('검색 결과가 없습니다. 다른 음식명으로 입력해보세요.');
       } catch {
         setFoods([]);
         setMessage('음식 검색에 실패했습니다. 잠시 후 다시 시도해주세요.');
@@ -55,24 +56,44 @@ export default function DietAddPage() {
     return () => window.clearTimeout(timer);
   }, [keyword]);
 
-  const selectedIds = useMemo(() => new Set(selected.map((food) => food.id)), [selected]);
+  const selectedIds = useMemo(() => new Set(selected.map((food) => food.foodMasterId ?? food.id)), [selected]);
 
   const selectedSummary = useMemo(() => selected.reduce((sum, food) => ({
-    calories: sum.calories + (food.calories || 0),
-    carbG: sum.carbG + (food.carbG || 0),
-    proteinG: sum.proteinG + (food.proteinG || 0),
-    fatG: sum.fatG + (food.fatG || 0),
+    calories: sum.calories + (food.calculated?.calories || food.calories || 0),
+    carbG: sum.carbG + (food.calculated?.carbG || food.carbG || 0),
+    proteinG: sum.proteinG + (food.calculated?.proteinG || food.proteinG || 0),
+    fatG: sum.fatG + (food.calculated?.fatG || food.fatG || 0),
   }), { calories: 0, carbG: 0, proteinG: 0, fatG: 0 }), [selected]);
 
+  const enrichFood = (food, servingGram = food.defaultServingGram ?? 100) => {
+    const scale = (Number(servingGram) || 0) / 100;
+    return {
+      ...food,
+      servingGram: Number(servingGram) || 0,
+      calculated: {
+        calories: Math.round((food.kcalPer100g ?? food.calories ?? 0) * scale),
+        carbG: Math.round((food.carbohydratePer100g ?? food.carbG ?? 0) * scale * 10) / 10,
+        proteinG: Math.round((food.proteinPer100g ?? food.proteinG ?? 0) * scale * 10) / 10,
+        fatG: Math.round((food.fatPer100g ?? food.fatG ?? 0) * scale * 10) / 10,
+      },
+    };
+  };
+
   const toggleFood = (food) => {
-    setSelected((prev) => (prev.some((item) => item.id === food.id) ? prev.filter((item) => item.id !== food.id) : [...prev, food]));
+    const id = food.foodMasterId ?? food.id;
+    setSelected((prev) => (prev.some((item) => (item.foodMasterId ?? item.id) === id) ? prev.filter((item) => (item.foodMasterId ?? item.id) !== id) : [...prev, enrichFood(food)]));
+  };
+
+  const updateServingGram = (foodId, servingGram) => {
+    setSelected((prev) => prev.map((food) => ((food.foodMasterId ?? food.id) === foodId ? enrichFood(food, servingGram) : food)));
   };
 
   const saveSelected = async () => {
     if (!selected.length) return;
     try {
       setSaving(true);
-      await addMealFoods(mealType, selected.map((food) => food.id));
+      const servingGramByFoodId = Object.fromEntries(selected.map((food) => [food.foodMasterId ?? food.id, food.servingGram ?? food.defaultServingGram ?? 100]));
+      await addMealFoods(mealType, selected.map((food) => food.foodMasterId ?? food.id), servingGramByFoodId);
       navigate('/diet');
     } catch {
       setMessage('선택한 음식을 식단에 추가하지 못했습니다. 다시 시도해주세요.');
@@ -101,15 +122,27 @@ export default function DietAddPage() {
 
       <div className={screen.list}>
         {foods.map((food) => (
-          <Card key={food.id}>
+          <Card key={food.foodMasterId ?? food.id}>
             <div className={styles.searchFoodCard}>
               <div>
-                <strong>{food.foodName}</strong>
-                <p>{food.calories ?? 0} kcal · 탄 {formatGram(food.carbG)} · 단 {formatGram(food.proteinG)} · 지 {formatGram(food.fatG)}</p>
-                <small>{food.category || '분류 없음'} · {food.servingUnit || '기준량 없음'}{food.matchedName && food.matchedName !== food.foodName ? ` · 검색매칭 ${food.matchedName}` : ''}</small>
+                <strong>{food.representativeName ?? food.foodName}</strong>
+                <p>100g당 {food.kcalPer100g ?? food.calories ?? 0} kcal · 탄 {formatGram(food.carbohydratePer100g ?? food.carbG)} · 단 {formatGram(food.proteinPer100g ?? food.proteinG)} · 지 {formatGram(food.fatPer100g ?? food.fatG)}</p>
+                <small>{food.displayCategory ?? food.category ?? '분류 없음'} · 기본 {formatGram(food.defaultServingGram ?? 100)} · 하위 원본 데이터 {food.matchedAliasCount ?? 1}개 기반</small>
               </div>
-              <button type="button" onClick={() => toggleFood(food)}>{selectedIds.has(food.id) ? '✓' : '+'}</button>
+              <button type="button" onClick={() => toggleFood(food)}>{selectedIds.has(food.foodMasterId ?? food.id) ? '✓' : '+'}</button>
             </div>
+            {selectedIds.has(food.foodMasterId ?? food.id) ? (
+              <div className={styles.servingEditor}>
+                <label>제공량(g)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={selected.find((item) => (item.foodMasterId ?? item.id) === (food.foodMasterId ?? food.id))?.servingGram ?? food.defaultServingGram ?? 100}
+                  onChange={(event) => updateServingGram(food.foodMasterId ?? food.id, event.target.value)}
+                />
+                <span>{selected.find((item) => (item.foodMasterId ?? item.id) === (food.foodMasterId ?? food.id))?.calculated?.calories ?? food.estimatedKcalForDefaultServing ?? 0} kcal</span>
+              </div>
+            ) : null}
           </Card>
         ))}
       </div>

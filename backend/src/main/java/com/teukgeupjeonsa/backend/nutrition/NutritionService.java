@@ -1,7 +1,6 @@
 package com.teukgeupjeonsa.backend.nutrition;
 
 import com.teukgeupjeonsa.backend.food.Food;
-import com.teukgeupjeonsa.backend.food.FoodAliasRepository;
 import com.teukgeupjeonsa.backend.food.FoodRepository;
 import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
 import com.teukgeupjeonsa.backend.meal.repository.MealMenuRepository;
@@ -13,16 +12,13 @@ import com.teukgeupjeonsa.backend.user.User;
 import com.teukgeupjeonsa.backend.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -35,9 +31,9 @@ public class NutritionService {
     private final UserOwnedFoodRepository userOwnedFoodRepository;
     private final UserMealFoodRepository userMealFoodRepository;
     private final FoodRepository foodRepository;
-    private final FoodAliasRepository foodAliasRepository;
     private final PxProductRepository pxProductRepository;
     private final MealNutritionService mealNutritionService;
+    private final FoodSearchService foodSearchService;
 
 
     @Transactional(readOnly = true)
@@ -98,24 +94,8 @@ public class NutritionService {
     }
 
     @Transactional(readOnly = true)
-    public List<NutritionDtos.FoodSearchResponse> searchFoods(String query) {
-        String keyword = Optional.ofNullable(query).orElse("").trim();
-        if (keyword.isBlank()) {
-            return List.of();
-        }
-
-        String normalizedKeyword = normalizeSearchName(keyword);
-        Map<Long, NutritionDtos.FoodSearchResponse> results = new LinkedHashMap<>();
-
-        foodAliasRepository.findByAliasNameContainingIgnoreCaseOrSearchNameContainingIgnoreCaseOrOriginalNameContainingIgnoreCase(
-                        keyword, normalizedKeyword, keyword, PageRequest.of(0, 12)
-                )
-                .forEach(alias -> results.putIfAbsent(alias.getFood().getId(), toFoodSearchResponse(alias.getFood(), alias.getOriginalName())));
-
-        foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase(keyword, normalizedKeyword, PageRequest.of(0, 12))
-                .forEach(food -> results.putIfAbsent(food.getId(), toFoodSearchResponse(food, food.getName())));
-
-        return results.values().stream().limit(20).toList();
+    public NutritionDtos.FoodSearchResponse searchFoods(String query) {
+        return foodSearchService.search(query);
     }
 
     @Transactional
@@ -127,19 +107,25 @@ public class NutritionService {
             return List.of();
         }
 
+        java.util.Map<Long, Double> servingGramByFoodId = Optional.ofNullable(request.getServingGramByFoodId()).orElse(java.util.Map.of());
+
         return foodRepository.findAllById(foodIds).stream()
-                .map(food -> userMealFoodRepository.save(UserMealFood.builder()
-                        .user(user)
-                        .food(food)
-                        .mealDate(LocalDate.now())
-                        .mealType(mealType)
-                        .foodName(food.getName())
-                        .calories(toInt(food.getCalorie()))
-                        .proteinG(nvl(food.getProtein()))
-                        .carbG(nvl(food.getCarbohydrate()))
-                        .fatG(nvl(food.getFat()))
-                        .quantity(1.0)
-                        .build()))
+                .map(food -> {
+                    double servingGram = Math.max(0.0, Optional.ofNullable(servingGramByFoodId.get(food.getId())).orElse(100.0));
+                    double scale = servingGram / 100.0;
+                    return userMealFoodRepository.save(UserMealFood.builder()
+                            .user(user)
+                            .food(food)
+                            .mealDate(LocalDate.now())
+                            .mealType(mealType)
+                            .foodName(food.getName())
+                            .calories(toInt(multiply(food.getCalorie(), scale)))
+                            .proteinG(multiply(food.getProtein(), scale))
+                            .carbG(multiply(food.getCarbohydrate(), scale))
+                            .fatG(multiply(food.getFat(), scale))
+                            .quantity(servingGram)
+                            .build());
+                })
                 .map(added -> toAddedFoodItem(added, 0))
                 .toList();
     }
@@ -420,24 +406,6 @@ public class NutritionService {
                 .build();
     }
 
-    private NutritionDtos.FoodSearchResponse toFoodSearchResponse(Food food, String matchedName) {
-        return NutritionDtos.FoodSearchResponse.builder()
-                .id(food.getId())
-                .foodName(food.getName())
-                .category(food.getCategory())
-                .servingUnit(food.getServingUnit())
-                .calories(toInt(food.getCalorie()))
-                .proteinG(round1(nvl(food.getProtein())))
-                .carbG(round1(nvl(food.getCarbohydrate())))
-                .fatG(round1(nvl(food.getFat())))
-                .matchedName(matchedName)
-                .build();
-    }
-
-    private String normalizeSearchName(String value) {
-        return Optional.ofNullable(value).orElse("").replaceAll("\\s+", "");
-    }
-
     private String normalizeMealType(String value) {
         String normalized = Optional.ofNullable(value).orElse("").trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
@@ -471,6 +439,11 @@ public class NutritionService {
                 .fatG(food.getFatG())
                 .quantity(food.getQuantity())
                 .build();
+    }
+
+
+    private Double multiply(Double value, double scale) {
+        return value == null ? null : round1(value * scale);
     }
 
     private double round1(double value) {
