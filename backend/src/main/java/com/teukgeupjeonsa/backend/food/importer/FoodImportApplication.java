@@ -38,6 +38,7 @@ public class FoodImportApplication {
     @SpringBootApplication(scanBasePackageClasses = {FoodXlsxImporter.class, FoodNameNormalizer.class})
     @EntityScan(basePackageClasses = {Food.class, FoodAlias.class, ManualFoodOverride.class, ServingDefault.class})
     @EnableJpaRepositories(basePackageClasses = {FoodRepository.class, FoodAliasRepository.class, ManualFoodOverrideRepository.class, ServingDefaultRepository.class})
+    @Profile("food-import")
     static class FoodImportConfiguration {
     }
 }
