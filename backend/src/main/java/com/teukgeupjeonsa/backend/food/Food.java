@@ -53,6 +53,9 @@ public class Food {
     @Column(name = "source_count")
     private Integer sourceCount;
 
+    @Column(name = "quality_flag", length = 40)
+    private String qualityFlag;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

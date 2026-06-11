@@ -50,7 +50,7 @@ public class MealNutritionService {
         String normalizedName = foodNameNormalizer.normalize(menuName);
         FoodMatchResult match = foodMatcher.match(menuName);
         Food food = match.getMatchedFood();
-        double servingGram = servingEstimator.estimateGram(normalizedName, food == null ? null : food.getCategory());
+        double servingGram = match.getDefaultServingGram() != null ? match.getDefaultServingGram() : servingEstimator.estimateGram(normalizedName, food == null ? null : food.getCategory());
         NutritionCalculator.CalculatedNutrition nutrition = nutritionCalculator.calculate(match, servingGram);
         Integer calorieKcal = nutrition.calorieKcal() == null ? null : (int) Math.round(nutrition.calorieKcal());
         String matchStatus = match.isMatched() ? "MATCHED" : "UNMATCHED";
@@ -60,9 +60,10 @@ public class MealNutritionService {
                 .normalizedName(normalizedName)
                 .matched(match.isMatched())
                 .matchedFoodName(match.getMatchedFoodName())
+                .displayCategory(match.getDisplayCategory())
                 .matchType(match.getMatchType())
                 .confidence(match.getConfidence())
-                .servingGram(servingGram)
+                .servingGram(match.isMatched() ? servingGram : null)
                 .calorieKcal(calorieKcal)
                 .carbohydrateG(nutrition.carbohydrateG())
                 .proteinG(nutrition.proteinG())
@@ -128,6 +129,7 @@ public class MealNutritionService {
                 .normalizedName(item.getNormalizedName())
                 .matched(item.getMatched())
                 .matchedFoodName(item.getMatchedFoodName())
+                .displayCategory(item.getDisplayCategory())
                 .matchType(item.getMatchType())
                 .confidence(item.getConfidence())
                 .servingGram(item.getServingGram())

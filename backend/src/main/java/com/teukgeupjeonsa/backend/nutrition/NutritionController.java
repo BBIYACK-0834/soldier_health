@@ -37,7 +37,7 @@ public class NutritionController {
     }
 
     @GetMapping("/api/foods/search")
-    public ApiResponse<List<NutritionDtos.FoodSearchResponse>> searchFoods(@RequestParam String q) {
+    public ApiResponse<NutritionDtos.FoodSearchResponse> searchFoods(@RequestParam String q) {
         return ApiResponse.ok(nutritionService.searchFoods(q));
     }
 
