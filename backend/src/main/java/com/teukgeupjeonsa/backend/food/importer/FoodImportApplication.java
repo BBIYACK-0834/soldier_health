@@ -35,9 +35,9 @@ public class FoodImportApplication {
         }
     }
 
-    @SpringBootApplication(scanBasePackageClasses = FoodXlsxImporter.class)
-    @EntityScan(basePackageClasses = {Food.class, FoodAlias.class})
-    @EnableJpaRepositories(basePackageClasses = {FoodRepository.class, FoodAliasRepository.class})
+    @SpringBootApplication(scanBasePackageClasses = {FoodXlsxImporter.class, FoodNameNormalizer.class})
+    @EntityScan(basePackageClasses = {Food.class, FoodAlias.class, ManualFoodOverride.class, ServingDefault.class})
+    @EnableJpaRepositories(basePackageClasses = {FoodRepository.class, FoodAliasRepository.class, ManualFoodOverrideRepository.class, ServingDefaultRepository.class})
     static class FoodImportConfiguration {
     }
 }
