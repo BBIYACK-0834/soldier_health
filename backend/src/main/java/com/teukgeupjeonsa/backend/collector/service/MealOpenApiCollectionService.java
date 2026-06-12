@@ -6,6 +6,7 @@ import com.teukgeupjeonsa.backend.collector.dto.MealCollectionSummary;
 import com.teukgeupjeonsa.backend.collector.dto.MealPersistResult;
 import com.teukgeupjeonsa.backend.collector.openapi.MndOpenApiClient;
 import com.teukgeupjeonsa.backend.collector.parser.MndMealResponseParser;
+import com.teukgeupjeonsa.backend.collector.util.MealMenuTextCleaner;
 import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
 import com.teukgeupjeonsa.backend.meal.repository.MealMenuRepository;
 import com.teukgeupjeonsa.backend.unit.MilitaryUnit;
@@ -34,6 +35,7 @@ public class MealOpenApiCollectionService {
     private final MilitaryUnitRepository militaryUnitRepository;
     private final PublicMealApiProperties apiProperties;
     private final MealCollectorProperties collectorProperties;
+    private final MealMenuTextCleaner mealMenuTextCleaner;
 
     @Transactional
     public MealCollectionSummary collectAllFromFixedServices() {
@@ -256,9 +258,13 @@ public class MealOpenApiCollectionService {
             entity.setServiceCode(row.serviceName());
             entity.setSourceName(SOURCE_NAME);
             entity.setMealDate(row.mealDate());
-            entity.setBreakfast(mergeMealText(entity.getBreakfast(), row.breakfastRaw()));
-            entity.setLunch(mergeMealText(entity.getLunch(), row.lunchRaw()));
-            entity.setDinner(mergeMealText(entity.getDinner(), row.dinnerRaw()));
+            String breakfast = mealMenuTextCleaner.cleanMealText(row.breakfastRaw());
+            String lunch = mealMenuTextCleaner.cleanMealText(row.lunchRaw());
+            String dinner = mealMenuTextCleaner.cleanMealText(row.dinnerRaw());
+
+            entity.setBreakfast(mergeMealText(entity.getBreakfast(), breakfast));
+            entity.setLunch(mergeMealText(entity.getLunch(), lunch));
+            entity.setDinner(mergeMealText(entity.getDinner(), dinner));
             entity.setBreakfastKcal(mergeKcal(entity.getBreakfastKcal(), row.breakfastKcal()));
             entity.setLunchKcal(mergeKcal(entity.getLunchKcal(), row.lunchKcal()));
             entity.setDinnerKcal(mergeKcal(entity.getDinnerKcal(), row.dinnerKcal()));

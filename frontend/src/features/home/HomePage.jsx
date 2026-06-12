@@ -74,7 +74,7 @@ export default function HomePage() {
   ) : (
     <>
       <Card className={styles.calorieCard}>
-        <p className={styles.sectionLabel}>필요 / 먹은 칼로리</p>
+        <p className={styles.sectionLabel}>필요 / 추정 섭취 칼로리</p>
         <div className={styles.calorieValue}>
           <strong>{targetCalories.toLocaleString()}</strong>
           <span>/ {intakeCalories.toLocaleString()} kcal</span>

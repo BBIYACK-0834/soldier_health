@@ -26,6 +26,7 @@ public class MealNutritionService {
     private final FoodMatcher foodMatcher;
     private final ServingEstimator servingEstimator;
     private final NutritionCalculator nutritionCalculator;
+    private final CompositeFoodEstimator compositeFoodEstimator;
 
     public NutritionDtos.MealNutritionResponse analyzeMeal(String mealType, String rawMenu, Integer officialCalorieKcal) {
         return analyzeMeal(mealType, parseMealItems(rawMenu), officialCalorieKcal);
@@ -49,21 +50,33 @@ public class MealNutritionService {
     private NutritionDtos.MealNutritionItemResponse analyzeItem(String mealType, String menuName) {
         String normalizedName = foodNameNormalizer.normalize(menuName);
         FoodMatchResult match = foodMatcher.match(menuName);
+        if (match.isMatched()) {
+            return buildMatchedItem(mealType, menuName, normalizedName, match);
+        }
+
+        Optional<CompositeFoodEstimateResult> composite = compositeFoodEstimator.estimate(menuName);
+        if (composite.isPresent()) {
+            return buildCompositeItem(mealType, menuName, normalizedName, composite.get());
+        }
+
+        return buildNoMatchItem(mealType, menuName, normalizedName, match);
+    }
+
+    private NutritionDtos.MealNutritionItemResponse buildMatchedItem(String mealType, String menuName, String normalizedName, FoodMatchResult match) {
         Food food = match.getMatchedFood();
         double servingGram = match.getDefaultServingGram() != null ? match.getDefaultServingGram() : servingEstimator.estimateGram(normalizedName, food == null ? null : food.getCategory());
         NutritionCalculator.CalculatedNutrition nutrition = nutritionCalculator.calculate(match, servingGram);
         Integer calorieKcal = nutrition.calorieKcal() == null ? null : (int) Math.round(nutrition.calorieKcal());
-        String matchStatus = match.isMatched() ? "MATCHED" : "UNMATCHED";
 
         return NutritionDtos.MealNutritionItemResponse.builder()
                 .menuName(menuName)
                 .normalizedName(normalizedName)
-                .matched(match.isMatched())
+                .matched(true)
                 .matchedFoodName(match.getMatchedFoodName())
                 .displayCategory(match.getDisplayCategory())
                 .matchType(match.getMatchType())
                 .confidence(match.getConfidence())
-                .servingGram(match.isMatched() ? servingGram : null)
+                .servingGram(servingGram)
                 .calorieKcal(calorieKcal)
                 .carbohydrateG(nutrition.carbohydrateG())
                 .proteinG(nutrition.proteinG())
@@ -76,37 +89,90 @@ public class MealNutritionService {
                 .calories(calorieKcal)
                 .carbG(nutrition.carbohydrateG())
                 .addedByUser(false)
-                .matchStatus(matchStatus)
+                .matchStatus("MATCHED")
+                .build();
+    }
+
+    private NutritionDtos.MealNutritionItemResponse buildCompositeItem(String mealType, String menuName, String normalizedName, CompositeFoodEstimateResult estimate) {
+        return NutritionDtos.MealNutritionItemResponse.builder()
+                .menuName(menuName)
+                .normalizedName(normalizedName)
+                .matched(true)
+                .matchedFoodName(estimate.getMatchedDisplayName())
+                .displayCategory("복합 음식 추정")
+                .matchType("COMPOSITE_ESTIMATE")
+                .confidence(estimate.getConfidence())
+                .servingGram(estimate.getServingGram())
+                .calorieKcal(estimate.getCalorieKcal())
+                .carbohydrateG(estimate.getCarbohydrateG())
+                .proteinG(estimate.getProteinG())
+                .fatG(estimate.getFatG())
+                .foodId(null)
+                .foodName(menuName)
+                .mealType(mealType)
+                .category("복합 음식 추정")
+                .servingUnit("추정 " + Math.round(estimate.getServingGram()) + "g")
+                .calories(estimate.getCalorieKcal())
+                .carbG(estimate.getCarbohydrateG())
+                .addedByUser(false)
+                .matchStatus("COMPOSITE_ESTIMATE")
+                .build();
+    }
+
+    private NutritionDtos.MealNutritionItemResponse buildNoMatchItem(String mealType, String menuName, String normalizedName, FoodMatchResult match) {
+        return NutritionDtos.MealNutritionItemResponse.builder()
+                .menuName(menuName)
+                .normalizedName(normalizedName)
+                .matched(false)
+                .matchedFoodName(match.getMatchedFoodName())
+                .displayCategory(match.getDisplayCategory())
+                .matchType(match.getMatchType())
+                .confidence(match.getConfidence())
+                .servingGram(null)
+                .calorieKcal(null)
+                .carbohydrateG(null)
+                .proteinG(null)
+                .fatG(null)
+                .foodId(null)
+                .foodName(menuName)
+                .mealType(mealType)
+                .category(null)
+                .servingUnit(null)
+                .calories(null)
+                .carbG(null)
+                .addedByUser(false)
+                .matchStatus("UNMATCHED")
                 .build();
     }
 
     public NutritionDtos.MealNutritionResponse buildResponse(String mealType, Integer officialCalorieKcal, List<NutritionDtos.MealNutritionItemResponse> items) {
         int matchedItemCount = (int) items.stream().filter(item -> Boolean.TRUE.equals(item.getMatched())).count();
         int totalItemCount = items.size();
-        int estimatedCalorieKcal = items.stream()
+        int calculatedItemCalories = items.stream()
                 .map(NutritionDtos.MealNutritionItemResponse::getCalorieKcal)
                 .filter(java.util.Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
+        int mealCalories = officialCalorieKcal != null ? officialCalorieKcal : calculatedItemCalories;
         double carbohydrate = items.stream().mapToDouble(item -> Optional.ofNullable(item.getCarbohydrateG()).orElse(0.0)).sum();
         double protein = items.stream().mapToDouble(item -> Optional.ofNullable(item.getProteinG()).orElse(0.0)).sum();
         double fat = items.stream().mapToDouble(item -> Optional.ofNullable(item.getFatG()).orElse(0.0)).sum();
         double matchedRatio = totalItemCount == 0 ? 0.0 : round1(matchedItemCount / (double) totalItemCount);
 
         List<NutritionDtos.MealNutritionItemResponse> withShare = items.stream()
-                .map(item -> copyWithShare(item, estimatedCalorieKcal))
+                .map(item -> copyWithShare(item, mealCalories))
                 .toList();
 
         return NutritionDtos.MealNutritionResponse.builder()
                 .mealType(mealType)
                 .officialCalorieKcal(officialCalorieKcal)
-                .estimatedCalorieKcal(estimatedCalorieKcal)
+                .estimatedCalorieKcal(mealCalories)
                 .matchedItemCount(matchedItemCount)
                 .totalItemCount(totalItemCount)
                 .matchedRatio(matchedRatio)
                 .items(withShare)
                 .mealLabel(toMealLabel(mealType))
-                .calories(estimatedCalorieKcal)
+                .calories(mealCalories)
                 .carbG(round1(carbohydrate))
                 .proteinG(round1(protein))
                 .fatG(round1(fat))

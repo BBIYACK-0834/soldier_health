@@ -72,7 +72,7 @@ public class NutritionService {
 
         String text;
         if (summary.getIntakeCalories() <= 0) {
-            text = "오늘 식단 데이터가 없어 섭취량을 0으로 계산했습니다. 부대 식단을 먼저 동기화해주세요.";
+            text = "오늘 식단 데이터가 없어 추정 섭취량을 0으로 표시했습니다. 부대 식단을 먼저 동기화해주세요.";
         } else if (proteinDeficit <= 0) {
             text = "단백질 목표를 충족했습니다. 남은 탄수화물/지방 비율만 맞추면 좋습니다.";
         } else {
@@ -143,16 +143,16 @@ public class NutritionService {
                 buildMealDetail("snack", null, null, addedFoods)
         );
 
-        int totalEstimatedCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getEstimatedCalorieKcal()).orElse(0)).sum();
+        int totalCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getCalories()).orElse(0)).sum();
         int totalOfficialCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getOfficialCalorieKcal()).orElse(0)).sum();
         double totalProtein = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getProteinG()).orElse(0.0)).sum();
         double totalCarb = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getCarbG()).orElse(0.0)).sum();
         double totalFat = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getFatG()).orElse(0.0)).sum();
 
         return NutritionDtos.TodayMealNutritionResponse.builder()
-                .totalCalories(totalEstimatedCalories)
+                .totalCalories(totalCalories)
                 .totalOfficialCalories(totalOfficialCalories)
-                .totalEstimatedCalories(totalEstimatedCalories)
+                .totalEstimatedCalories(totalCalories)
                 .totalProteinG(round1(totalProtein))
                 .totalCarbG(round1(totalCarb))
                 .totalFatG(round1(totalFat))
@@ -294,9 +294,10 @@ public class NutritionService {
 
     private Macro estimateMealNutrition(String rawMenu, Integer rawKcal) {
         NutritionDtos.MealNutritionResponse meal = mealNutritionService.analyzeMeal("", rawMenu, rawKcal);
-        return meal.getItems().stream()
+        Macro calculated = meal.getItems().stream()
                 .map(item -> new Macro(Optional.ofNullable(item.getCalorieKcal()).orElse(0), nvl(item.getProteinG()), nvl(item.getCarbohydrateG()), nvl(item.getFatG())))
                 .reduce(new Macro(0, 0, 0, 0), this::add);
+        return new Macro(Optional.ofNullable(rawKcal).orElse(calculated.calories), calculated.protein, calculated.carb, calculated.fat);
     }
 
     private NutritionDtos.NutritionSummaryResponse toSummary(Macro target, Macro intake, boolean hasMealData) {
@@ -326,8 +327,8 @@ public class NutritionService {
                 .deficitCarbG(round1(remainingCarb))
                 .deficitFatG(round1(remainingFat))
                 .note(hasMealData
-                        ? "엑셀 식품 DB와 직접 추가 음식을 기준으로 오늘 섭취량을 계산했어요."
-                        : "당일 식단 데이터가 없어 섭취량은 0으로 계산되었습니다.")
+                        ? "군 급식 메뉴와 식품 DB를 기반으로 오늘 추정 섭취량을 계산했어요. 실제 조리법과 배식량에 따라 차이가 있을 수 있습니다."
+                        : "당일 식단 데이터가 없어 추정 섭취량은 0으로 표시됩니다.")
                 .build();
     }
 

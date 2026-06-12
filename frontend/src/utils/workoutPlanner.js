@@ -95,7 +95,7 @@ export function buildWorkoutPlanFromProfile(profile) {
 
   const days = normalizeDays(profile?.workoutDaysPerWeek);
   const split = strengthSplits[days] ?? strengthSplits[5];
-  const routineType = `${days}분할 순환 루틴${profile?.goalType === 'CUT' ? ' + 유산소' : ''}`;
+  const routineType = `주 ${days}회 ${days}분할 순환 루틴${profile?.goalType === 'CUT' ? ' + 유산소' : ''}`;
   const routines = split.map((focus, index) => ({
     routineKey: `${profile?.goalType || 'BULK'}-${days}-${index}-${focus}`,
     routineIndex: index,

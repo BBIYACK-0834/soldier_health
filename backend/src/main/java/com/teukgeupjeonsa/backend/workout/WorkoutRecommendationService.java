@@ -126,8 +126,10 @@ public class WorkoutRecommendationService {
                 : days == 3
                 ? "주 3회는 전신 A/B/C로 주요 근육군을 주 2회 이상 반복 자극"
                 : days == 4
-                ? "주 4회는 상하체 분할로 회복과 부위별 볼륨을 균형화"
-                : "주 5~6회는 세분화 분할로 숙련자 볼륨과 장비 활용도를 확대";
+                ? "주 4회는 상하체 4분할로 회복과 부위별 볼륨을 균형화"
+                : days == 5
+                ? "주 5회는 5분할로 선택 횟수에 맞춰 부위를 세분화"
+                : "주 6회는 PPL 6회 순환으로 선택 횟수에 맞춰 주간 빈도를 확대";
         String goalPolicy = switch (goal) {
             case BULK -> "벌크업은 복합 고중량과 근비대 볼륨을 우선";
             case CUT -> "감량은 근력운동을 유지하면서 유산소/컨디셔닝 피니셔를 추가";
@@ -253,12 +255,23 @@ public class WorkoutRecommendationService {
             );
         }
 
+        if (days == 5) {
+            return List.of(
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "등 · 광배/승모/후면사슬", List.of(BodyPart.BACK), List.of(MovementPattern.VERTICAL_PULL, MovementPattern.HORIZONTAL_PULL, MovementPattern.HINGE, MovementPattern.REAR_DELT, MovementPattern.CORE)),
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "가슴 · 상부/중부/하부", List.of(BodyPart.CHEST), List.of(MovementPattern.HORIZONTAL_PUSH, MovementPattern.INCLINE_PUSH, MovementPattern.FLY, MovementPattern.DIP, MovementPattern.TRICEPS)),
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "어깨 · 전면/측면/후면", List.of(BodyPart.SHOULDERS), List.of(MovementPattern.VERTICAL_PUSH, MovementPattern.LATERAL_RAISE, MovementPattern.REAR_DELT, MovementPattern.SHRUG, MovementPattern.CORE)),
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "팔 · 이두/삼두/전완", List.of(BodyPart.ARMS), List.of(MovementPattern.BICEPS, MovementPattern.TRICEPS, MovementPattern.FOREARM, MovementPattern.DIP, MovementPattern.CORE)),
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "하체 · 대퇴/둔근/햄스트링/종아리", List.of(BodyPart.LEGS), List.of(MovementPattern.SQUAT, MovementPattern.HINGE, MovementPattern.LUNGE, MovementPattern.HAMSTRING_CURL, MovementPattern.CALVES))
+            );
+        }
+
         return List.of(
-                new RoutineTemplate("5분할 세분화 루틴", "등 · 광배/승모/후면사슬", List.of(BodyPart.BACK), List.of(MovementPattern.VERTICAL_PULL, MovementPattern.HORIZONTAL_PULL, MovementPattern.HINGE, MovementPattern.REAR_DELT, MovementPattern.CORE)),
-                new RoutineTemplate("5분할 세분화 루틴", "가슴 · 상부/중부/하부", List.of(BodyPart.CHEST), List.of(MovementPattern.HORIZONTAL_PUSH, MovementPattern.INCLINE_PUSH, MovementPattern.FLY, MovementPattern.DIP, MovementPattern.TRICEPS)),
-                new RoutineTemplate("5분할 세분화 루틴", "어깨 · 전면/측면/후면", List.of(BodyPart.SHOULDERS), List.of(MovementPattern.VERTICAL_PUSH, MovementPattern.LATERAL_RAISE, MovementPattern.REAR_DELT, MovementPattern.SHRUG, MovementPattern.CORE)),
-                new RoutineTemplate("5분할 세분화 루틴", "팔 · 이두/삼두/전완", List.of(BodyPart.ARMS), List.of(MovementPattern.BICEPS, MovementPattern.TRICEPS, MovementPattern.FOREARM, MovementPattern.DIP, MovementPattern.CORE)),
-                new RoutineTemplate("5분할 세분화 루틴", "하체 · 대퇴/둔근/햄스트링/종아리", List.of(BodyPart.LEGS), List.of(MovementPattern.SQUAT, MovementPattern.HINGE, MovementPattern.LUNGE, MovementPattern.HAMSTRING_CURL, MovementPattern.CALVES))
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Push A · 가슴/어깨/삼두", List.of(BodyPart.CHEST, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.HORIZONTAL_PUSH, MovementPattern.VERTICAL_PUSH, MovementPattern.FLY, MovementPattern.TRICEPS, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Pull A · 등/이두/후면어깨", List.of(BodyPart.BACK, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.VERTICAL_PULL, MovementPattern.HORIZONTAL_PULL, MovementPattern.REAR_DELT, MovementPattern.BICEPS, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Legs A · 스쿼트/대퇴", List.of(BodyPart.LEGS), List.of(MovementPattern.SQUAT, MovementPattern.LUNGE, MovementPattern.KNEE_EXTENSION, MovementPattern.CALVES, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Push B · 가슴/어깨 보강", List.of(BodyPart.CHEST, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.INCLINE_PUSH, MovementPattern.LATERAL_RAISE, MovementPattern.DIP, MovementPattern.TRICEPS, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Pull B · 로우/후면사슬", List.of(BodyPart.BACK, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.HORIZONTAL_PULL, MovementPattern.HINGE, MovementPattern.REAR_DELT, MovementPattern.BICEPS, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Legs B · 둔근/햄스트링", List.of(BodyPart.LEGS), List.of(MovementPattern.HINGE, MovementPattern.HIP_THRUST, MovementPattern.HAMSTRING_CURL, MovementPattern.LUNGE, MovementPattern.CALVES))
         );
     }
 

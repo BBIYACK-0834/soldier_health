@@ -72,7 +72,7 @@ public class SeedService {
 
         FoodImportResult result = foodXlsxImporter.importXlsx(xlsxPath.get());
         return String.format("식품 DB 자동 import 완료 - foods %d개, aliases %d개, skipped aliases %d개, overrides %d개, serving defaults %d개.",
-                result.foodCount(), result.aliasCount(), result.skippedAliasCount(), result.manualOverrideCount(), result.servingDefaultCount());
+                result.foodCount(), result.aliasCount(), result.skippedAliasCount(), result.overrideCount(), result.servingDefaultCount());
     }
 
     private Optional<Path> resolveFoodImportPath() {

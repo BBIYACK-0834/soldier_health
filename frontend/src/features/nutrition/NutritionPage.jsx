@@ -112,7 +112,7 @@ export default function NutritionPage() {
       } catch (error) {
         if (!mounted) return;
         setMealDetails({ meals: [] });
-        setErrorMessage('음식별 영양소 계산이 지연되고 있습니다. 잠시 후 식단 화면을 다시 열어주세요.');
+        setErrorMessage('음식별 영양소 추정이 지연되고 있습니다. 잠시 후 식단 화면을 다시 열어주세요.');
       } finally {
         if (mounted) setDetailLoading(false);
       }
@@ -161,7 +161,7 @@ export default function NutritionPage() {
 
   if (loading) {
     return (
-      <AppLayout title="식단 기록" subtitle="날짜별 식단과 영양소를 확인하세요.">
+      <AppLayout title="식단 추정 기록" subtitle="군 급식 메뉴 기반 추정 영양소를 확인하세요.">
         <Card>
           <p className={styles.base}>불러오는 중...</p>
         </Card>
@@ -170,20 +170,20 @@ export default function NutritionPage() {
   }
 
   return (
-    <AppLayout title="식단 기록" subtitle="날짜별 식단과 영양소를 확인하세요." headerAction={headerAction}>
+    <AppLayout title="식단 추정 기록" subtitle="군 급식 메뉴 기반 추정 영양소를 확인하세요." headerAction={headerAction}>
       <Card>
-        <p className={styles.totalTitle}>칼로리 현황</p>
+        <p className={styles.totalTitle}>추정 칼로리 현황</p>
         <div className={styles.calorieSummary}>
           <div>
             <span>필요 칼로리</span>
             <strong>{targetKcal.toLocaleString()} kcal</strong>
           </div>
           <div>
-            <span>먹은 칼로리</span>
+            <span>추정 섭취 칼로리</span>
             <strong>{eatenKcal.toLocaleString()} kcal</strong>
           </div>
         </div>
-        <p className={styles.base}>{menuExists ? `앞으로 ${remainingKcal.toLocaleString()} kcal 더 먹을 수 있어요.` : '선택 부대의 당일 식단 데이터가 아직 없습니다.'}</p>
+        <p className={styles.base}>{menuExists ? `추정 기준으로 ${remainingKcal.toLocaleString()} kcal 정도 여유가 있어요.` : '선택 부대의 당일 식단 데이터가 아직 없습니다.'}</p>
         <div className={styles.macroGrid}>
           {macroData.map((macro) => (
             <MacroBox key={macro.label} label={macro.label} intake={macro.intake} target={macro.target} color={macro.color} tone={macro.tone} />
@@ -192,8 +192,8 @@ export default function NutritionPage() {
         <ProgressBar value={eatenKcal} max={targetKcal || 1} />
         <small>
           {menuExists
-            ? '엑셀 식품 DB로 음식별 칼로리·탄수화물·단백질·지방을 계산하고, 직접 추가한 음식까지 반영했어요.'
-            : '당일 식단 데이터가 없어 먹은 칼로리는 0으로 계산되었습니다.'}
+            ? '군 급식 메뉴와 식품 DB 기반 추정값입니다. 실제 배식량과 조리 방식에 따라 차이가 있을 수 있어 일상적인 체중 관리와 영양 균형 확인에 활용하세요.'
+            : '당일 식단 데이터가 없어 추정 섭취 칼로리는 0으로 표시됩니다.'}
         </small>
       </Card>
 
@@ -202,19 +202,23 @@ export default function NutritionPage() {
         const items = detail?.items ?? [];
         const rawItems = section.key === 'snackRaw' ? [] : parseRawMealItems(meal?.[section.key]);
         const officialKcal = section.key === 'snackRaw' ? 0 : meal?.[`${section.key.replace('Raw', 'Kcal')}`];
-        const mealKcal = Number.isFinite(detail?.estimatedCalorieKcal) ? detail.estimatedCalorieKcal : officialKcal;
+        const mealKcal = Number.isFinite(detail?.calories)
+          ? detail.calories
+          : Number.isFinite(detail?.estimatedCalorieKcal)
+            ? detail.estimatedCalorieKcal
+            : officialKcal;
         return (
           <Card key={section.key}>
             <div className={styles.row}>
               <div>
                 <h3>{section.label}</h3>
-                <span className={styles.mealKcal}>공식 {formatKcal(officialKcal)} · 추정 {formatKcal(mealKcal)}</span>
+                <span className={styles.mealKcal}>추정 칼로리 {formatKcal(mealKcal)}</span>
               </div>
               <button type="button" onClick={() => navigate(`/diet/add?meal=${section.addKey}`)}>{section.label} 추가</button>
             </div>
             {items.length > 0 ? (
               <div className={styles.extraWrap}>
-                <p>{section.label} 영양소 합계 · 탄 {formatGram(detail?.carbG)} · 단 {formatGram(detail?.proteinG)} · 지 {formatGram(detail?.fatG)}</p>
+                <p>{section.label} 추정 영양소 합계 · 탄 {formatGram(detail?.carbG)} · 단 {formatGram(detail?.proteinG)} · 지 {formatGram(detail?.fatG)}</p>
                 {items.map((item, index) => (
                   <div key={`${item.foodName}-${item.id ?? index}`} className={styles.nutritionItem}>
                     <div className={styles.itemHeader}>
@@ -222,6 +226,7 @@ export default function NutritionPage() {
                       <span>{item.matched === false ? '영양정보 매칭 필요' : `${formatKcal(item.calories)} · ${item.calorieSharePct ?? 0}%`}</span>
                     </div>
 {item.matchedFoodName && item.matchedFoodName !== item.foodName ? <small>DB 매칭: {item.matchedFoodName}</small> : null}
+                    {item.matchType === 'COMPOSITE_ESTIMATE' || item.matchStatus === 'COMPOSITE_ESTIMATE' ? <small>복합 음식 추정</small> : null}
                     {item.confidence === 'LOW' ? <small>추정 낮음</small> : null}
                     {item.confidence === 'NONE' || item.matched === false ? <small>NO_MATCH · 매칭 필요</small> : null}
                     <div className={styles.nutrientLine}>
@@ -237,7 +242,7 @@ export default function NutritionPage() {
               </div>
             ) : rawItems.length > 0 ? (
               <div className={styles.extraWrap}>
-                <p>{detailLoading ? '음식별 영양소 계산 전 부대 식단을 먼저 표시합니다.' : '부대 식단'}</p>
+                <p>{detailLoading ? '음식별 영양소 추정 전 부대 식단을 먼저 표시합니다.' : '부대 식단'}</p>
                 {rawItems.map((item, index) => (
                   <div key={`${section.key}-${item}-${index}`} className={styles.item}>
                     <span>{item}</span>
@@ -251,7 +256,7 @@ export default function NutritionPage() {
         );
       })}
 
-      {detailLoading ? <p className={styles.base}>음식별 영양소를 계산하는 중입니다...</p> : null}
+      {detailLoading ? <p className={styles.base}>음식별 영양소를 추정하는 중입니다...</p> : null}
       {errorMessage ? <p className={styles.base}>{errorMessage}</p> : null}
     </AppLayout>
   );
