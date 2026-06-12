@@ -2,15 +2,20 @@ package com.teukgeupjeonsa.backend.collector.openapi;
 
 import com.teukgeupjeonsa.backend.collector.config.MealCollectorProperties;
 import com.teukgeupjeonsa.backend.collector.config.PublicMealApiProperties;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ConnectTimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 import reactor.util.retry.Retry;
 
 import java.net.ConnectException;
@@ -76,7 +81,7 @@ public class MndOpenApiClient {
                 maskKey(requestUrl, serviceKey));
 
         try {
-            return webClientBuilder.build()
+            return buildWebClient(requestTimeout())
                     .get()
                     .uri(requestUrl)
                     .header(HttpHeaders.USER_AGENT, "Mozilla/5.0")
@@ -84,7 +89,7 @@ public class MndOpenApiClient {
                     .exchangeToMono(response ->
                             handleResponse(serviceName, response.statusCode(), response.bodyToMono(String.class))
                     )
-                    .timeout(Duration.ofMillis(collectorProperties.getTimeoutMillis()))
+                    .timeout(requestTimeout())
                     .retryWhen(Retry.fixedDelay(RETRY_COUNT, RETRY_DELAY)
                             .filter(this::isRetryable)
                             .doBeforeRetry(signal -> log.warn(
@@ -100,9 +105,9 @@ public class MndOpenApiClient {
         } catch (Exception e) {
             Throwable rootCause = rootCauseOf(e);
 
-            if (rootCause instanceof TimeoutException) {
+            if (rootCause instanceof TimeoutException || rootCause instanceof ConnectTimeoutException) {
                 log.error("OpenAPI timeout serviceName={}, range={}-{}, timeoutMs={}",
-                        serviceName, startRow, endRow, collectorProperties.getTimeoutMillis(), e);
+                        serviceName, startRow, endRow, requestTimeout().toMillis(), e);
                 throw new IllegalStateException(
                         "OpenAPI timeout: " + serviceName + " range=" + startRow + "-" + endRow,
                         e
@@ -127,99 +132,96 @@ public class MndOpenApiClient {
     }
 
     private Mono<Map<String, Object>> handleResponse(
-        String serviceName,
-        HttpStatusCode statusCode,
-        Mono<String> bodyMono
-) {
+            String serviceName,
+            HttpStatusCode statusCode,
+            Mono<String> bodyMono
+    ) {
+        return bodyMono
+                .defaultIfEmpty("")
+                .flatMap(body -> {
+                    String bodySnippet = truncate(body);
 
-    return bodyMono
-            .defaultIfEmpty("")
-            .flatMap(body -> {
-
-                String bodySnippet =
-                        truncate(body);
-
-                /*
-                 * 실제 응답 전체 출력
-                 * 7296 구조 확인용
-                 */
-                log.info(
-                        "RAW BODY FULL serviceName={}, body={}",
-                        serviceName,
-                        body
-                );
-
-                if (!statusCode.is2xxSuccessful()) {
-
-                    log.warn(
-                            "OpenAPI 비정상 응답 serviceName={}, status={}, bodySnippet={}",
-                            serviceName,
-                            statusCode.value(),
-                            bodySnippet
-                    );
-
-                    return Mono.error(
-                            new OpenApiHttpException(
-                                    statusCode.value()
-                            )
-                    );
-                }
-
-                if (log.isDebugEnabled()) {
-
-                    log.debug(
-                            "OpenAPI 응답 serviceName={}, status={}, bodySnippet={}",
-                            serviceName,
-                            statusCode.value(),
-                            bodySnippet
-                    );
-                }
-
-                return Mono.justOrEmpty(body)
-                        .filter(value -> !value.isBlank())
-                        .flatMap(value -> {
-
-                            try {
-
-                                Map<String, Object> parsed =
-                                        new org.springframework.boot.json.JacksonJsonParser()
-                                                .parseMap(value);
-
-                                return Mono.just(parsed);
-
-                            } catch (Exception e) {
-
-                                log.error(
-                                        "JSON 파싱 실패 serviceName={}, rawBody={}",
-                                        serviceName,
-                                        body,
-                                        e
-                                );
-
-                                return Mono.error(
-                                        new IllegalStateException(
-                                                "OpenAPI JSON 파싱 실패",
-                                                e
-                                        )
-                                );
-                            }
-                        })
-                        .switchIfEmpty(
-                                Mono.error(
-                                        new IllegalStateException(
-                                                "OpenAPI 응답 body가 비어 있습니다."
-                                        )
-                                )
+                    if (!statusCode.is2xxSuccessful()) {
+                        log.warn(
+                                "OpenAPI 비정상 응답 serviceName={}, status={}, bodySnippet={}",
+                                serviceName,
+                                statusCode.value(),
+                                bodySnippet
                         );
-            });
-}
 
-    private boolean isRetryable(Throwable throwable) {
+                        return Mono.error(new OpenApiHttpException(statusCode.value()));
+                    }
+
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "OpenAPI 응답 serviceName={}, status={}, bodySnippet={}",
+                                serviceName,
+                                statusCode.value(),
+                                bodySnippet
+                        );
+                    }
+
+                    return Mono.justOrEmpty(body)
+                            .filter(value -> !value.isBlank())
+                            .flatMap(value -> {
+                                try {
+                                    Map<String, Object> parsed =
+                                            new org.springframework.boot.json.JacksonJsonParser()
+                                                    .parseMap(value);
+
+                                    return Mono.just(parsed);
+                                } catch (Exception e) {
+                                    log.error(
+                                            "JSON 파싱 실패 serviceName={}, rawBody={}",
+                                            serviceName,
+                                            body,
+                                            e
+                                    );
+
+                                    return Mono.error(
+                                            new IllegalStateException(
+                                                    "OpenAPI JSON 파싱 실패",
+                                                    e
+                                            )
+                                    );
+                                }
+                            })
+                            .switchIfEmpty(
+                                    Mono.error(
+                                            new IllegalStateException(
+                                                    "OpenAPI 응답 body가 비어 있습니다."
+                                            )
+                                    )
+                            );
+                });
+    }
+
+    WebClient buildWebClient(Duration timeout) {
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.toIntExact(timeout.toMillis()))
+                .responseTimeout(timeout);
+
+        return webClientBuilder
+                .clone()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
+    }
+
+    Duration requestTimeout() {
+        return Duration.ofMillis(collectorProperties.getTimeoutMillis());
+    }
+
+    boolean isRetryable(Throwable throwable) {
         Throwable rootCause = rootCauseOf(throwable);
 
         if (rootCause instanceof TimeoutException
+                || rootCause instanceof ConnectTimeoutException
                 || rootCause instanceof ConnectException
                 || rootCause instanceof UnknownHostException) {
+            return true;
+        }
+
+        if (throwable instanceof WebClientRequestException) {
             return true;
         }
 
