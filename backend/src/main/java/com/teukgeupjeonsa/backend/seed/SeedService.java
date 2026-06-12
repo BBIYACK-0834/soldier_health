@@ -39,7 +39,7 @@ public class SeedService {
     @Value("${app.food-import.auto:false}")
     private boolean autoImportFoods;
 
-    @Value("${app.food-import.file:src/main/resources/food_data/foods_refined_for_military_meal_matching.xlsx}")
+    @Value("${app.food-import.file:../food_data/foods_final_user_friendly_100g.xlsx}")
     private String foodImportFile;
 
     @Transactional

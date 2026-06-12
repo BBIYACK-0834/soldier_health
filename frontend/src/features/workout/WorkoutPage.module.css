@@ -32,3 +32,22 @@
 .completed em { background: #2f6f3e; color: #fff; }
 
 .restCircle { --timer-color: #d99224; background: conic-gradient(var(--timer-color) var(--timer-progress), #f3e2bb 0deg); color: #9a6a09; }
+.addControl { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; margin-top: 14px; }
+.addControl select { min-width: 0; border: 1px solid var(--color-border); border-radius: 14px; background: #fff; color: var(--color-primary-dark); padding: 11px 12px; font-weight: 800; }
+.iconButton { border: 0; border-radius: 14px; background: var(--color-primary); color: #fff; font-size: 20px; font-weight: 950; }
+.iconButton:disabled { opacity: 0.45; }
+.itemActions { display: flex; align-items: center; gap: 8px; }
+.list .removeButton { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 34px; border: 0; border-radius: 50%; background: #f4ddd6; color: #8a3a24; padding: 0; font-size: 18px; font-weight: 950; text-align: center; }
+.routineStack { display: flex; flex-direction: column; gap: 12px; }
+.routineHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.routineHeader strong { display: block; color: var(--color-primary-dark); }
+.routineHeader small { display: block; margin-top: 4px; color: var(--color-text-secondary); font-weight: 800; }
+.routineHeader span { border-radius: 999px; background: #e4f5df; color: #2f6f3e; padding: 5px 9px; font-size: 12px; font-weight: 950; }
+.summaryCard strong { display: block; margin-top: 6px; color: var(--color-primary-dark); font-size: 24px; }
+.summaryCard p { margin: 10px 0 0; color: var(--color-text-secondary); font-weight: 800; }
+.progressTrack { height: 10px; margin-top: 10px; border-radius: 999px; background: #e5e1d8; overflow: hidden; }
+.progressTrack span { display: block; height: 100%; border-radius: inherit; background: #2f6f3e; transition: width 0.2s ease; }
+.resetBtn, .secondary { width: 100%; border: 0; border-radius: 14px; padding: 13px; font-weight: 900; }
+.resetBtn { margin-top: 12px; background: #eef0e8; color: var(--color-primary-dark); }
+.resetBtn:disabled { opacity: 0.45; }
+.secondary { background: #e8eef7; color: #3b557a; }

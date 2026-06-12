@@ -1,12 +1,58 @@
 const WORKOUT_LOG_KEY = 'tg_workout_log_v1';
 const WEEKLY_WORKOUT_TARGET = 4;
 const WORKOUT_ROUTINE_INDEX_KEY = 'tg_workout_routine_index_v1';
+const CUSTOM_WORKOUT_PLAN_KEY = 'tg_custom_workout_plan_v1';
 
 export function formatWorkoutDate(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function readCustomWorkoutPlan() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_WORKOUT_PLAN_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCustomWorkoutPlan(plan) {
+  if (!plan?.routines?.length) return null;
+
+  const nextPlan = {
+    planKey: plan.planKey,
+    routineType: plan.routineType,
+    routines: plan.routines,
+    updatedAt: new Date().toISOString(),
+  };
+
+  localStorage.setItem(CUSTOM_WORKOUT_PLAN_KEY, JSON.stringify(nextPlan));
+  window.dispatchEvent(new Event('tg-workout-plan-updated'));
+  return nextPlan;
+}
+
+export function applyCustomWorkoutPlan(plan) {
+  if (!plan?.routines?.length) return plan;
+
+  const customPlan = readCustomWorkoutPlan();
+  if (!customPlan?.routines?.length || customPlan.planKey !== plan.planKey) return plan;
+
+  const customRoutineByKey = new Map(customPlan.routines.map((routine) => [routine.routineKey, routine]));
+
+  return {
+    ...plan,
+    routines: plan.routines.map((routine) => {
+      const customRoutine = customRoutineByKey.get(routine.routineKey);
+      if (!customRoutine?.exercises?.length) return routine;
+      return {
+        ...routine,
+        exercises: customRoutine.exercises,
+      };
+    }),
+  };
 }
 
 function readLog() {

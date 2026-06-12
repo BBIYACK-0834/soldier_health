@@ -51,6 +51,24 @@ function pickExercises(keywords, limit = 7) {
   return [warmup, ...matched, cooldown].filter(Boolean).map(withExerciseName);
 }
 
+function addCutFinisher(exercises, profile, index) {
+  if (profile?.goalType !== 'CUT') return exercises;
+
+  const nextExercises = [...exercises];
+  nextExercises.splice(nextExercises.length - 1, 0, {
+    id: `cardio-finisher-${index}`,
+    exerciseName: '감량 유산소 피니셔',
+    category: '유산소 · 다이어트',
+    durationSeconds: profile?.workoutLevel === 'BEGINNER' ? 900 : 1200,
+    restSeconds: 0,
+    sets: 1,
+    reps: profile?.workoutLevel === 'BEGINNER' ? '15분 빠른 걷기' : '20분 인터벌',
+    caloriesBurned: 0,
+    intensity: profile?.workoutLevel === 'BEGINNER' ? 'Medium' : 'High',
+  });
+  return nextExercises;
+}
+
 function buildFitnessTestWorkout(level) {
   const hard = level === 'INTERMEDIATE';
   return {
@@ -65,33 +83,36 @@ function buildFitnessTestWorkout(level) {
   };
 }
 
-export function buildWorkoutFromProfile(profile) {
-  if (profile?.goalType === 'FITNESS_TEST') return buildFitnessTestWorkout(profile?.workoutLevel);
+export function buildWorkoutPlanFromProfile(profile) {
+  if (profile?.goalType === 'FITNESS_TEST') {
+    const workout = buildFitnessTestWorkout(profile?.workoutLevel);
+    return {
+      planKey: 'FITNESS_TEST',
+      routineType: workout.routineType,
+      routines: [{ ...workout, routineIndex: 0 }],
+    };
+  }
 
   const days = normalizeDays(profile?.workoutDaysPerWeek);
   const split = strengthSplits[days] ?? strengthSplits[5];
-  const index = getWorkoutRoutineIndex() % split.length;
-  const focus = split[index];
-  const exercises = pickExercises(splitKeywords[focus] ?? splitKeywords.전신);
-
-  if (profile?.goalType === 'CUT') {
-    exercises.splice(exercises.length - 1, 0, {
-      id: `cardio-finisher-${index}`,
-      exerciseName: '감량 유산소 피니셔',
-      category: '유산소 · 다이어트',
-      durationSeconds: profile?.workoutLevel === 'BEGINNER' ? 900 : 1200,
-      restSeconds: 0,
-      sets: 1,
-      reps: profile?.workoutLevel === 'BEGINNER' ? '15분 빠른 걷기' : '20분 인터벌',
-      caloriesBurned: 0,
-      intensity: profile?.workoutLevel === 'BEGINNER' ? 'Medium' : 'High',
-    });
-  }
+  const routineType = `${days}분할 순환 루틴${profile?.goalType === 'CUT' ? ' + 유산소' : ''}`;
+  const routines = split.map((focus, index) => ({
+    routineKey: `${profile?.goalType || 'BULK'}-${days}-${index}-${focus}`,
+    routineIndex: index,
+    todayFocus: focus,
+    routineType,
+    exercises: addCutFinisher(pickExercises(splitKeywords[focus] ?? splitKeywords.전신), profile, index),
+  }));
 
   return {
-    routineKey: `${profile?.goalType || 'BULK'}-${days}-${index}-${focus}`,
-    todayFocus: focus,
-    routineType: `${days}분할 순환 루틴${profile?.goalType === 'CUT' ? ' + 유산소' : ''}`,
-    exercises,
+    planKey: `${profile?.goalType || 'BULK'}-${days}-${profile?.workoutLevel || 'BEGINNER'}`,
+    routineType,
+    routines,
   };
+}
+
+export function buildWorkoutFromProfile(profile) {
+  const plan = buildWorkoutPlanFromProfile(profile);
+  const index = getWorkoutRoutineIndex() % plan.routines.length;
+  return plan.routines[index];
 }
