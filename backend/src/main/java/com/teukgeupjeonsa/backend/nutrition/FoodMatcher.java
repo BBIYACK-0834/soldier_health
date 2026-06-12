@@ -56,19 +56,27 @@ public class FoodMatcher {
             return matched(original, normalized, exactFood.get(), "FOOD_EXACT", MatchConfidence.HIGH, 1.0, null);
         }
 
-        if (isShortRiskyQuery(searchName)) {
-            return FoodMatchResult.noMatch(original, normalized);
-        }
-
         if (isRiceMenu(searchName)) {
             return findRiceContains(searchName)
-                    .map(food -> matched(original, normalized, food, "CONTAINS", MatchConfidence.MEDIUM, 0.88, null))
+                    .map(food -> matched(original, normalized, food, "RICE_FALLBACK", MatchConfidence.MEDIUM, 0.88, null))
                     .orElseGet(() -> FoodMatchResult.noMatch(original, normalized));
+        }
+
+        if (isShortRiskyQuery(searchName)) {
+            return FoodMatchResult.noMatch(original, normalized);
         }
 
         Optional<Food> contains = findContains(searchName);
         if (contains.isPresent()) {
             return matched(original, normalized, contains.get(), "CONTAINS", MatchConfidence.MEDIUM, containsScore(searchName, contains.get()), null);
+        }
+
+        if (!isCompositeLikeMenu(searchName)) {
+            Optional<FoodScore> tokenMatch = findTokenMatch(searchName);
+            if (tokenMatch.isPresent()) {
+                FoodScore score = tokenMatch.get();
+                return matched(original, normalized, score.food(), "TOKEN_CONTAINS", MatchConfidence.MEDIUM, score.score(), null);
+            }
         }
 
         Optional<FoodScore> similarity = findSimilarity(searchName);
@@ -78,7 +86,7 @@ public class FoodMatcher {
     }
 
     private Optional<Food> findRiceContains(String searchName) {
-        return foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase("밥", "밥", PageRequest.of(0, 50)).stream()
+        return safeFoods(foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase("밥", "밥", PageRequest.of(0, 50))).stream()
                 .filter(food -> isCompatible(searchName, food))
                 .max(Comparator.comparingInt(food -> Optional.ofNullable(food.getSourceCount()).orElse(0)));
     }
@@ -87,11 +95,45 @@ public class FoodMatcher {
         if (searchName.length() < 2) {
             return Optional.empty();
         }
-        return foodRepository.searchContains(searchName, PageRequest.of(0, 50)).stream()
+
+        Set<Food> candidates = new HashSet<>();
+        candidates.addAll(safeFoods(foodRepository.searchContains(searchName, PageRequest.of(0, 50))));
+        safeAliases(foodAliasRepository.searchContains(searchName, PageRequest.of(0, 50))).stream()
+                .map(FoodAlias::getFood)
+                .forEach(candidates::add);
+
+        return candidates.stream()
                 .filter(food -> isCompatible(searchName, food))
                 .max(Comparator
                         .comparingDouble((Food food) -> containsScore(searchName, food))
                         .thenComparing(food -> Optional.ofNullable(food.getSourceCount()).orElse(0)));
+    }
+
+    private Optional<FoodScore> findTokenMatch(String searchName) {
+        return meaningfulTokens(searchName).stream()
+                .filter(token -> token.length() >= 2 && !token.equals(searchName))
+                .flatMap(token -> {
+                    Set<Food> candidates = new HashSet<>();
+                    candidates.addAll(safeFoods(foodRepository.searchContains(token, PageRequest.of(0, 30))));
+                    safeAliases(foodAliasRepository.searchContains(token, PageRequest.of(0, 30))).stream()
+                            .map(FoodAlias::getFood)
+                            .forEach(candidates::add);
+                    return candidates.stream()
+                            .filter(food -> isCompatible(searchName, food))
+                            .map(food -> new FoodScore(food, tokenScore(searchName, token, food)));
+                })
+                .max(Comparator
+                        .comparingDouble(FoodScore::score)
+                        .thenComparing(score -> Optional.ofNullable(score.food().getSourceCount()).orElse(0)));
+    }
+
+
+    private List<Food> safeFoods(List<Food> foods) {
+        return foods == null ? List.of() : foods;
+    }
+
+    private List<FoodAlias> safeAliases(List<FoodAlias> aliases) {
+        return aliases == null ? List.of() : aliases;
     }
 
     private Optional<FoodScore> findSimilarity(String searchName) {
@@ -102,7 +144,10 @@ public class FoodMatcher {
         Set<Food> candidates = new HashSet<>();
         for (int end = Math.min(searchName.length(), 5); end >= 2; end--) {
             String token = searchName.substring(0, end);
-            candidates.addAll(foodRepository.searchContains(token, PageRequest.of(0, 30)));
+            candidates.addAll(safeFoods(foodRepository.searchContains(token, PageRequest.of(0, 30))));
+            safeAliases(foodAliasRepository.searchContains(token, PageRequest.of(0, 30))).stream()
+                    .map(FoodAlias::getFood)
+                    .forEach(candidates::add);
         }
 
         return candidates.stream()
@@ -134,8 +179,12 @@ public class FoodMatcher {
         return RICE_NAMES.contains(searchName);
     }
 
+    private boolean isCompositeLikeMenu(String searchName) {
+        return containsAny(searchName, "볶음", "두루치기", "불고기", "조림", "구이", "스테이크", "튀김", "까스", "가스", "국", "탕", "찌개", "무침", "찜", "카레", "덮밥");
+    }
+
     private boolean isShortRiskyQuery(String searchName) {
-        return searchName.length() <= 1 || (searchName.length() <= 2 && !isRiceMenu(searchName));
+        return searchName.length() <= 2 && !isRiceMenu(searchName);
     }
 
     private boolean containsAny(String value, String... keywords) {
@@ -145,6 +194,31 @@ public class FoodMatcher {
             }
         }
         return false;
+    }
+
+
+    private List<String> meaningfulTokens(String searchName) {
+        List<String> commonFoodWords = List.of(
+                "스테이크", "데리야끼", "김치", "두부", "우유", "카레", "찌개", "국", "탕", "조림",
+                "볶음", "무침", "구이", "전", "밥", "국수", "라면", "샐러드", "소스", "계란"
+        );
+        List<String> tokens = new java.util.ArrayList<>();
+        commonFoodWords.stream()
+                .filter(searchName::contains)
+                .sorted(Comparator.comparingInt(String::length).reversed())
+                .forEach(tokens::add);
+        if (searchName.length() >= 4) {
+            for (int start = 0; start < searchName.length() - 1; start++) {
+                for (int end = Math.min(searchName.length(), start + 5); end >= start + 2; end--) {
+                    tokens.add(searchName.substring(start, end));
+                }
+            }
+        }
+        return tokens.stream().distinct().toList();
+    }
+
+    private double tokenScore(String searchName, String token, Food food) {
+        return Math.max(0.62, Math.min(0.92, 0.55 + (token.length() / (double) Math.max(searchName.length(), 1)) + containsScore(token, food) * 0.25));
     }
 
     private double containsScore(String searchName, Food food) {
