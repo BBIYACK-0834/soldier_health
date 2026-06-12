@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: "jdbc:mysql://localhost:3306/tg?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci"
+    url: "${DB_URL:jdbc:mysql://localhost:3306/tg?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci}"
     username: "${DB_USERNAME:root}"
     password: "${DB_PASSWORD:root}"
 
@@ -55,6 +55,6 @@ app:
     allowed-origin-patterns: "${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://localhost:*,https://*.app.github.dev,https://*.github.dev,https://*.vercel.app,https://*.netlify.app}"
   food-import:
     auto: "${FOOD_IMPORT_AUTO:false}"
-    file: "${FOOD_IMPORT_FILE:src/main/resources/food_data/foods_refined_for_military_meal_matching.xlsx}"
+    file: "${FOOD_IMPORT_FILE:../food_data/foods_final_user_friendly_100g.xlsx}"
   startup-seed:
     fail-on-error: "${STARTUP_SEED_FAIL_ON_ERROR:false}"

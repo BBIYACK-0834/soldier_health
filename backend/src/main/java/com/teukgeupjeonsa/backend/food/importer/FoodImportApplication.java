@@ -3,10 +3,12 @@ package com.teukgeupjeonsa.backend.food.importer;
 import com.teukgeupjeonsa.backend.food.*;
 import com.teukgeupjeonsa.backend.nutrition.FoodNameNormalizer;
 import org.springframework.boot.WebApplicationType;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -22,7 +24,7 @@ public class FoodImportApplication {
                 .properties("app.startup-seed.enabled=false")
                 .run(args)) {
             Environment environment = context.getEnvironment();
-            String file = environment.getProperty("app.food-import.file", "src/main/resources/food_data/foods_refined_for_military_meal_matching.xlsx");
+            String file = environment.getProperty("app.food-import.file", "../food_data/foods_final_user_friendly_100g.xlsx");
             FoodImportResult result = context.getBean(FoodXlsxImporter.class).importXlsx(Path.of(file));
 
             System.out.println("식품 데이터 import 완료");
@@ -35,7 +37,9 @@ public class FoodImportApplication {
         }
     }
 
-    @SpringBootApplication(scanBasePackageClasses = {FoodXlsxImporter.class, FoodNameNormalizer.class})
+    @SpringBootConfiguration
+    @EnableAutoConfiguration
+    @Import({FoodXlsxImporter.class, FoodNameNormalizer.class})
     @EntityScan(basePackageClasses = {Food.class, FoodAlias.class, ManualFoodOverride.class, ServingDefault.class})
     @EnableJpaRepositories(basePackageClasses = {FoodRepository.class, FoodAliasRepository.class, ManualFoodOverrideRepository.class, ServingDefaultRepository.class})
     @Profile("food-import")

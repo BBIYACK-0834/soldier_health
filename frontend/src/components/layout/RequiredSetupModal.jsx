@@ -1,42 +1,36 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getMyEquipments } from '../../api/equipmentApi';
 import { getMyUnit } from '../../api/unitApi';
 import { getMyProfile } from '../../api/userApi';
 import styles from './RequiredSetupModal.module.css';
 
-const setupRoutes = ['/mypage/goal', '/mypage/settings', '/setup/equipment', '/setup/profile', '/unit/setup', '/unit/search', '/unit/complete'];
+const setupRoutes = ['/guide', '/mypage/goal', '/mypage/settings', '/setup/equipment', '/setup/profile', '/unit/setup', '/unit/search', '/unit/select', '/unit/complete'];
 
 function isSetupRoute(pathname) {
   return setupRoutes.some((route) => pathname.startsWith(route));
 }
 
-function getMissingItems(profile, unit, equipments) {
+function getMissingItems(profile, unit) {
   const missing = [];
   if (!unit?.id && !profile?.unitId) missing.push({ label: '부대', path: '/unit/setup' });
   if (!Number(profile?.heightCm) || !Number(profile?.weightKg)) missing.push({ label: '키/현재 몸무게', path: '/mypage/settings' });
-  if (!profile?.goalType) missing.push({ label: '운동 목적', path: '/mypage/goal' });
-  if (!Number(profile?.targetWeight)) missing.push({ label: '목표 몸무게', path: '/mypage/goal' });
-  if (!profile?.workoutLevel || !Number(profile?.workoutDaysPerWeek) || !Number(profile?.preferredWorkoutMinutes)) missing.push({ label: '운동 수준/횟수/시간', path: '/mypage/goal' });
-  if (!equipments?.length) missing.push({ label: '헬스 기구', path: '/setup/equipment' });
   return missing;
 }
 
 export default function RequiredSetupModal() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [state, setState] = useState({ loading: true, profile: null, unit: null, equipments: [] });
+  const [state, setState] = useState({ loading: true, profile: null, unit: null });
 
   useEffect(() => {
     let mounted = true;
-    Promise.allSettled([getMyProfile(), getMyUnit(), getMyEquipments()])
-      .then(([profileResult, unitResult, equipmentResult]) => {
+    Promise.allSettled([getMyProfile(), getMyUnit()])
+      .then(([profileResult, unitResult]) => {
         if (!mounted) return;
         setState({
           loading: false,
           profile: profileResult.status === 'fulfilled' ? profileResult.value : null,
           unit: unitResult.status === 'fulfilled' ? unitResult.value : null,
-          equipments: equipmentResult.status === 'fulfilled' ? equipmentResult.value ?? [] : [],
         });
       });
     return () => {
@@ -44,7 +38,7 @@ export default function RequiredSetupModal() {
     };
   }, [location.pathname]);
 
-  const missingItems = useMemo(() => getMissingItems(state.profile, state.unit, state.equipments), [state]);
+  const missingItems = useMemo(() => getMissingItems(state.profile, state.unit), [state]);
 
   if (state.loading || isSetupRoute(location.pathname) || missingItems.length === 0) return null;
 
