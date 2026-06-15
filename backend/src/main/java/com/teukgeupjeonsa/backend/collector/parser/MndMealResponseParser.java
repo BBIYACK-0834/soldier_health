@@ -1,5 +1,6 @@
 package com.teukgeupjeonsa.backend.collector.parser;
 
+import com.teukgeupjeonsa.backend.collector.util.MealMenuTextCleaner;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +12,12 @@ import java.util.*;
 @Slf4j
 @Component
 public class MndMealResponseParser {
+
+    private final MealMenuTextCleaner mealMenuTextCleaner;
+
+    public MndMealResponseParser(MealMenuTextCleaner mealMenuTextCleaner) {
+        this.mealMenuTextCleaner = mealMenuTextCleaner;
+    }
 
     private static final List<String> DATE_KEYS = List.of("MLSV_YMD", "DATE", "mealDate", "급식일자", "일자", "날짜", "급식일", "dates");
     private static final List<String> BREAKFAST_KEYS = List.of("BRKFST", "조식", "breakfast", "조식메뉴", "brst");
@@ -53,9 +60,9 @@ public class MndMealResponseParser {
             CombinedMealData combinedData = groupedMap.computeIfAbsent(mealDate, d -> new CombinedMealData(unitName, region));
             
             // 데이터 누적 (글자는 청소해서 합치고, 칼로리는 더하기)
-            combinedData.addBreakfast(cleanMealText(brst), brstCal);
-            combinedData.addLunch(cleanMealText(lunc), luncCal);
-            combinedData.addDinner(cleanMealText(dinr), dinrCal);
+            combinedData.addBreakfast(mealMenuTextCleaner.cleanMealText(brst), brstCal);
+            combinedData.addLunch(mealMenuTextCleaner.cleanMealText(lunc), luncCal);
+            combinedData.addDinner(mealMenuTextCleaner.cleanMealText(dinr), dinrCal);
         }
 
         // 💡 묶은 데이터를 최종 Entity 변환용 DTO 리스트로 변환
@@ -128,17 +135,6 @@ public class MndMealResponseParser {
         } catch (Exception e) { return null; }
     }
 
-    private String cleanMealText(String raw) {
-        if (raw == null || raw.isBlank()) return null;
-        String cleaned = raw;
-        cleaned = cleaned.replaceAll("(?i)IF\\([^)]+\\)", ""); 
-        cleaned = cleaned.replaceAll("\\d{4}[-.]\\d{2}[-.]\\d{2}\\([가-힣]\\)", ""); 
-        cleaned = cleaned.replaceAll("(?i)\\d+(?:\\.\\d+)?\\s*(?:kcal|㎉|ml|g|kg|l)", ""); 
-        cleaned = cleaned.replaceAll("\\([^)]*(계약|상표|공급|업체|개입)[^)]*\\)", ""); 
-        cleaned = cleaned.replaceAll("\\b0\\b", ""); 
-        cleaned = cleaned.replaceAll("[,\\s]+", " ").trim(); 
-        return cleaned.isBlank() ? null : cleaned;
-    }
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> extractRowMaps(Object serviceRoot, String serviceName) {

@@ -3,7 +3,7 @@ import httpClient, { unwrap } from './httpClient';
 export async function signup(payload) {
   if (payload.profileImageFile) {
     const formData = new FormData();
-    formData.append('email', payload.email);
+    formData.append('email', payload.email.trim());
     formData.append('password', payload.password);
     formData.append('nickname', payload.nickname);
     formData.append('profileImageUrl', payload.profileImageUrl || '');
@@ -19,7 +19,7 @@ export async function signup(payload) {
   }
 
   const response = await httpClient.post('/api/auth/signup', {
-    email: payload.email,
+    email: payload.email.trim(),
     password: payload.password,
     nickname: payload.nickname,
     profileImageUrl: payload.profileImageUrl,
@@ -30,7 +30,7 @@ export async function signup(payload) {
 
 export async function login(payload) {
   const response = await httpClient.post('/api/auth/login', {
-    email: payload.email,
+    email: payload.email.trim(),
     password: payload.password,
   });
 

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
-import { getTodayWorkoutRecommendation } from '../../api/workoutApi';
+import TabSwitcher from '../../components/ui/TabSwitcher';
+import { getMyProfile } from '../../api/userApi';
 import { emptyWorkout, exerciseCatalog } from '../../constants/defaultData';
-import { readWorkoutProgress, resetWorkoutProgress, saveWorkoutPlan } from '../../utils/workoutStorage';
+import { buildWorkoutPlanFromProfile } from '../../utils/workoutPlanner';
+import { applyCustomWorkoutPlan, getWorkoutRoutineIndex, readWorkoutProgress, resetWorkoutProgress, saveCustomWorkoutPlan, saveWorkoutPlan } from '../../utils/workoutStorage';
 import styles from './WorkoutPage.module.css';
 import screen from '../../components/ui/Screen.module.css';
 
@@ -26,46 +28,120 @@ function toExercise(raw, index) {
   };
 }
 
-function buildDefaultWorkout(data) {
+function buildDefaultWorkoutPlan(data) {
   const apiExercises = data?.exercises?.length ? data.exercises.map(toExercise) : [];
   const exercises = apiExercises.length > 0 ? apiExercises : exerciseCatalog.map(toExercise);
-  return {
+  const workout = {
+    routineKey: data?.routineKey ?? 'free-choice-0',
+    routineIndex: 0,
     todayFocus: data?.todayFocus ?? '오늘 운동 선택',
     routineType: data?.routineType ?? '자유 선택 루틴',
     exercises,
   };
+
+  return {
+    planKey: 'free-choice',
+    routineType: workout.routineType,
+    routines: [workout],
+  };
+}
+
+function getTodayRoutine(plan) {
+  const routines = plan?.routines ?? [];
+  if (routines.length === 0) return emptyWorkout;
+  return routines[getWorkoutRoutineIndex() % routines.length];
+}
+
+function makeAddedExercise(catalogExercise, routineKey) {
+  return {
+    ...catalogExercise,
+    id: `${catalogExercise.id}-${routineKey}-${Date.now()}`,
+    exerciseName: catalogExercise.exerciseName || catalogExercise.name,
+  };
+}
+
+function insertBeforeCooldown(exercises, exercise) {
+  const cooldownIndex = exercises.findIndex((item) => item.id === 'cooldown-breath');
+  if (cooldownIndex < 0) return [...exercises, exercise];
+  return [...exercises.slice(0, cooldownIndex), exercise, ...exercises.slice(cooldownIndex)];
+}
+
+function ExerciseAddControl({ value, onChange, onAdd, disabled }) {
+  return (
+    <div className={styles.addControl}>
+      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label="추가할 운동 선택">
+        {exerciseCatalog.map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.exerciseName}</option>)}
+      </select>
+      <button type="button" className={styles.iconButton} onClick={onAdd} disabled={disabled} aria-label="운동 추가">＋</button>
+    </div>
+  );
+}
+
+function ExerciseList({ exercises, completedSets = {}, onRemove, showProgress = false }) {
+  return (
+    <ul className={styles.list}>
+      {exercises.map((routine) => {
+        const doneSets = completedSets[routine.id] ?? 0;
+        const complete = showProgress && doneSets >= routine.sets;
+        return (
+          <li key={routine.id} className={complete ? styles.completed : ''}>
+            <div className={styles.listItem}>
+              <span>
+                <strong>{routine.exerciseName}</strong>
+                <small>{routine.category} · {routine.sets}세트 · {routine.reps}</small>
+              </span>
+              <div className={styles.itemActions}>
+                {showProgress ? <em>{Math.min(doneSets, routine.sets)}/{routine.sets}</em> : null}
+                <button type="button" className={styles.removeButton} onClick={() => onRemove(routine.id)} aria-label={`${routine.exerciseName} 제거`}>－</button>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 export default function WorkoutPage() {
   const navigate = useNavigate();
+  const [tab, setTab] = useState('today');
+  const [workoutPlan, setWorkoutPlan] = useState({ planKey: '', routineType: '', routines: [] });
   const [workout, setWorkout] = useState(emptyWorkout);
   const [completedSets, setCompletedSets] = useState({});
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedExerciseByRoutine, setSelectedExerciseByRoutine] = useState({});
 
   useEffect(() => {
     let mounted = true;
     async function load() {
       try {
         setLoading(true);
-        const data = await getTodayWorkoutRecommendation();
+        const profile = await getMyProfile();
+        const nextPlan = applyCustomWorkoutPlan(buildWorkoutPlanFromProfile(profile));
+        const nextWorkout = getTodayRoutine(nextPlan);
         if (!mounted) return;
-        const nextWorkout = buildDefaultWorkout(data);
         const saved = saveWorkoutPlan(nextWorkout);
+        setWorkoutPlan(nextPlan);
         setWorkout(nextWorkout);
         setCompletedSets(saved?.completedSets ?? {});
         setWorkoutCompleted(Boolean(saved?.workoutCompleted));
       } catch (error) {
         if (!mounted) return;
         const saved = readWorkoutProgress();
+        const nextPlan = saved?.exercises?.length
+          ? buildDefaultWorkoutPlan({ routineKey: saved.routineKey, todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises })
+          : buildDefaultWorkoutPlan();
+        const customizedPlan = applyCustomWorkoutPlan(nextPlan);
         const nextWorkout = saved?.exercises?.length
-          ? { todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises }
-          : buildDefaultWorkout();
+          ? { routineKey: saved.routineKey, todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises }
+          : getTodayRoutine(customizedPlan);
+        setWorkoutPlan(customizedPlan);
         setWorkout(nextWorkout);
         setCompletedSets(saved?.completedSets ?? {});
         setWorkoutCompleted(Boolean(saved?.workoutCompleted));
-        setErrorMessage('서버 추천을 불러오지 못해 저장된 운동 또는 기본 운동 목록을 표시합니다.');
+        setErrorMessage('프로필 기반 루틴을 만들지 못해 저장된 운동 또는 기본 운동 목록을 표시합니다.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -83,7 +159,7 @@ export default function WorkoutPage() {
       setCompletedSets(saved?.completedSets ?? {});
       setWorkoutCompleted(Boolean(saved?.workoutCompleted));
       if (saved?.exercises?.length) {
-        setWorkout({ todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises });
+        setWorkout({ routineKey: saved.routineKey, todayFocus: saved.todayFocus, routineType: saved.routineType, exercises: saved.exercises });
       }
     };
 
@@ -92,9 +168,47 @@ export default function WorkoutPage() {
   }, []);
 
   const exercises = workout?.exercises ?? [];
+  const routines = workoutPlan?.routines ?? [];
   const totalSetCount = exercises.reduce((sum, exercise) => sum + exercise.sets, 0);
   const completedSetCount = exercises.reduce((sum, exercise) => sum + Math.min(completedSets[exercise.id] ?? 0, exercise.sets), 0);
   const allWorkoutComplete = exercises.length > 0 && exercises.every((exercise) => (completedSets[exercise.id] ?? 0) >= exercise.sets);
+
+  const selectedTodayExercise = selectedExerciseByRoutine[workout?.routineKey] ?? exerciseCatalog[0]?.id;
+  const workoutPlanSummary = useMemo(() => `${routines.length}개 루틴 · 총 ${routines.reduce((sum, routine) => sum + (routine.exercises?.length ?? 0), 0)}개 운동`, [routines]);
+
+  const persistPlan = (nextPlan) => {
+    const savedPlan = saveCustomWorkoutPlan(nextPlan) ?? nextPlan;
+    const nextWorkout = savedPlan.routines.find((routine) => routine.routineKey === workout?.routineKey) ?? getTodayRoutine(savedPlan);
+    const saved = saveWorkoutPlan(nextWorkout);
+    setWorkoutPlan(savedPlan);
+    setWorkout(nextWorkout);
+    setCompletedSets(saved?.completedSets ?? {});
+    setWorkoutCompleted(Boolean(saved?.workoutCompleted));
+  };
+
+  const updateRoutineExercises = (routineKey, updater) => {
+    if (!routineKey) return;
+    const nextPlan = {
+      ...workoutPlan,
+      routines: routines.map((routine) => (
+        routine.routineKey === routineKey
+          ? { ...routine, exercises: updater(routine.exercises ?? []) }
+          : routine
+      )),
+    };
+    persistPlan(nextPlan);
+  };
+
+  const addExercise = (routineKey) => {
+    const selectedId = selectedExerciseByRoutine[routineKey] ?? exerciseCatalog[0]?.id;
+    const catalogExercise = exerciseCatalog.find((exercise) => exercise.id === selectedId);
+    if (!catalogExercise) return;
+    updateRoutineExercises(routineKey, (currentExercises) => insertBeforeCooldown(currentExercises, makeAddedExercise(catalogExercise, routineKey)));
+  };
+
+  const removeExercise = (routineKey, exerciseId) => {
+    updateRoutineExercises(routineKey, (currentExercises) => currentExercises.filter((exercise) => exercise.id !== exerciseId));
+  };
 
   const startWorkout = () => {
     saveWorkoutPlan(workout);
@@ -108,51 +222,77 @@ export default function WorkoutPage() {
   };
 
   return (
-    <AppLayout title="운동 탭" subtitle="운동 목록을 확인하고 별도 진행 화면에서 타이머를 시작하세요." headerAction={<span className={styles.calendar}>🗓️</span>}>
-      <Card>
-        <div className={styles.row}>
-          <div>
-            <h3 className={styles.title}>운동 목록</h3>
-            <span className={styles.smallMeta}>{workout?.todayFocus || '운동 데이터 없음'} · {workout?.routineType || '루틴 미선택'}</span>
-          </div>
-          <button type="button" onClick={startWorkout} disabled={exercises.length === 0}>운동 시작</button>
-        </div>
-        {loading ? <p className={screen.muted}>불러오는 중...</p> : null}
-        {!loading && exercises.length > 0 ? (
-          <ul className={styles.list}>
-            {exercises.map((routine) => {
-              const doneSets = completedSets[routine.id] ?? 0;
-              const complete = doneSets >= routine.sets;
-              return (
-                <li key={routine.id} className={complete ? styles.completed : ''}>
-                  <div className={styles.listItem}>
-                    <span>
-                      <strong>{routine.exerciseName}</strong>
-                      <small>{routine.category} · {routine.sets}세트 · {routine.reps}</small>
-                    </span>
-                    <em>{complete ? '완료' : `${doneSets}/${routine.sets}`}</em>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
-        {!loading && exercises.length === 0 ? <p className={screen.muted}>표시할 운동 데이터가 없습니다.</p> : null}
-        {errorMessage ? <p className={screen.muted}>{errorMessage}</p> : null}
-      </Card>
+    <AppLayout title="운동 탭" subtitle="추천 루틴을 전체로 보고 원하는 운동을 추가·제거하세요." headerAction={<span className={styles.calendar}>🗓️</span>}>
+      <TabSwitcher
+        tabs={[{ value: 'today', label: '오늘 루틴' }, { value: 'all', label: '전체 루틴' }]}
+        value={tab}
+        onChange={setTab}
+      />
 
-      {!loading ? (
-        <Card className={workoutCompleted || allWorkoutComplete ? styles.completeHero : ''}>
+      {tab === 'today' ? (
+        <Card>
           <div className={styles.row}>
-            <span>{workoutCompleted || allWorkoutComplete ? '오늘 하루 운동 완료' : '오늘 운동 진행률'}</span>
-            <strong>{completedSetCount} / {totalSetCount}세트</strong>
+            <div>
+              <h3 className={styles.title}>오늘 운동 목록</h3>
+              <span className={styles.smallMeta}>{workout?.todayFocus || '운동 데이터 없음'} · {workout?.routineType || '루틴 미선택'}</span>
+            </div>
+            <button type="button" onClick={startWorkout} disabled={exercises.length === 0}>운동 시작</button>
           </div>
-          <p className={screen.muted}>
-            운동 완료 버튼을 누르면 홈 화면의 이번 주 운동 잔디에 바로 반영됩니다.
-          </p>
-          {workoutCompleted || allWorkoutComplete ? <button type="button" className={styles.finishButton} onClick={resetTodayWorkout}>기록 초기화</button> : null}
+          {loading ? <p className={screen.muted}>불러오는 중...</p> : null}
+          {!loading && exercises.length > 0 ? (
+            <>
+              <ExerciseAddControl
+                value={selectedTodayExercise}
+                onChange={(value) => setSelectedExerciseByRoutine((prev) => ({ ...prev, [workout.routineKey]: value }))}
+                onAdd={() => addExercise(workout.routineKey)}
+                disabled={!workout?.routineKey}
+              />
+              <ExerciseList exercises={exercises} completedSets={completedSets} onRemove={(exerciseId) => removeExercise(workout.routineKey, exerciseId)} showProgress />
+            </>
+          ) : null}
+          {!loading && exercises.length === 0 ? <p className={screen.muted}>표시할 운동이 없습니다. 전체 루틴에서 운동을 추가해보세요.</p> : null}
         </Card>
       ) : null}
+
+      {tab === 'all' ? (
+        <div className={styles.routineStack}>
+          <Card>
+            <h3 className={styles.title}>전체 추천 루틴</h3>
+            <p className={styles.smallMeta}>{workoutPlan?.routineType || '루틴 미선택'} · {workoutPlanSummary}</p>
+          </Card>
+          {routines.map((routine, index) => {
+            const selectedExercise = selectedExerciseByRoutine[routine.routineKey] ?? exerciseCatalog[0]?.id;
+            return (
+              <Card key={routine.routineKey}>
+                <div className={styles.routineHeader}>
+                  <div>
+                    <strong>{index + 1}일차 · {routine.todayFocus}</strong>
+                    <small>{routine.exercises?.length ?? 0}개 운동</small>
+                  </div>
+                  {routine.routineKey === workout?.routineKey ? <span>오늘</span> : null}
+                </div>
+                <ExerciseAddControl
+                  value={selectedExercise}
+                  onChange={(value) => setSelectedExerciseByRoutine((prev) => ({ ...prev, [routine.routineKey]: value }))}
+                  onAdd={() => addExercise(routine.routineKey)}
+                  disabled={!routine.routineKey}
+                />
+                <ExerciseList exercises={routine.exercises ?? []} onRemove={(exerciseId) => removeExercise(routine.routineKey, exerciseId)} />
+              </Card>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <Card className={styles.summaryCard}>
+        <h3>오늘 진행률</h3>
+        <strong>{completedSetCount}/{totalSetCount} 세트</strong>
+        <div className={styles.progressTrack}><span style={{ width: `${totalSetCount ? (completedSetCount / totalSetCount) * 100 : 0}%` }} /></div>
+        <p>{allWorkoutComplete || workoutCompleted ? '오늘 루틴을 완료했습니다. 다음 루틴으로 넘어갈 준비 완료!' : '운동 시작 후 세트 완료를 체크하면 진행률이 올라갑니다.'}</p>
+        <button type="button" className={styles.resetBtn} onClick={resetTodayWorkout} disabled={completedSetCount === 0 && !workoutCompleted}>오늘 진행률 초기화</button>
+      </Card>
+      <button type="button" className={styles.secondary} onClick={() => navigate('/exercise/add/equipment')}>기구/데이터셋 편집</button>
+      {errorMessage ? <p className={screen.muted}>{errorMessage}</p> : null}
     </AppLayout>
   );
 }

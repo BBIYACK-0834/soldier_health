@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useAppContext } from '../../app/AppContext';
 import AppLayout from '../../components/layout/AppLayout';
 import { login } from '../../api/authApi';
 import { ACCESS_TOKEN_KEY } from '../../api/httpClient';
@@ -7,6 +8,7 @@ import styles from './AuthPage.module.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { actions } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -18,6 +20,7 @@ export default function LoginPage() {
     setErrorMessage('');
 
     try {
+      localStorage.removeItem(ACCESS_TOKEN_KEY);
       const data = await login({ email, password });
       const accessToken = data?.accessToken;
 
@@ -26,10 +29,15 @@ export default function LoginPage() {
       }
 
       localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+      actions.setAuth(data);
       navigate('/home');
     } catch (error) {
       if (error.code === 'NETWORK_ERROR') {
-        setErrorMessage('서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.');
+        setErrorMessage('서버에 연결하지 못했습니다. 백엔드 실행/API 주소를 확인해주세요.');
+        return;
+      }
+      if (error.status === 401 || error.status === 400) {
+        setErrorMessage(error.message || '이메일 또는 비밀번호가 올바르지 않습니다.');
         return;
       }
       setErrorMessage(error.message || '로그인에 실패했습니다.');

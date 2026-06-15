@@ -3,6 +3,11 @@ import axios from 'axios';
 export const ACCESS_TOKEN_KEY = 'tg_access_token';
 
 const baseURL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '');
+const authPaths = ['/api/auth/login', '/api/auth/signup'];
+
+function isAuthRequest(url = '') {
+  return authPaths.some((path) => url.endsWith(path));
+}
 
 const httpClient = axios.create({
   baseURL,
@@ -15,6 +20,15 @@ const httpClient = axios.create({
 httpClient.interceptors.request.use((config) => {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
 
+  if (isAuthRequest(config.url)) {
+    if (typeof config.headers?.delete === 'function') {
+      config.headers.delete('Authorization');
+    } else if (config.headers) {
+      delete config.headers.Authorization;
+    }
+    return config;
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -25,11 +39,14 @@ httpClient.interceptors.request.use((config) => {
 function mapHttpError(error) {
   if (error.response) {
     const status = error.response.status;
-    const apiMessage = error.response.data?.error;
+    const apiMessage = error.response.data?.error || error.response.data?.message;
+    const fallbackMessage = status === 401
+      ? '로그인이 필요하거나 세션이 만료되었습니다. 다시 로그인해주세요.'
+      : `요청 처리 중 오류가 발생했습니다. (HTTP ${status})`;
 
     return {
       status,
-      message: apiMessage || `요청 처리 중 오류가 발생했습니다. (HTTP ${status})`,
+      message: apiMessage || fallbackMessage,
       code: 'HTTP_ERROR',
       details: error.response.data,
     };

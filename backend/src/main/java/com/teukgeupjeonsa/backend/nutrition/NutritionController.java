@@ -14,6 +14,7 @@ import java.util.List;
 public class NutritionController {
 
     private final NutritionService nutritionService;
+    private final MealNutritionService mealNutritionService;
 
     @GetMapping("/api/nutrition/today")
     public ApiResponse<NutritionDtos.NutritionSummaryResponse> getToday(@AuthenticationPrincipal User user) {
@@ -23,6 +24,29 @@ public class NutritionController {
     @GetMapping("/api/nutrition/recommendation/today")
     public ApiResponse<NutritionDtos.RecommendationResponse> getTodayRecommendation(@AuthenticationPrincipal User user) {
         return ApiResponse.ok(nutritionService.getTodayRecommendation(user.getId()));
+    }
+
+    @GetMapping("/api/nutrition/today/meals")
+    public ApiResponse<NutritionDtos.TodayMealNutritionResponse> getTodayMealDetails(@AuthenticationPrincipal User user) {
+        return ApiResponse.ok(nutritionService.getTodayMealDetails(user.getId()));
+    }
+
+    @GetMapping("/api/nutrition/debug/sample-meal-match")
+    public ApiResponse<NutritionDtos.MealNutritionResponse> getSampleMealMatch() {
+        return ApiResponse.ok(mealNutritionService.buildSampleMealNutritionResponse());
+    }
+
+    @GetMapping("/api/foods/search")
+    public ApiResponse<NutritionDtos.FoodSearchResponse> searchFoods(@RequestParam String q) {
+        return ApiResponse.ok(nutritionService.searchFoods(q));
+    }
+
+    @PostMapping("/api/users/me/meal-foods")
+    public ApiResponse<List<NutritionDtos.FoodNutritionItemResponse>> addMealFoods(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody NutritionDtos.AddMealFoodsRequest request
+    ) {
+        return ApiResponse.ok(nutritionService.addMealFoods(user.getId(), request));
     }
 
     @GetMapping("/api/users/me/owned-foods")

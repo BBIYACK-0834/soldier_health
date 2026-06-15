@@ -92,7 +92,7 @@ docker -v
 docker run -d \
   --name tg-mysql \
   -e MYSQL_ROOT_PASSWORD=root \
-  -e MYSQL_DATABASE=teukgeupjeonsa \
+  -e MYSQL_DATABASE=tg \
   -p 3306:3306 \
   mysql:8.4
 ```
@@ -207,6 +207,7 @@ curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/DS_T
 - `meal-collector.atc-service-code`
 - `meal-collector.standard-service-code`
 
+
 ### 3.7 인증/CORS
 
 - 인증 헤더: `Authorization: Bearer <token>`
@@ -219,6 +220,108 @@ curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/DS_T
   - `https://*.github.dev`
   - `https://*.vercel.app`
   - `https://*.netlify.app`
+
+### 3.8 정제 식품 영양성분 xlsx 수동 import
+
+정제된 식품 영양성분 xlsx는 앱 요청마다 직접 읽지 않고, 필요할 때 Gradle 태스크로 한 번 DB에 적재합니다. 기본 파일 경로는 저장소 루트 기준 `food_data/foods_final_user_friendly_100g.xlsx`이며, `backend/.env`의 `FOOD_IMPORT_FILE` 또는 Gradle의 `-PfoodFile`로 변경할 수 있습니다.
+
+#### import 전에 확인할 것
+
+1. MySQL이 실행 중이어야 합니다.
+2. `backend/.env`의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`가 실제 DB와 맞아야 합니다. `DB_URL`은 Spring datasource URL로 직접 사용됩니다.
+3. 정제 xlsx 파일이 기본 경로인 `food_data/foods_final_user_friendly_100g.xlsx`에 있거나, 사용할 파일 경로가 `FOOD_IMPORT_FILE` 또는 `-PfoodFile`로 지정되어 있어야 합니다.
+4. import는 재실행 가능하도록 기존 `manual_food_overrides`, `serving_defaults`, `food_aliases`, `foods` 데이터를 지운 뒤 xlsx 기준으로 다시 넣습니다. 운영 DB에서 실행하기 전에는 백업 여부를 먼저 확인하세요.
+5. 기존 식단 기록(`user_meal_foods`)이 `foods`를 참조하고 있으면 import 전에 `food_id`를 `null`로 분리해서 FK 삭제 오류를 피합니다.
+
+#### 기본 실행 방법
+
+저장소 루트에서 백엔드 폴더로 이동한 뒤 `.env`를 로드하고 import 태스크를 실행합니다.
+
+```bash
+cd backend
+set -a; source .env; set +a
+./gradlew importFoods
+```
+
+`backend/.env.example`에는 아래 기본값이 포함되어 있습니다.
+
+```env
+FOOD_IMPORT_AUTO=false
+FOOD_IMPORT_FILE=../food_data/foods_final_user_friendly_100g.xlsx
+```
+
+`cd backend` 상태에서 실행하기 때문에 `../food_data/...`는 저장소 루트의 `food_data/...`를 가리킵니다. 즉 저장소 전체 경로가 `/workspace/soldier_health`라면 기본으로 `/workspace/soldier_health/food_data/foods_final_user_friendly_100g.xlsx` 파일을 읽습니다.
+
+#### 파일 경로를 직접 지정해서 실행하기
+
+환경변수 대신 실행 시점에 파일을 지정하고 싶다면 `-PfoodFile`을 사용합니다. `-PfoodFile`은 `FOOD_IMPORT_FILE`보다 우선 적용됩니다.
+
+```bash
+cd backend
+set -a; source .env; set +a
+./gradlew importFoods -PfoodFile="/workspace/soldier_health/food_data/foods_final_user_friendly_100g.xlsx"
+```
+
+Codespaces처럼 저장소가 `/workspaces/soldier_health`에 있는 환경에서는 아래처럼 지정합니다.
+
+```bash
+cd backend
+set -a; source .env; set +a
+./gradlew importFoods -PfoodFile="/workspaces/soldier_health/food_data/foods_final_user_friendly_100g.xlsx"
+```
+
+#### import 전용 실행 범위
+
+`importFoods`는 `food-import` profile과 non-web Spring 컨텍스트를 사용합니다. 이 컨텍스트는 식품 import에 필요한 Entity/Repository, `FoodXlsxImporter`, `FoodNameNormalizer`만 직접 등록하고 일반 앱의 Controller/Service 컴포넌트 스캔은 하지 않습니다. 따라서 일반 서버 실행에 필요한 `SecurityConfig`, `AuthController`, `AuthService`, `NutritionService` 등 웹/API Bean은 import 컨텍스트에 포함되지 않습니다.
+
+만약 아래와 같은 오류가 나면 예전 import 컨텍스트가 `nutrition` 패키지를 같이 스캔해서 생긴 문제입니다. 최신 코드에서는 import 전용 컨텍스트가 `NutritionService`를 만들지 않도록 분리되어 있으니 최신 브랜치로 업데이트한 뒤 다시 실행하세요.
+
+```text
+No qualifying bean of type 'com.teukgeupjeonsa.backend.user.UserRepository' available
+```
+
+#### import 대상 시트
+
+- 필수: `food_master_clean_100g` 또는 `food_master`
+- 선택: `food_alias`
+- 선택: `manual_overrides`
+- 선택: `serving_defaults`
+
+`review_needed`, `정제기준` 같은 검수/문서용 시트는 DB에 적재하지 않습니다.
+
+#### import 후 검색 확인
+
+import가 완료되면 `/api/foods/search`는 xlsx 파일을 다시 읽지 않고 DB의 `foods`, `food_aliases` 테이블을 검색합니다. 백엔드를 실행하고 로그인 후 발급받은 토큰으로 다음처럼 확인할 수 있습니다.
+
+```bash
+curl "http://localhost:8080/api/foods/search?q=짜" \
+  -H "Authorization: Bearer <valid-token>"
+```
+
+응답 데이터에는 프론트 음식 추가 화면이 사용하는 `id`, `foodName`, `calories`, `carbG`, `proteinG`, `fatG`, `category`, `servingUnit`, `matchedName` 필드가 포함됩니다.
+
+#### import 처리 방식
+
+- `food_master_clean_100g` 또는 `food_master` 시트의 대표 음식명, 카테고리, 기준, 영양성분 컬럼을 `foods` 테이블에 저장합니다.
+- `food_alias` 시트가 있으면 원본/별칭 음식명을 대표 음식과 연결해 `food_aliases` 테이블에 저장합니다.
+- `manual_overrides` 시트가 있으면 급식 메뉴명과 대표 음식의 수동 매핑을 `manual_food_overrides` 테이블에 저장합니다.
+- `serving_defaults` 시트가 있으면 카테고리별 기본 1회 제공량을 `serving_defaults` 테이블에 저장합니다.
+- 대표 음식이 `foods`에 없어서 연결할 수 없는 alias/override는 건너뛰고, 건너뛴 개수를 콘솔에 출력합니다.
+- 숫자 영양성분은 `Double`/`Integer`로 변환하며 빈 문자열, `-`, 빈 셀은 `0`이 아니라 `null`로 저장합니다.
+- 검색 품질을 위해 음식명 공백을 제거한 `searchName`도 함께 저장합니다. 예: `김치 찌개` → `김치찌개`.
+
+#### 완료 후 콘솔 출력 예시
+
+```text
+식품 데이터 import 완료
+foods 삽입 개수: 1234
+food_aliases 삽입 개수: 5678
+잘못되었거나 중복되어 건너뛴 food 개수: 12
+매핑 실패로 건너뛴 alias 개수: 90
+manual_overrides 삽입 개수: 34
+serving_defaults 삽입 개수: 20
+```
+
 
 ## 4. 기능 설명
 
@@ -272,3 +375,38 @@ curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/DS_T
 - Codex가 수행한 구조 변경과 검증 기록은 [`docs/codexMe.md`](docs/codexMe.md)에 누적합니다.
 - 프론트 페이지는 기능별로 `frontend/src/features/<feature>/` 아래에 JSX와 CSS 모듈을 함께 둡니다.
 - 크롤링/수집 관련 백엔드(`backend/src/main/java/com/teukgeupjeonsa/backend/collector/`)는 사용자의 직접 요청 없이는 수정하지 않습니다.
+
+## 4. 운동 루틴 분할 설계 메모
+
+운동 탭은 사용자가 저장한 `운동 목적`, `주 운동 횟수`, `운동 수준`, `보유 헬스 기구`를 기준으로 하루 루틴을 생성합니다. 필수 설정이 비어 있으면 홈/식단/운동/커뮤니티 등 주요 화면 위에 설정 안내 모달을 띄워 앱을 먼저 설정하도록 막습니다.
+
+### 4.1 설계 근거
+
+- ACSM 2026 저항운동 가이드 요약은 근성장을 위해 주당 근육군별 약 10세트 수준의 충분한 볼륨과, 사용자가 지속할 수 있는 일정·목표 맞춤 루틴을 강조합니다. 출처: https://acsm.org/resistance-training-guidelines-update-2026/
+- NASM의 활동량 가이드는 주 2회 이상 주요 근육군 저항운동과 주 150분 중강도 또는 75분 고강도 유산소를 권장합니다. 출처: https://blog.nasm.org/fitness/fitness-how-much-activity-is-enough
+- NASM의 bro split 설명은 5일 분할 예시를 `가슴/등/하체/어깨/팔`처럼 주요 근육군 중심으로 나누며, 충분한 회복과 주당 볼륨 확보에 적합하다고 설명합니다. 출처: https://blog.nasm.org/bro-splits
+
+### 4.2 앱에 적용한 루틴 규칙
+
+- `벌크업(BULK)`과 `다이어트(CUT)`은 같은 근력 분할을 사용합니다.
+- `다이어트(CUT)`은 같은 근력 루틴 끝에만 유산소 피니셔를 추가해 벌크업과 차이를 둡니다.
+- `특급전사(FITNESS_TEST)`는 헬스 분할을 사용하지 않고 `뜀걸음`, `푸시업`, `윗몸일으키기` 3개만 메인 운동으로 사용합니다.
+- 특급전사 목표치는 앱 루틴명과 설명에 `윗몸 86개`, `푸시업 72개`, `3km 12분 30초`로 고정했습니다.
+- 근력 루틴은 1회 운동 완료 시 다음 분할로 넘어가는 순환형입니다. 예를 들어 5분할은 `가슴 → 등 → 어깨 → 팔 → 하체` 순서로 진행됩니다.
+
+### 4.3 주 운동 횟수별 분할
+
+| 주 운동 횟수 | 적용 분할 | 진행 순서 |
+| --- | --- | --- |
+| 1회 | 전신 | 전신 |
+| 2회 | 상/하체 | 상체 → 하체 |
+| 3회 | PPL | Push(가슴·어깨·삼두) → Pull(등·이두) → Legs(하체) |
+| 4회 | 상/하체 확장 | 상체 Push → 하체 Quad → 상체 Pull → 하체 Posterior |
+| 5회 | 부위 5분할 | 가슴 → 등 → 어깨 → 팔 → 하체 |
+| 6회 | PPL 2회전 | Push → Pull → Legs → Push 보강 → Pull 보강 → Legs 보강 |
+
+### 4.4 식단/영양 표시 규칙
+
+- 홈과 식단 탭의 필요 칼로리·탄수화물·단백질·지방은 현재 몸무게가 아니라 `목표 몸무게` 기준으로 계산합니다.
+- 목표 몸무게가 없으면 영양 목표를 계산하지 않고 필수 설정 모달에서 목표 설정으로 안내합니다.
+- 칼로리와 영양소 표기는 앱 전체에서 `먹어야 될 양 / 먹은 양` 순서로 표시합니다.

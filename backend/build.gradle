@@ -24,6 +24,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.jsoup:jsoup:1.17.2'
+    implementation 'org.apache.poi:poi-ooxml:5.3.0'
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
@@ -42,4 +43,14 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('importFoods', JavaExec) {
+    group = 'application'
+    description = 'Import curated food nutrition data from an xlsx file into the database.'
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.teukgeupjeonsa.foodimport.FoodImportApplication'
+
+    args "--app.food-import.file=${project.findProperty('foodFile') ?: '../food_data/foods_refined_for_military_meal_matching.xlsx'}"
 }

@@ -6,16 +6,25 @@ import com.teukgeupjeonsa.backend.equipment.UnitGymDataset;
 import com.teukgeupjeonsa.backend.equipment.UnitGymDatasetItem;
 import com.teukgeupjeonsa.backend.equipment.UnitGymDatasetItemRepository;
 import com.teukgeupjeonsa.backend.equipment.UnitGymDatasetRepository;
+import com.teukgeupjeonsa.backend.food.FoodRepository;
+import com.teukgeupjeonsa.backend.food.importer.FoodImportResult;
+import com.teukgeupjeonsa.backend.food.importer.FoodXlsxImporter;
 import com.teukgeupjeonsa.backend.unit.MilitaryUnit;
 import com.teukgeupjeonsa.backend.unit.MilitaryUnitRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SeedService {
@@ -24,18 +33,64 @@ public class SeedService {
     private final EquipmentRepository equipmentRepository;
     private final UnitGymDatasetRepository unitGymDatasetRepository;
     private final UnitGymDatasetItemRepository unitGymDatasetItemRepository;
+    private final FoodRepository foodRepository;
+    private final FoodXlsxImporter foodXlsxImporter;
+
+    @Value("${app.food-import.auto:false}")
+    private boolean autoImportFoods;
+
+    @Value("${app.food-import.file:../food_data/foods_final_user_friendly_100g.xlsx}")
+    private String foodImportFile;
 
     @Transactional
     public String seedSampleData() {
         seedBaseEquipments();
         seedUnitGymDatasets();
+        String foodImportMessage = seedFoodDataIfNeeded();
 
-        return "기준 장비 데이터 시드 완료 - 부대/식단/영양/PX 데이터는 DB 수집 결과를 사용합니다.";
+        return "기준 장비 데이터 시드 완료 - 부대/식단/PX 데이터는 DB 수집 결과를 사용합니다. " + foodImportMessage;
     }
 
     @Transactional
     public String seedSampleMeals() {
         return "샘플 식단 시드는 비활성화되었습니다. 식단 데이터는 국방부 OpenAPI 수집 API를 사용하세요.";
+    }
+
+    private String seedFoodDataIfNeeded() {
+        if (!autoImportFoods) {
+            return "식품 DB 자동 import는 비활성화되었습니다.";
+        }
+        if (foodRepository.count() > 0) {
+            return "식품 DB가 이미 있어 자동 import를 건너뜁니다.";
+        }
+
+        Optional<Path> xlsxPath = resolveFoodImportPath();
+        if (xlsxPath.isEmpty()) {
+            log.warn("식품 xlsx 파일을 찾지 못해 자동 import를 건너뜁니다. configuredPath={}", foodImportFile);
+            return "식품 xlsx 파일을 찾지 못해 자동 import를 건너뜁니다.";
+        }
+
+        FoodImportResult result = foodXlsxImporter.importXlsx(xlsxPath.get());
+        return String.format("식품 DB 자동 import 완료 - foods %d개, aliases %d개, skipped aliases %d개, overrides %d개, serving defaults %d개.",
+                result.foodCount(), result.aliasCount(), result.skippedAliasCount(), result.overrideCount(), result.servingDefaultCount());
+    }
+
+    private Optional<Path> resolveFoodImportPath() {
+        List<Path> candidates = List.of(
+                Path.of(foodImportFile),
+                Path.of("src/main/resources/food_data/foods_refined_for_military_meal_matching.xlsx"),
+                Path.of("backend/src/main/resources/food_data/foods_refined_for_military_meal_matching.xlsx"),
+                Path.of("food_data/foods_refined_for_military_meal_matching.xlsx"),
+                Path.of("../food_data/foods_refined_for_military_meal_matching.xlsx"),
+                Path.of("food_data/foods_final_user_friendly_100g.xlsx"),
+                Path.of("../food_data/foods_final_user_friendly_100g.xlsx"),
+                Path.of("food_data/food_data_DB.xlsx"),
+                Path.of("../food_data/food_data_DB.xlsx")
+        );
+        return candidates.stream()
+                .map(Path::normalize)
+                .filter(Files::exists)
+                .findFirst();
     }
 
     private void seedBaseEquipments() {

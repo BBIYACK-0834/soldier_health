@@ -38,6 +38,10 @@ public class WorkoutRecommendationService {
         GoalType goal = user.getGoalType() == null ? GoalType.GENERAL_FITNESS : user.getGoalType();
         Set<EquipmentTag> availableEquipment = detectAvailableEquipment(user);
 
+        if (goal == GoalType.FITNESS_TEST) {
+            return buildFitnessTestRoutine(level);
+        }
+
         List<RoutineTemplate> templates = getRoutineTemplates(days);
         int seed = LocalDate.now().getDayOfYear();
         RoutineTemplate template = templates.get(seed % templates.size());
@@ -54,13 +58,105 @@ public class WorkoutRecommendationService {
             exercises.add(toExercise(main, goal, alt.name(), level));
         }
 
+        if (goal == GoalType.CUT) {
+            exercises.add(cardioFinisher(level));
+        }
         exercises.add(cooldown(template));
 
         return WorkoutDtos.WorkoutRecommendationResponse.builder()
                 .routineType(template.routineType())
                 .todayFocus(template.focus())
                 .exercises(exercises)
-                .note("운동별 필수 기구 태그를 매칭한 뒤, 목표/숙련도/분할 부위/동작 패턴 균형 점수로 추천")
+                .note(recommendationPolicyNote(goal, level, days))
+                .build();
+    }
+
+    private WorkoutDtos.WorkoutRecommendationResponse buildFitnessTestRoutine(WorkoutLevel level) {
+        int mainSets = level == WorkoutLevel.BEGINNER ? 4 : 5;
+        List<WorkoutDtos.WorkoutExercise> exercises = List.of(
+                WorkoutDtos.WorkoutExercise.builder()
+                        .name("3km 목표 페이스 조깅/인터벌")
+                        .category("뜀걸음 · 특급전사")
+                        .sets(1)
+                        .reps("12분 30초 목표 페이스까지 점진 단축")
+                        .durationSeconds(900)
+                        .restSeconds(60)
+                        .intensity("High")
+                        .requiredEquipment("러닝 코스")
+                        .recommendationReason("특급전사 3km 12분 30초 목표 달성을 위한 주 운동")
+                        .alternative("400m 반복주 6~8회")
+                        .build(),
+                WorkoutDtos.WorkoutExercise.builder()
+                        .name("푸시업")
+                        .category("푸시업 · 특급전사")
+                        .sets(mainSets)
+                        .reps("목표 72개를 향해 세트당 최대반복")
+                        .durationSeconds(60)
+                        .restSeconds(60)
+                        .intensity("High")
+                        .requiredEquipment("없음")
+                        .recommendationReason("특급전사 팔굽혀펴기 목표 72개를 위한 특이성 훈련")
+                        .alternative("무릎 푸시업 또는 템포 푸시업")
+                        .build(),
+                WorkoutDtos.WorkoutExercise.builder()
+                        .name("윗몸일으키기")
+                        .category("윗몸 · 특급전사")
+                        .sets(mainSets)
+                        .reps("목표 86개를 향해 세트당 최대반복")
+                        .durationSeconds(60)
+                        .restSeconds(60)
+                        .intensity("High")
+                        .requiredEquipment("매트")
+                        .recommendationReason("특급전사 윗몸일으키기 목표 86개를 위한 특이성 훈련")
+                        .alternative("크런치 또는 발 고정 윗몸일으키기")
+                        .build()
+        );
+
+        return WorkoutDtos.WorkoutRecommendationResponse.builder()
+                .routineType("특급전사 3종 집중 루틴")
+                .todayFocus("윗몸 86개 · 푸시업 72개 · 3km 12분 30초")
+                .exercises(exercises)
+                .note("체력시험 목표는 종목 특이성이 최우선이므로 3km 달리기, 푸시업, 윗몸일으키기와 코어 보강을 우선 추천합니다. 강도는 현재 숙련도에 맞춰 반복 수와 페이스를 점진적으로 올립니다.")
+                .build();
+    }
+
+    private String recommendationPolicyNote(GoalType goal, WorkoutLevel level, int days) {
+        String frequencyPolicy = days <= 2
+                ? "주 1~2회는 분할보다 전신 루틴으로 주요 근육군을 매번 자극"
+                : days == 3
+                ? "주 3회는 전신 A/B/C로 주요 근육군을 주 2회 이상 반복 자극"
+                : days == 4
+                ? "주 4회는 상하체 4분할로 회복과 부위별 볼륨을 균형화"
+                : days == 5
+                ? "주 5회는 5분할로 선택 횟수에 맞춰 부위를 세분화"
+                : "주 6회는 PPL 6회 순환으로 선택 횟수에 맞춰 주간 빈도를 확대";
+        String goalPolicy = switch (goal) {
+            case BULK -> "벌크업은 복합 고중량과 근비대 볼륨을 우선";
+            case CUT -> "감량은 근력운동을 유지하면서 유산소/컨디셔닝 피니셔를 추가";
+            case MAINTAIN -> "유지는 중간 강도와 전신 균형을 우선";
+            case GENERAL_FITNESS -> "일반 체력은 지속 가능한 중간 강도와 전신 균형을 우선";
+            case FITNESS_TEST -> "체력시험은 실제 평가 종목 특이성을 우선";
+        };
+        String levelPolicy = switch (level) {
+            case BEGINNER -> "초보자는 2세트 중심으로 동작 학습과 안전성을 우선";
+            case NOVICE -> "초급자는 3세트 중심으로 점진적 과부하를 적용";
+            case INTERMEDIATE -> "중급자는 3~4세트와 높은 강도로 주간 볼륨을 확대";
+        };
+        return String.join(" · ", frequencyPolicy, goalPolicy, levelPolicy, "분할은 권장안이며 사용자가 선택한 주 운동 횟수를 우선 반영", "보유 장비와 움직임 패턴 균형 점수로 운동을 추천");
+    }
+
+    private WorkoutDtos.WorkoutExercise cardioFinisher(WorkoutLevel level) {
+        return WorkoutDtos.WorkoutExercise.builder()
+                .name("감량 유산소 피니셔")
+                .category("유산소 · 다이어트")
+                .sets(1)
+                .reps(level == WorkoutLevel.BEGINNER ? "15분 빠른 걷기" : "20분 인터벌 러닝")
+                .durationSeconds(level == WorkoutLevel.BEGINNER ? 900 : 1200)
+                .restSeconds(0)
+                .intensity(level == WorkoutLevel.BEGINNER ? "Medium" : "High")
+                .requiredEquipment("러닝 코스 또는 트레드밀")
+                .recommendationReason("감량 목표에서는 근력운동으로 근육 자극을 유지하고, 추가 유산소로 주간 에너지 소비와 심폐 자극을 확보")
+                .alternative("실내 자전거 또는 버피 저강도 변형")
                 .build();
     }
 
@@ -135,7 +231,14 @@ public class WorkoutRecommendationService {
     }
 
     private List<RoutineTemplate> getRoutineTemplates(int days) {
-        if (days <= 3) {
+        if (days <= 2) {
+            return List.of(
+                    new RoutineTemplate("주 1~2회 전신 기초 루틴", "전신 · 스쿼트+푸시+풀+코어", List.of(BodyPart.LEGS, BodyPart.CHEST, BodyPart.BACK, BodyPart.CORE), List.of(MovementPattern.SQUAT, MovementPattern.HORIZONTAL_PUSH, MovementPattern.HORIZONTAL_PULL, MovementPattern.CORE, MovementPattern.CONDITIONING)),
+                    new RoutineTemplate("주 1~2회 전신 기초 루틴", "전신 · 힌지+어깨+등+코어", List.of(BodyPart.LEGS, BodyPart.SHOULDERS, BodyPart.BACK, BodyPart.CORE), List.of(MovementPattern.HINGE, MovementPattern.VERTICAL_PUSH, MovementPattern.VERTICAL_PULL, MovementPattern.CORE, MovementPattern.CONDITIONING))
+            );
+        }
+
+        if (days == 3) {
             return List.of(
                     new RoutineTemplate("주 3회 전신 루틴", "전신 A · 하체+가슴+등", List.of(BodyPart.LEGS, BodyPart.CHEST, BodyPart.BACK), List.of(MovementPattern.SQUAT, MovementPattern.HORIZONTAL_PUSH, MovementPattern.VERTICAL_PULL, MovementPattern.HINGE, MovementPattern.CORE)),
                     new RoutineTemplate("주 3회 전신 루틴", "전신 B · 등+어깨+팔", List.of(BodyPart.BACK, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.HORIZONTAL_PULL, MovementPattern.VERTICAL_PUSH, MovementPattern.BICEPS, MovementPattern.TRICEPS, MovementPattern.CORE)),
@@ -152,12 +255,23 @@ public class WorkoutRecommendationService {
             );
         }
 
+        if (days == 5) {
+            return List.of(
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "등 · 광배/승모/후면사슬", List.of(BodyPart.BACK), List.of(MovementPattern.VERTICAL_PULL, MovementPattern.HORIZONTAL_PULL, MovementPattern.HINGE, MovementPattern.REAR_DELT, MovementPattern.CORE)),
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "가슴 · 상부/중부/하부", List.of(BodyPart.CHEST), List.of(MovementPattern.HORIZONTAL_PUSH, MovementPattern.INCLINE_PUSH, MovementPattern.FLY, MovementPattern.DIP, MovementPattern.TRICEPS)),
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "어깨 · 전면/측면/후면", List.of(BodyPart.SHOULDERS), List.of(MovementPattern.VERTICAL_PUSH, MovementPattern.LATERAL_RAISE, MovementPattern.REAR_DELT, MovementPattern.SHRUG, MovementPattern.CORE)),
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "팔 · 이두/삼두/전완", List.of(BodyPart.ARMS), List.of(MovementPattern.BICEPS, MovementPattern.TRICEPS, MovementPattern.FOREARM, MovementPattern.DIP, MovementPattern.CORE)),
+                    new RoutineTemplate("주 5회 5분할 세분화 루틴", "하체 · 대퇴/둔근/햄스트링/종아리", List.of(BodyPart.LEGS), List.of(MovementPattern.SQUAT, MovementPattern.HINGE, MovementPattern.LUNGE, MovementPattern.HAMSTRING_CURL, MovementPattern.CALVES))
+            );
+        }
+
         return List.of(
-                new RoutineTemplate("5분할 세분화 루틴", "등 · 광배/승모/후면사슬", List.of(BodyPart.BACK), List.of(MovementPattern.VERTICAL_PULL, MovementPattern.HORIZONTAL_PULL, MovementPattern.HINGE, MovementPattern.REAR_DELT, MovementPattern.CORE)),
-                new RoutineTemplate("5분할 세분화 루틴", "가슴 · 상부/중부/하부", List.of(BodyPart.CHEST), List.of(MovementPattern.HORIZONTAL_PUSH, MovementPattern.INCLINE_PUSH, MovementPattern.FLY, MovementPattern.DIP, MovementPattern.TRICEPS)),
-                new RoutineTemplate("5분할 세분화 루틴", "어깨 · 전면/측면/후면", List.of(BodyPart.SHOULDERS), List.of(MovementPattern.VERTICAL_PUSH, MovementPattern.LATERAL_RAISE, MovementPattern.REAR_DELT, MovementPattern.SHRUG, MovementPattern.CORE)),
-                new RoutineTemplate("5분할 세분화 루틴", "팔 · 이두/삼두/전완", List.of(BodyPart.ARMS), List.of(MovementPattern.BICEPS, MovementPattern.TRICEPS, MovementPattern.FOREARM, MovementPattern.DIP, MovementPattern.CORE)),
-                new RoutineTemplate("5분할 세분화 루틴", "하체 · 대퇴/둔근/햄스트링/종아리", List.of(BodyPart.LEGS), List.of(MovementPattern.SQUAT, MovementPattern.HINGE, MovementPattern.LUNGE, MovementPattern.HAMSTRING_CURL, MovementPattern.CALVES))
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Push A · 가슴/어깨/삼두", List.of(BodyPart.CHEST, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.HORIZONTAL_PUSH, MovementPattern.VERTICAL_PUSH, MovementPattern.FLY, MovementPattern.TRICEPS, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Pull A · 등/이두/후면어깨", List.of(BodyPart.BACK, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.VERTICAL_PULL, MovementPattern.HORIZONTAL_PULL, MovementPattern.REAR_DELT, MovementPattern.BICEPS, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Legs A · 스쿼트/대퇴", List.of(BodyPart.LEGS), List.of(MovementPattern.SQUAT, MovementPattern.LUNGE, MovementPattern.KNEE_EXTENSION, MovementPattern.CALVES, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Push B · 가슴/어깨 보강", List.of(BodyPart.CHEST, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.INCLINE_PUSH, MovementPattern.LATERAL_RAISE, MovementPattern.DIP, MovementPattern.TRICEPS, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Pull B · 로우/후면사슬", List.of(BodyPart.BACK, BodyPart.SHOULDERS, BodyPart.ARMS), List.of(MovementPattern.HORIZONTAL_PULL, MovementPattern.HINGE, MovementPattern.REAR_DELT, MovementPattern.BICEPS, MovementPattern.CORE)),
+                new RoutineTemplate("주 6회 PPL 반복 루틴", "Legs B · 둔근/햄스트링", List.of(BodyPart.LEGS), List.of(MovementPattern.HINGE, MovementPattern.HIP_THRUST, MovementPattern.HAMSTRING_CURL, MovementPattern.LUNGE, MovementPattern.CALVES))
         );
     }
 
@@ -281,25 +395,61 @@ public class WorkoutRecommendationService {
     private WorkoutDtos.WorkoutExercise toExercise(ExerciseCandidate candidate, GoalType goal, String alternative, WorkoutLevel level) {
         String reps = switch (goal) {
             case BULK -> candidate.loadProfile() == LoadProfile.HEAVY ? "5-8회" : "8-12회";
-            case CUT, FITNESS_TEST -> candidate.loadProfile() == LoadProfile.CONDITIONING ? "30-45초" : "12-20회";
-            case MAINTAIN, GENERAL_FITNESS -> "8-15회";
+            case CUT, FITNESS_TEST -> candidate.loadProfile() == LoadProfile.CONDITIONING ? "30-45초" : "10-15회";
+            case MAINTAIN, GENERAL_FITNESS -> candidate.loadProfile() == LoadProfile.CONDITIONING ? "30초" : "8-15회";
         };
-        int sets = level == WorkoutLevel.BEGINNER ? 3 : 4;
-        int restSeconds = candidate.loadProfile() == LoadProfile.HEAVY ? 90 : candidate.loadProfile() == LoadProfile.CONDITIONING ? 30 : 45;
-        String intensity = level == WorkoutLevel.INTERMEDIATE && candidate.loadProfile() != LoadProfile.MOBILITY ? "High" : "Medium";
+        int sets = prescribedSets(candidate.loadProfile(), level);
+        int restSeconds = prescribedRestSeconds(candidate.loadProfile());
+        String intensity = prescribedIntensity(candidate.loadProfile(), level);
 
         return WorkoutDtos.WorkoutExercise.builder()
                 .name(candidate.name())
                 .category(candidate.category() + " · " + candidate.equipmentLabel())
                 .sets(sets)
                 .reps(reps)
-                .durationSeconds(45)
+                .durationSeconds(candidate.loadProfile() == LoadProfile.CONDITIONING ? 45 : 60)
                 .restSeconds(restSeconds)
                 .intensity(intensity)
                 .requiredEquipment(candidate.requiredEquipmentLabel())
                 .recommendationReason(candidate.reason())
                 .alternative(alternative)
                 .build();
+    }
+
+    private int prescribedSets(LoadProfile loadProfile, WorkoutLevel level) {
+        if (loadProfile == LoadProfile.MOBILITY) {
+            return 2;
+        }
+        if (loadProfile == LoadProfile.HEAVY) {
+            return level == WorkoutLevel.BEGINNER ? 2 : 3;
+        }
+        if (loadProfile == LoadProfile.CONDITIONING) {
+            return level == WorkoutLevel.INTERMEDIATE ? 4 : 3;
+        }
+        return switch (level) {
+            case BEGINNER -> 2;
+            case NOVICE -> 3;
+            case INTERMEDIATE -> 4;
+        };
+    }
+
+    private int prescribedRestSeconds(LoadProfile loadProfile) {
+        return switch (loadProfile) {
+            case HEAVY -> 150;
+            case MODERATE -> 75;
+            case CONDITIONING -> 30;
+            case MOBILITY -> 45;
+        };
+    }
+
+    private String prescribedIntensity(LoadProfile loadProfile, WorkoutLevel level) {
+        if (loadProfile == LoadProfile.MOBILITY) {
+            return "Low";
+        }
+        if (loadProfile == LoadProfile.HEAVY || (loadProfile == LoadProfile.CONDITIONING && level != WorkoutLevel.BEGINNER)) {
+            return "High";
+        }
+        return "Medium";
     }
 
     private List<ExerciseCandidate> exerciseLibrary() {
