@@ -92,7 +92,7 @@ docker -v
 docker run -d \
   --name tg-mysql \
   -e MYSQL_ROOT_PASSWORD=root \
-  -e MYSQL_DATABASE=teukgeupjeonsa \
+  -e MYSQL_DATABASE=tg \
   -p 3306:3306 \
   mysql:8.4
 ```
