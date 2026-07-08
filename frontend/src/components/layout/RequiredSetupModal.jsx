@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getMyUnit } from '../../api/unitApi';
 import { getMyProfile } from '../../api/userApi';
+import { getMyEquipments } from '../../api/equipmentApi';
 import styles from './RequiredSetupModal.module.css';
 
 const setupRoutes = ['/guide', '/mypage/goal', '/mypage/settings', '/setup/equipment', '/setup/profile', '/unit/setup', '/unit/search', '/unit/select', '/unit/complete'];
@@ -10,7 +11,7 @@ function isSetupRoute(pathname) {
   return setupRoutes.some((route) => pathname.startsWith(route));
 }
 
-function getMissingItems(profile, unit) {
+function getMissingItems(profile, unit, equipments = []) {
   const missing = [];
   if (!unit?.id && !profile?.unitId) missing.push({ label: '부대', path: '/unit/setup' });
   if (!Number(profile?.heightCm) || !Number(profile?.weightKg)) missing.push({ label: '키/현재 몸무게', path: '/mypage/settings' });
@@ -20,23 +21,25 @@ function getMissingItems(profile, unit) {
   if (!Number(profile?.workoutDaysPerWeek)) missing.push({ label: '주 운동 횟수', path: '/mypage/goal' });
   if (!Number(profile?.preferredWorkoutMinutes)) missing.push({ label: '선호 운동 시간', path: '/mypage/goal' });
   if (!profile?.branchType) missing.push({ label: '군 구분', path: '/mypage/goal' });
+  if (!equipments.length) missing.push({ label: '기구 선택', path: '/setup/equipment' });
   return missing;
 }
 
 export default function RequiredSetupModal() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [state, setState] = useState({ loading: true, profile: null, unit: null });
+  const [state, setState] = useState({ loading: true, profile: null, unit: null, equipments: [] });
 
   useEffect(() => {
     let mounted = true;
-    Promise.allSettled([getMyProfile(), getMyUnit()])
-      .then(([profileResult, unitResult]) => {
+    Promise.allSettled([getMyProfile(), getMyUnit(), getMyEquipments()])
+      .then(([profileResult, unitResult, equipmentsResult]) => {
         if (!mounted) return;
         setState({
           loading: false,
           profile: profileResult.status === 'fulfilled' ? profileResult.value : null,
           unit: unitResult.status === 'fulfilled' ? unitResult.value : null,
+          equipments: equipmentsResult.status === 'fulfilled' ? equipmentsResult.value ?? [] : [],
         });
       });
     return () => {
@@ -44,7 +47,7 @@ export default function RequiredSetupModal() {
     };
   }, [location.pathname]);
 
-  const missingItems = useMemo(() => getMissingItems(state.profile, state.unit), [state]);
+  const missingItems = useMemo(() => getMissingItems(state.profile, state.unit, state.equipments), [state]);
 
   if (state.loading || isSetupRoute(location.pathname) || missingItems.length === 0) return null;
 

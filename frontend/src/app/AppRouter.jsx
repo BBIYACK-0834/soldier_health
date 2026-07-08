@@ -16,6 +16,7 @@ import WorkoutEditPage from '../features/workout/WorkoutEditPage';
 import WorkoutSessionPage from '../features/workout/WorkoutSessionPage';
 import CommunityPage from '../features/community/CommunityPage';
 import ProfilePage from '../features/profile/ProfilePage';
+import RankingPage from '../features/ranking/RankingPage';
 import MyPostsPage from '../features/profile/MyPostsPage';
 import GoalSettingsPage from '../features/profile/GoalSettingsPage';
 import NotificationSettingsPage from '../features/profile/NotificationSettingsPage';
@@ -75,6 +76,8 @@ export default function AppRouter() {
       <Route path="/community/popular" element={<RequireAuth><CommunityPage /></RequireAuth>} />
       <Route path="/community/unit" element={<RequireAuth><CommunityPage /></RequireAuth>} />
       <Route path="/community/posts/:postId" element={<RequireAuth><CommunityPage /></RequireAuth>} />
+
+      <Route path="/ranking" element={<RequireAuth><RankingPage /></RequireAuth>} />
 
       <Route path="/mypage" element={<RequireAuth><ProfilePage /></RequireAuth>} />
       <Route path="/mypage/settings" element={<RequireAuth><ProfileSettingsPage /></RequireAuth>} />

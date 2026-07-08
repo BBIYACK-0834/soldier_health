@@ -1,6 +1,6 @@
 .nav {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   border-top: 1px solid var(--tg-border);
   background: rgba(255, 253, 250, 0.96);
   backdrop-filter: blur(8px);
@@ -24,7 +24,7 @@
 }
 
 .item small {
-  font-size: 9px;
+  font-size: 8px;
   line-height: 1;
   letter-spacing: -0.04em;
 }

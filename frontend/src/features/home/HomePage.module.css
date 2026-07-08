@@ -35,3 +35,8 @@
   .macroCard p { font-size: 17px; }
   .macroCard strong { font-size: 20px; }
 }
+.grassGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; margin: 18px 0 8px; }
+.grassGrid span { aspect-ratio: 1; border-radius: 7px; border: 1px solid #d8ddcf; }
+.grassEmpty { background: #eef0e8; }
+.grassDone { background: #4f713b; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+.grassHint { margin: 0 0 18px; color: #65705b; font-size: 13px; font-weight: 850; }
