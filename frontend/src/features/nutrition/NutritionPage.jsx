@@ -40,12 +40,88 @@ function formatGram(value) {
   return `${(Number(value) || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}g`;
 }
 
+const unitOnlyPattern = /^(?:\d+(?:\.\d+)?\s*)?(?:ml|mL|ML|g|kg|캔|팩|병|개|봉)$|^\d+(?:\.\d+)?$/i;
+const softDrinkProducts = ['코카콜라', '콜라', '칠성사이다', '사이다', '환타', '펩시'];
+
+function compact(value) {
+  return String(value || '').replace(/\s+/g, '');
+}
+
+function isGenericSoftDrink(value) {
+  return ['청량음료', '탄산음료'].includes(compact(value));
+}
+
+function isSoftDrinkProduct(value) {
+  const normalized = compact(value);
+  return softDrinkProducts.some((keyword) => normalized.includes(keyword));
+}
+
+function normalizeMealItem(value) {
+  let item = String(value || '')
+    .replace(/\(\s*\d{1,2}\s*\)/g, ' ')
+    .replace(/[()]+/g, ' ');
+  ['부대계약', '부대 계약', '계약', '연간', '후식', '제공'].forEach((word) => {
+    item = item.replaceAll(word, ' ');
+  });
+  item = item.replace(/\s+/g, ' ').trim();
+  if (item.startsWith('우유 ') && item.includes('백색우유')) {
+    item = item.slice(item.indexOf('백색우유'));
+  }
+  if (item.startsWith('청량음료 ') || item.startsWith('탄산음료 ')) {
+    const withoutGeneric = item.replace(/^(청량음료|탄산음료)\s+/, '');
+    if (isSoftDrinkProduct(withoutGeneric)) item = withoutGeneric;
+  }
+  return item;
+}
+
+function hasOpenParenthesis(value) {
+  let balance = 0;
+  String(value || '').split('').forEach((char) => {
+    if (char === '(') balance += 1;
+    if (char === ')') balance -= 1;
+  });
+  return balance > 0;
+}
+
+function shouldAttach(previous, line) {
+  const trimmed = line.trim();
+  return hasOpenParenthesis(previous)
+    || unitOnlyPattern.test(trimmed)
+    || ['연간', '부대계약', '부대 계약'].includes(trimmed)
+    || (trimmed.includes(')') && /^[^가-힣A-Za-z0-9]*[가-힣A-Za-z0-9\s]*(?:\)+)$/.test(trimmed))
+    || (isGenericSoftDrink(previous) && isSoftDrinkProduct(trimmed));
+}
+
+function pushMealItem(items, value) {
+  const item = normalizeMealItem(value);
+  if (!item || unitOnlyPattern.test(item)) return;
+  if (items.length > 0 && isGenericSoftDrink(items[items.length - 1]) && isSoftDrinkProduct(item)) {
+    items[items.length - 1] = item;
+    return;
+  }
+  if (!isGenericSoftDrink(item)) items.push(item);
+}
+
 function parseRawMealItems(rawMenu) {
   if (!rawMenu) return [];
-  return String(rawMenu)
-    .split(/[,/\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const items = [];
+  String(rawMenu).replace(/\r\n?/g, '\n').split(',').forEach((part) => {
+    let current = '';
+    part.split('\n').forEach((rawLine) => {
+      const line = rawLine.replace(/\(\s*\d{1,2}\s*\)/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!line) return;
+      if (!current) {
+        current = line;
+      } else if (shouldAttach(current, line)) {
+        current = `${current} ${line}`;
+      } else {
+        pushMealItem(items, current);
+        current = line;
+      }
+    });
+    pushMealItem(items, current);
+  });
+  return [...new Set(items)];
 }
 
 export default function NutritionPage() {
@@ -103,7 +179,7 @@ export default function NutritionPage() {
         if (detailData) {
           setNutrition((prev) => ({
             ...prev,
-            intakeCalories: detailData.totalCalories ?? prev.intakeCalories,
+            intakeCalories: detailData.totalEstimatedCalories ?? detailData.totalCalories ?? prev.intakeCalories,
             intakeProteinG: detailData.totalProteinG ?? prev.intakeProteinG,
             intakeCarbG: detailData.totalCarbG ?? prev.intakeCarbG,
             intakeFatG: detailData.totalFatG ?? prev.intakeFatG,
@@ -133,9 +209,11 @@ export default function NutritionPage() {
   );
 
   const menuExists = hasMealMenuData(meal, mealDetails);
-  const mealTotalKcal = Number.isFinite(mealDetails?.totalCalories)
-    ? mealDetails.totalCalories
-    : [meal?.breakfastKcal, meal?.lunchKcal, meal?.dinnerKcal]
+  const mealTotalKcal = Number.isFinite(mealDetails?.totalEstimatedCalories)
+    ? mealDetails.totalEstimatedCalories
+    : Number.isFinite(mealDetails?.totalCalories)
+      ? mealDetails.totalCalories
+      : [meal?.breakfastKcal, meal?.lunchKcal, meal?.dinnerKcal]
         .filter((value) => Number.isFinite(value))
         .reduce((sum, value) => sum + value, 0);
 
@@ -201,18 +279,21 @@ export default function NutritionPage() {
         const detail = detailByMealType[section.addKey];
         const items = detail?.items ?? [];
         const rawItems = section.key === 'snackRaw' ? [] : parseRawMealItems(meal?.[section.key]);
-        const officialKcal = section.key === 'snackRaw' ? 0 : meal?.[`${section.key.replace('Raw', 'Kcal')}`];
-        const mealKcal = Number.isFinite(detail?.calories)
-          ? detail.calories
-          : Number.isFinite(detail?.estimatedCalorieKcal)
-            ? detail.estimatedCalorieKcal
-            : officialKcal;
+        const officialKcal = Number.isFinite(detail?.officialCalorieKcal)
+          ? detail.officialCalorieKcal
+          : section.key === 'snackRaw' ? null : meal?.[`${section.key.replace('Raw', 'Kcal')}`];
+        const estimatedKcal = Number.isFinite(detail?.estimatedCalorieKcal) ? detail.estimatedCalorieKcal : null;
+        const needsMoreMatching = items.length > 0 && (detail?.matchedItemCount ?? 0) < (detail?.totalItemCount ?? 0);
         return (
           <Card key={section.key}>
             <div className={styles.row}>
               <div>
                 <h3>{section.label}</h3>
-                <span className={styles.mealKcal}>추정 칼로리 {formatKcal(mealKcal)}</span>
+                <div className={styles.mealKcal}>
+                  {Number.isFinite(officialKcal) ? <span>공식 칼로리 {formatKcal(officialKcal)}</span> : null}
+                  {Number.isFinite(estimatedKcal) ? <span>음식별 추정 {formatKcal(estimatedKcal)}{needsMoreMatching ? ' · 일부 메뉴 매칭 필요' : ''}</span> : null}
+                  {!Number.isFinite(officialKcal) && !Number.isFinite(estimatedKcal) ? <span>칼로리 정보 없음</span> : null}
+                </div>
               </div>
               <button type="button" onClick={() => navigate(`/diet/add?meal=${section.addKey}`)}>{section.label} 추가</button>
             </div>

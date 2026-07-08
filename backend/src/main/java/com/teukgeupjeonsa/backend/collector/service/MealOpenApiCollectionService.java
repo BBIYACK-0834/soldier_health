@@ -8,6 +8,7 @@ import com.teukgeupjeonsa.backend.collector.openapi.MndOpenApiClient;
 import com.teukgeupjeonsa.backend.collector.parser.MndMealResponseParser;
 import com.teukgeupjeonsa.backend.collector.util.MealMenuTextCleaner;
 import com.teukgeupjeonsa.backend.meal.entity.MealMenu;
+import com.teukgeupjeonsa.backend.nutrition.MealMenuItemParser;
 import com.teukgeupjeonsa.backend.meal.repository.MealMenuRepository;
 import com.teukgeupjeonsa.backend.unit.MilitaryUnit;
 import com.teukgeupjeonsa.backend.unit.MilitaryUnitRepository;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +38,7 @@ public class MealOpenApiCollectionService {
     private final PublicMealApiProperties apiProperties;
     private final MealCollectorProperties collectorProperties;
     private final MealMenuTextCleaner mealMenuTextCleaner;
+    private final MealMenuItemParser mealMenuItemParser;
 
     @Transactional
     public MealCollectionSummary collectAllFromFixedServices() {
@@ -365,39 +368,47 @@ public class MealOpenApiCollectionService {
                 .replaceAll("[^A-Z0-9_-]", "_");
     }
 
-    private String mergeMealText(String current, String incoming) {
+    String mergeMealText(String current, String incoming) {
         if (incoming == null || incoming.isBlank()) {
             return current;
         }
 
         if (current == null || current.isBlank()) {
-            return incoming.trim();
+            return String.join(", ", mealMenuItemParser.parse(incoming));
         }
 
-        String normalizedCurrent = current.trim();
-        String normalizedIncoming = incoming.trim();
-
-        if (normalizedCurrent.equals(normalizedIncoming)) {
-            return normalizedCurrent;
+        Map<String, String> mergedItems = new LinkedHashMap<>();
+        for (String item : mealMenuItemParser.parse(current)) {
+            mergedItems.putIfAbsent(normalizeMealItemForCompare(item), item);
+        }
+        for (String item : mealMenuItemParser.parse(incoming)) {
+            mergedItems.putIfAbsent(normalizeMealItemForCompare(item), item);
         }
 
-        if (normalizedCurrent.contains(normalizedIncoming)) {
-            return normalizedCurrent;
+        if (mergedItems.isEmpty()) {
+            return current.trim();
         }
-
-        return normalizedCurrent + ", " + normalizedIncoming;
+        return String.join(", ", mergedItems.values());
     }
 
-    private Integer mergeKcal(Integer current, Integer incoming) {
-        if (incoming == null) {
+    private String normalizeMealItemForCompare(String item) {
+        return item == null ? "" : item
+                .replaceAll("\\(\\s*\\d{1,2}\\s*\\)", "")
+                .replaceAll("[\\s,]+", "")
+                .toLowerCase();
+    }
+
+    Integer mergeKcal(Integer current, Integer incoming) {
+        if (incoming == null || incoming <= 0) {
             return current;
         }
-
-        if (current == null) {
+        if (current == null || current <= 0) {
             return incoming;
         }
-
-        return current + incoming;
+        if (current.equals(incoming)) {
+            return current;
+        }
+        return Math.max(current, incoming);
     }
 
     private int sum(Integer... values) {

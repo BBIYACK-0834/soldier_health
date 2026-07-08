@@ -55,7 +55,7 @@ class FoodMatcherAndMealNutritionServiceTest {
             return Optional.empty();
         };
         FoodMatcher localMatcher = new FoodMatcher(foodRepository, aliasRepository, normalizer, provider, servingEstimator);
-        MealNutritionService mealService = new MealNutritionService(normalizer, localMatcher, servingEstimator, new NutritionCalculator(), compositeFoodEstimator);
+        MealNutritionService mealService = new MealNutritionService(normalizer, localMatcher, servingEstimator, new NutritionCalculator(), compositeFoodEstimator, new MealMenuItemParser());
         when(aliasRepository.findFirstBySearchNameOrderByFood_SourceCountDesc(anyString())).thenReturn(Optional.empty());
         when(foodRepository.findFirstBySearchNameOrderBySourceCountDesc(anyString())).thenReturn(Optional.empty());
         when(foodRepository.searchContains(anyString(), any(Pageable.class))).thenReturn(List.of());
@@ -64,7 +64,7 @@ class FoodMatcherAndMealNutritionServiceTest {
         NutritionDtos.MealNutritionResponse response = mealService.analyzeMeal("lunch", List.of("밥", "정체불명메뉴"), 900);
 
         assertThat(response.getOfficialCalorieKcal()).isEqualTo(900);
-        assertThat(response.getEstimatedCalorieKcal()).isEqualTo(900);
+        assertThat(response.getEstimatedCalorieKcal()).isEqualTo(300);
         assertThat(response.getCalories()).isEqualTo(900);
         assertThat(response.getItems()).hasSize(2);
         NutritionDtos.MealNutritionItemResponse noMatch = response.getItems().get(1);
@@ -143,7 +143,7 @@ class FoodMatcherAndMealNutritionServiceTest {
                 .matchedDisplayName("주꾸미 + 삼겹살 기반 추정")
                 .ingredients(List.of())
                 .build()));
-        MealNutritionService mealService = new MealNutritionService(normalizer, noMatchMatcher, servingEstimator, new NutritionCalculator(), estimator);
+        MealNutritionService mealService = new MealNutritionService(normalizer, noMatchMatcher, servingEstimator, new NutritionCalculator(), estimator, new MealMenuItemParser());
 
         NutritionDtos.MealNutritionResponse response = mealService.analyzeMeal("lunch", List.of("주꾸미삼겹살볶음"), null);
 
@@ -154,6 +154,36 @@ class FoodMatcherAndMealNutritionServiceTest {
         assertThat(item.getConfidence()).isEqualTo(MatchConfidence.MEDIUM);
         assertThat(item.getCalorieKcal()).isEqualTo(312);
         assertThat(item.getProteinG()).isEqualTo(24.1);
+    }
+
+    @Test
+    void officialCaloriesAndEstimatedCaloriesAreSeparated() {
+        MealNutritionService mealService = new MealNutritionService(normalizer, matcher, servingEstimator, new NutritionCalculator(), compositeFoodEstimator, new MealMenuItemParser());
+
+        NutritionDtos.MealNutritionResponse response = mealService.buildResponse("breakfast", 954, List.of(
+                NutritionDtos.MealNutritionItemResponse.builder()
+                        .foodName("버거")
+                        .matched(true)
+                        .calorieKcal(500)
+                        .calories(500)
+                        .carbohydrateG(60.0)
+                        .proteinG(20.0)
+                        .fatG(18.0)
+                        .build(),
+                NutritionDtos.MealNutritionItemResponse.builder()
+                        .foodName("감자튀김")
+                        .matched(true)
+                        .calorieKcal(620)
+                        .calories(620)
+                        .carbohydrateG(70.0)
+                        .proteinG(8.0)
+                        .fatG(30.0)
+                        .build()
+        ));
+
+        assertThat(response.getOfficialCalorieKcal()).isEqualTo(954);
+        assertThat(response.getEstimatedCalorieKcal()).isEqualTo(1120);
+        assertThat(response.getCalories()).isEqualTo(954);
     }
 
     private Food food(Long id, String name, String category, String searchName, Double kcal) {

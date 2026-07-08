@@ -18,4 +18,10 @@ class FoodNameNormalizerTest {
         assertThat(normalizer.normalize("팥빙수 부대계약(02)(05)")).isEqualTo("팥빙수");
         assertThat(normalizer.normalize("햄전&케찹(01)(05)(06)(10)(12)(13)")).isEqualTo("햄전케찹");
     }
+
+    @Test
+    void preservesUsefulTextInsideParentheses() {
+        assertThat(normalizer.normalize("우유(백색우유(200ML 연간))")).isEqualTo("우유 백색우유 200ML");
+        assertThat(normalizer.normalize("가공우유(바나나맛)(02)")).isEqualTo("가공우유 바나나맛");
+    }
 }

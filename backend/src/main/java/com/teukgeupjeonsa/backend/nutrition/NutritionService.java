@@ -145,6 +145,7 @@ public class NutritionService {
 
         int totalCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getCalories()).orElse(0)).sum();
         int totalOfficialCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getOfficialCalorieKcal()).orElse(0)).sum();
+        int totalEstimatedCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getEstimatedCalorieKcal()).orElse(0)).sum();
         double totalProtein = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getProteinG()).orElse(0.0)).sum();
         double totalCarb = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getCarbG()).orElse(0.0)).sum();
         double totalFat = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getFatG()).orElse(0.0)).sum();
@@ -152,7 +153,7 @@ public class NutritionService {
         return NutritionDtos.TodayMealNutritionResponse.builder()
                 .totalCalories(totalCalories)
                 .totalOfficialCalories(totalOfficialCalories)
-                .totalEstimatedCalories(totalCalories)
+                .totalEstimatedCalories(totalEstimatedCalories)
                 .totalProteinG(round1(totalProtein))
                 .totalCarbG(round1(totalCarb))
                 .totalFatG(round1(totalFat))
@@ -222,12 +223,10 @@ public class NutritionService {
     private Macro calculateTarget(User user) {
         GoalType goal = user.getGoalType() == null ? GoalType.GENERAL_FITNESS : user.getGoalType();
 
-        if (user.getTargetWeight() == null || user.getHeightCm() == null) {
-            return new Macro(0, 0, 0, 0);
-        }
-
-        double weight = user.getTargetWeight();
-        double height = user.getHeightCm();
+        double weight = Optional.ofNullable(user.getTargetWeight())
+                .or(() -> Optional.ofNullable(user.getWeightKg()))
+                .orElse(70.0);
+        double height = Optional.ofNullable(user.getHeightCm()).orElse(175.0);
 
         // 나이/성별 정보가 없어 군인 기본값(남성 22세) 기반 Mifflin-St Jeor 근사 사용
         double bmr = 10 * weight + 6.25 * height - 5 * 22 + 5;
