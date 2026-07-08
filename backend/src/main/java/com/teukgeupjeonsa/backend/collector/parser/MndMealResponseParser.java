@@ -93,9 +93,9 @@ public class MndMealResponseParser {
         List<String> breakfastList = new ArrayList<>();
         List<String> lunchList = new ArrayList<>();
         List<String> dinnerList = new ArrayList<>();
-        double bCalSum = 0; int bCalCount = 0;
-        double lCalSum = 0; int lCalCount = 0;
-        double dCalSum = 0; int dCalCount = 0;
+        Set<Integer> breakfastCalories = new LinkedHashSet<>();
+        Set<Integer> lunchCalories = new LinkedHashSet<>();
+        Set<Integer> dinnerCalories = new LinkedHashSet<>();
         String unitName;
         String regionName;
 
@@ -106,24 +106,35 @@ public class MndMealResponseParser {
 
         void addBreakfast(String menu, Double cal) {
             if (menu != null && !breakfastList.contains(menu)) breakfastList.add(menu);
-            if (cal != null) { bCalSum += cal; bCalCount++; }
+            addCalorie(breakfastCalories, cal);
         }
         void addLunch(String menu, Double cal) {
             if (menu != null && !lunchList.contains(menu)) lunchList.add(menu);
-            if (cal != null) { lCalSum += cal; lCalCount++; }
+            addCalorie(lunchCalories, cal);
         }
         void addDinner(String menu, Double cal) {
             if (menu != null && !dinnerList.contains(menu)) dinnerList.add(menu);
-            if (cal != null) { dCalSum += cal; dCalCount++; }
+            addCalorie(dinnerCalories, cal);
         }
 
         String getBreakfastStr() { return breakfastList.isEmpty() ? null : String.join(", ", breakfastList); }
         String getLunchStr() { return lunchList.isEmpty() ? null : String.join(", ", lunchList); }
         String getDinnerStr() { return dinnerList.isEmpty() ? null : String.join(", ", dinnerList); }
 
-        Integer getBreakfastKcal() { return bCalCount > 0 ? (int) Math.round(bCalSum) : null; }
-        Integer getLunchKcal() { return lCalCount > 0 ? (int) Math.round(lCalSum) : null; }
-        Integer getDinnerKcal() { return dCalCount > 0 ? (int) Math.round(dCalSum) : null; }
+        Integer getBreakfastKcal() { return maxOrNull(breakfastCalories); }
+        Integer getLunchKcal() { return maxOrNull(lunchCalories); }
+        Integer getDinnerKcal() { return maxOrNull(dinnerCalories); }
+
+        private void addCalorie(Set<Integer> calories, Double value) {
+            if (value == null || value <= 0) {
+                return;
+            }
+            calories.add((int) Math.round(value));
+        }
+
+        private Integer maxOrNull(Set<Integer> calories) {
+            return calories.stream().max(Integer::compareTo).orElse(null);
+        }
     }
 
     // 💡 텍스트에서 순수 숫자 칼로리만 뽑아내는 메서드
