@@ -56,7 +56,20 @@ export default function HomePage() {
   const weeklyExercise = {
     completed: Math.max(apiWeeklyExercise.completed ?? 0, localWeeklyExercise.completed),
     target: apiWeeklyExercise.target || localWeeklyExercise.target || 4,
+    completedDates: localWeeklyExercise.completedDates ?? [],
   };
+
+  const grassDays = useMemo(() => {
+    const completedDateSet = new Set(weeklyExercise.completedDates);
+    const today = new Date();
+    return Array.from({ length: 35 }, (_, index) => {
+      const date = new Date(today);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(today.getDate() - (34 - index));
+      const dateKey = date.toISOString().slice(0, 10);
+      return { dateKey, completed: completedDateSet.has(dateKey) };
+    });
+  }, [weeklyExercise.completedDates]);
 
   const macroData = useMemo(
     () => [
@@ -96,14 +109,12 @@ export default function HomePage() {
           <h3 className={styles.cardTitle}>이번 주 운동</h3>
           <strong>{weeklyExercise.completed} / {weeklyExercise.target}회</strong>
         </div>
-        <div className={styles.checkGrid}>
-          {Array.from({ length: weeklyExercise.target }, (_, index) => (
-            <div key={index} className={styles.checkItem}>
-              <span className={index < weeklyExercise.completed ? styles.checkedCircle : styles.emptyCircle}>{index < weeklyExercise.completed ? '✓' : ''}</span>
-              <small>{index + 1}회</small>
-            </div>
+        <div className={styles.grassGrid} aria-label="운동 현황판">
+          {grassDays.map((day) => (
+            <span key={day.dateKey} className={day.completed ? styles.grassDone : styles.grassEmpty} title={day.dateKey} />
           ))}
         </div>
+        <p className={styles.grassHint}>하루 운동을 완료할 때마다 한 칸씩 채워집니다.</p>
         <button type="button" className={styles.primaryButton} onClick={() => navigate('/exercise')}>운동 기록하기</button>
       </Card>
 

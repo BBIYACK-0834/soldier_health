@@ -41,12 +41,21 @@ function withExerciseName(exercise) {
   return { ...exercise, exerciseName: exercise.exerciseName || exercise.name };
 }
 
-function pickExercises(keywords, limit = 7) {
+function matchesEquipment(exercise, selectedEquipmentNames = []) {
+  if (!selectedEquipmentNames.length) return true;
+  if (['warmup-mobility', 'cooldown-breath'].includes(exercise.id)) return true;
+
+  const haystack = `${exercise.exerciseName} ${exercise.category}`;
+  return selectedEquipmentNames.some((name) => haystack.includes(name));
+}
+
+function pickExercises(keywords, limit = 7, selectedEquipmentNames = []) {
   const warmup = exerciseCatalog.find((exercise) => exercise.id === 'warmup-mobility');
   const cooldown = exerciseCatalog.find((exercise) => exercise.id === 'cooldown-breath');
   const matched = exerciseCatalog
     .filter((exercise) => keywords.some((keyword) => exercise.category.includes(keyword) || exercise.exerciseName.includes(keyword)))
     .filter((exercise) => !['warmup-mobility', 'cooldown-breath'].includes(exercise.id))
+    .filter((exercise) => matchesEquipment(exercise, selectedEquipmentNames))
     .slice(0, limit);
   return [warmup, ...matched, cooldown].filter(Boolean).map(withExerciseName);
 }
@@ -83,7 +92,7 @@ function buildFitnessTestWorkout(level) {
   };
 }
 
-export function buildWorkoutPlanFromProfile(profile) {
+export function buildWorkoutPlanFromProfile(profile, selectedEquipmentNames = []) {
   if (profile?.goalType === 'FITNESS_TEST') {
     const workout = buildFitnessTestWorkout(profile?.workoutLevel);
     return {
@@ -101,7 +110,7 @@ export function buildWorkoutPlanFromProfile(profile) {
     routineIndex: index,
     todayFocus: focus,
     routineType,
-    exercises: addCutFinisher(pickExercises(splitKeywords[focus] ?? splitKeywords.전신), profile, index),
+    exercises: addCutFinisher(pickExercises(splitKeywords[focus] ?? splitKeywords.전신, 7, selectedEquipmentNames), profile, index),
   }));
 
   return {

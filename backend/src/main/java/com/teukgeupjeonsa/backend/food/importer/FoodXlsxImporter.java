@@ -75,10 +75,10 @@ public class FoodXlsxImporter {
         Sheet sheet = getRequiredSheet(workbook, "food_master_clean_100g", "food_master");
         Map<String, Integer> columns = readHeader(sheet, sheet.getSheetName());
 
-        Integer foodIdCol = requiredColumn(columns, sheet.getSheetName(), "food_id", "food_id");
+        Integer foodIdCol = firstColumn(columns, "food_id");
         Integer nameCol = requiredColumn(columns, sheet.getSheetName(), "representative_name", "representative_name", "food_name", "name", "final_food_name");
         Integer categoryCol = requiredColumn(columns, sheet.getSheetName(), "display_category", "display_category", "category");
-        Integer kcalCol = requiredColumn(columns, sheet.getSheetName(), "kcal_100g", "kcal_100g", "kcal_per_100g", "calorie_kcal", "calories", "kcal");
+        Integer kcalCol = requiredColumn(columns, sheet.getSheetName(), "kcal_100g", "kcal_100g", "kcal_per_100g", "calorie_kcal", "calorie", "calories", "kcal");
         Integer carbCol = requiredColumn(columns, sheet.getSheetName(), "carb_100g", "carb_100g", "carbohydrate_100g", "carbohydrate_per_100g", "carbohydrate_g", "carb_g");
         Integer proteinCol = requiredColumn(columns, sheet.getSheetName(), "protein_100g", "protein_100g", "protein_per_100g", "protein_g");
         Integer fatCol = requiredColumn(columns, sheet.getSheetName(), "fat_100g", "fat_100g", "fat_per_100g", "fat_g");
@@ -94,6 +94,9 @@ public class FoodXlsxImporter {
             if (row == null) continue;
 
             String externalFoodId = text(row, foodIdCol);
+            if (externalFoodId == null || externalFoodId.isBlank()) {
+                externalFoodId = String.valueOf(rowIndex);
+            }
             String name = maxLength(text(row, nameCol), 200);
             if (isInvalidFoodName(name)) {
                 skippedCount++;
@@ -179,7 +182,7 @@ public class FoodXlsxImporter {
         Map<String, Integer> columns = readHeader(sheet, "food_alias");
 
         Integer aliasNameCol = requiredColumn(columns, "food_alias", "raw_food_name", "raw_food_name", "alias_name", "original_name");
-        Integer foodIdCol = requiredColumn(columns, "food_alias", "food_id", "food_id");
+        Integer foodIdCol = firstColumn(columns, "food_id");
         Integer representativeNameCol = firstColumn(columns, "representative_name", "matched_food_name", "food_name", "final_food_name");
         Integer normalizedRawNameCol = firstColumn(columns, "normalized_raw_name", "search_name");
         Integer categoryCol = firstColumn(columns, "display_category", "category", "raw_group");
@@ -197,7 +200,11 @@ public class FoodXlsxImporter {
                 continue;
             }
 
-            Food food = findFood(foodLookup, text(row, foodIdCol), text(row, representativeNameCol));
+            String representativeName = text(row, representativeNameCol);
+            Food food = findFood(foodLookup, text(row, foodIdCol), representativeName);
+            if (food == null) {
+                food = findFood(foodLookup, null, aliasName);
+            }
             if (food == null) {
                 skippedCount++;
                 continue;
@@ -229,7 +236,7 @@ public class FoodXlsxImporter {
 
         Integer rawMenuCol = requiredColumn(columns, "manual_overrides", "raw_menu_name", "raw_menu_name", "menu_name");
         Integer normalizedMenuCol = firstColumn(columns, "normalized_menu_name", "search_name");
-        Integer foodIdCol = requiredColumn(columns, "manual_overrides", "food_id", "food_id");
+        Integer foodIdCol = firstColumn(columns, "food_id");
         Integer matchedFoodNameCol = firstColumn(columns, "matched_food_name", "representative_name", "food_name", "final_food_name");
         Integer servingCol = firstColumn(columns, "serving_g", "default_serving_gram", "serving_gram");
         Integer confidenceCol = firstColumn(columns, "confidence");

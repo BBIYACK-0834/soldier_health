@@ -153,13 +153,21 @@ public class MealNutritionService {
                 .filter(java.util.Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
-        int mealCalories = officialCalorieKcal != null ? officialCalorieKcal : calculatedItemCalories;
-        double carbohydrate = items.stream().mapToDouble(item -> Optional.ofNullable(item.getCarbohydrateG()).orElse(0.0)).sum();
-        double protein = items.stream().mapToDouble(item -> Optional.ofNullable(item.getProteinG()).orElse(0.0)).sum();
-        double fat = items.stream().mapToDouble(item -> Optional.ofNullable(item.getFatG()).orElse(0.0)).sum();
-        double matchedRatio = totalItemCount == 0 ? 0.0 : round1(matchedItemCount / (double) totalItemCount);
+        double matchedRatioRaw = totalItemCount == 0 ? 0.0 : matchedItemCount / (double) totalItemCount;
+        double scale = officialScale(officialCalorieKcal, calculatedItemCalories, matchedRatioRaw);
+        List<NutritionDtos.MealNutritionItemResponse> adjustedItems = scale == 1.0 ? items : items.stream().map(item -> scaleItem(item, scale)).toList();
+        int adjustedCalculatedCalories = adjustedItems.stream()
+                .map(NutritionDtos.MealNutritionItemResponse::getCalorieKcal)
+                .filter(java.util.Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        int mealCalories = officialCalorieKcal != null ? officialCalorieKcal : adjustedCalculatedCalories;
+        double carbohydrate = adjustedItems.stream().mapToDouble(item -> Optional.ofNullable(item.getCarbohydrateG()).orElse(0.0)).sum();
+        double protein = adjustedItems.stream().mapToDouble(item -> Optional.ofNullable(item.getProteinG()).orElse(0.0)).sum();
+        double fat = adjustedItems.stream().mapToDouble(item -> Optional.ofNullable(item.getFatG()).orElse(0.0)).sum();
+        double matchedRatio = round1(matchedRatioRaw);
 
-        List<NutritionDtos.MealNutritionItemResponse> withShare = items.stream()
+        List<NutritionDtos.MealNutritionItemResponse> withShare = adjustedItems.stream()
                 .map(item -> copyWithShare(item, mealCalories))
                 .toList();
 
@@ -187,6 +195,45 @@ public class MealNutritionService {
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .toList();
+    }
+
+    private double officialScale(Integer officialCalorieKcal, int calculatedItemCalories, double matchedRatio) {
+        if (officialCalorieKcal == null || officialCalorieKcal <= 0 || calculatedItemCalories <= 0 || matchedRatio < 0.6) {
+            return 1.0;
+        }
+        double scale = officialCalorieKcal / (double) calculatedItemCalories;
+        return scale >= 0.7 && scale <= 1.3 ? scale : 1.0;
+    }
+
+    private NutritionDtos.MealNutritionItemResponse scaleItem(NutritionDtos.MealNutritionItemResponse item, double scale) {
+        Integer calorie = item.getCalorieKcal() == null ? null : (int) Math.round(item.getCalorieKcal() * scale);
+        return NutritionDtos.MealNutritionItemResponse.builder()
+                .menuName(item.getMenuName())
+                .normalizedName(item.getNormalizedName())
+                .matched(item.getMatched())
+                .matchedFoodName(item.getMatchedFoodName())
+                .displayCategory(item.getDisplayCategory())
+                .matchType(item.getMatchType())
+                .confidence(item.getConfidence())
+                .servingGram(item.getServingGram())
+                .calorieKcal(calorie)
+                .carbohydrateG(scaleNullable(item.getCarbohydrateG(), scale))
+                .proteinG(scaleNullable(item.getProteinG(), scale))
+                .fatG(scaleNullable(item.getFatG(), scale))
+                .foodId(item.getFoodId())
+                .foodName(item.getFoodName())
+                .mealType(item.getMealType())
+                .category(item.getCategory())
+                .servingUnit(item.getServingUnit())
+                .calories(calorie)
+                .carbG(scaleNullable(item.getCarbG(), scale))
+                .addedByUser(item.getAddedByUser())
+                .matchStatus(item.getMatchStatus())
+                .build();
+    }
+
+    private Double scaleNullable(Double value, double scale) {
+        return value == null ? null : round1(value * scale);
     }
 
     private NutritionDtos.MealNutritionItemResponse copyWithShare(NutritionDtos.MealNutritionItemResponse item, int mealCalories) {

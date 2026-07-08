@@ -43,11 +43,11 @@
 .routineHeader strong { display: block; color: var(--color-primary-dark); }
 .routineHeader small { display: block; margin-top: 4px; color: var(--color-text-secondary); font-weight: 800; }
 .routineHeader span { border-radius: 999px; background: #e4f5df; color: #2f6f3e; padding: 5px 9px; font-size: 12px; font-weight: 950; }
-.summaryCard strong { display: block; margin-top: 6px; color: var(--color-primary-dark); font-size: 24px; }
-.summaryCard p { margin: 10px 0 0; color: var(--color-text-secondary); font-weight: 800; }
-.progressTrack { height: 10px; margin-top: 10px; border-radius: 999px; background: #e5e1d8; overflow: hidden; }
-.progressTrack span { display: block; height: 100%; border-radius: inherit; background: #2f6f3e; transition: width 0.2s ease; }
-.resetBtn, .secondary { width: 100%; border: 0; border-radius: 14px; padding: 13px; font-weight: 900; }
-.resetBtn { margin-top: 12px; background: #eef0e8; color: var(--color-primary-dark); }
-.resetBtn:disabled { opacity: 0.45; }
-.secondary { background: #e8eef7; color: #3b557a; }
+.secondary { width: 100%; border: 0; border-radius: 14px; padding: 13px; font-weight: 900; background: #e8eef7; color: #3b557a; }
+.addPanel { display: flex; flex-direction: column; gap: 8px; }
+.addControl input { min-width: 0; border: 1px solid var(--color-border); border-radius: 14px; background: #fff; color: var(--color-primary-dark); padding: 11px 12px; font-weight: 800; }
+.equipmentMeta { margin: 12px 0 0; border-radius: 14px; background: #f4f6ef; color: #5f6b55; padding: 10px 12px; font-size: 13px; line-height: 1.4; font-weight: 850; }
+.routineHeader { width: 100%; border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; }
+.routineHeader:focus-visible { outline: 3px solid rgba(84, 115, 67, 0.28); outline-offset: 4px; border-radius: 12px; }
+.accordionBody { animation: accordionOpen 0.22s ease-out; transform-origin: top; }
+@keyframes accordionOpen { from { opacity: 0; transform: scaleY(0.96); } to { opacity: 1; transform: scaleY(1); } }
