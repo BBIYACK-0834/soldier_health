@@ -2,7 +2,6 @@
 backend/build/
 backend/.gradle/
 backend/.env
-backend/gradle/wrapper/gradle-wrapper.jar
 
 # Frontend
 frontend/node_modules/

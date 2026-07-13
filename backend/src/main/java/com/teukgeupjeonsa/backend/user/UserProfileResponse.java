@@ -16,6 +16,8 @@ public class UserProfileResponse {
     private Double heightCm;
     private Double weightKg;
     private Double targetWeight;
+    private LocalDate birthDate;
+    private String gender;
     private GoalType goalType;
     private WorkoutLevel workoutLevel;
     private Integer workoutDaysPerWeek;

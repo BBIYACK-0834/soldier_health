@@ -96,6 +96,8 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
   const [profileImageUrl, setProfileImageUrl] = useState(DEFAULT_PROFILE_IMAGES[0]);
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [gender, setGender] = useState('MALE');
   const [enlistmentDate, setEnlistmentDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -108,6 +110,8 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
     setProfileImageUrl(initialProfile?.profileImageUrl ?? DEFAULT_PROFILE_IMAGES[0]);
     setHeightCm(initialProfile?.heightCm ?? '');
     setWeightKg(initialProfile?.weightKg ?? '');
+    setBirthDate(toDateInput(initialProfile?.birthDate));
+    setGender(initialProfile?.gender ?? 'MALE');
     setEnlistmentDate(toDateInput(initialProfile?.enlistmentDate));
   }, [initialProfile]);
 
@@ -143,6 +147,8 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
       const payload = {
         heightCm: heightCm === '' ? null : Number(heightCm),
         weightKg: weightKg === '' ? null : Number(weightKg),
+        birthDate: birthDate || null,
+        gender,
         enlistmentDate: enlistmentDate || null,
       };
 
@@ -183,7 +189,7 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
       ) : null}
 
       <Card>
-        <h3>1. 키와 몸무게</h3>
+        <h3>1. 신체 정보</h3>
         <div className={styles.inlineTwo}>
           <label>
             키(cm)
@@ -192,6 +198,19 @@ export default function MilitaryProfileForm({ initialProfile, submitLabel = '저
           <label>
             몸무게(kg)
             <input type="number" min="1" step="0.1" placeholder="예: 72" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} />
+          </label>
+        </div>
+        <div className={styles.inlineTwo}>
+          <label>
+            생년월일
+            <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+          </label>
+          <label>
+            성별
+            <select value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="MALE">남성</option>
+              <option value="FEMALE">여성</option>
+            </select>
           </label>
         </div>
       </Card>

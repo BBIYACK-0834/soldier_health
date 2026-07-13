@@ -35,7 +35,7 @@ export default function HomePage() {
 
         setSummary(detail ? {
           ...baseSummary,
-          intakeCalories: detail.totalEstimatedCalories ?? detail.totalCalories ?? baseSummary.intakeCalories,
+          intakeCalories: detail.totalCalories ?? baseSummary.intakeCalories,
           intakeProteinG: detail.totalProteinG ?? baseSummary.intakeProteinG,
           intakeCarbG: detail.totalCarbG ?? baseSummary.intakeCarbG,
           intakeFatG: detail.totalFatG ?? baseSummary.intakeFatG,

@@ -7,8 +7,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +28,6 @@ public class MealNutritionService {
     private final NutritionCalculator nutritionCalculator;
     private final CompositeFoodEstimator compositeFoodEstimator;
     private final MealMenuItemParser mealMenuItemParser;
-    private final ConcurrentMap<String, NutritionDtos.MealNutritionItemResponse> analyzedItemCache = new ConcurrentHashMap<>();
 
     public NutritionDtos.MealNutritionResponse analyzeMeal(String mealType, String rawMenu, Integer officialCalorieKcal) {
         return analyzeMeal(mealType, mealMenuItemParser.parse(rawMenu), officialCalorieKcal);
@@ -42,22 +39,13 @@ public class MealNutritionService {
             if (menuName == null || menuName.isBlank()) {
                 continue;
             }
-            items.add(analyzeItemCached(mealType, menuName));
+            items.add(copyForMealType(analyzeItemTemplate(menuName), mealType));
         }
         return buildResponse(mealType, officialCalorieKcal, items);
     }
 
     public NutritionDtos.MealNutritionResponse buildSampleMealNutritionResponse() {
         return analyzeMeal("sample", SAMPLE_MENUS, 900);
-    }
-
-    private NutritionDtos.MealNutritionItemResponse analyzeItemCached(String mealType, String menuName) {
-        String cacheKey = foodNameNormalizer.normalize(menuName);
-        if (cacheKey == null || cacheKey.isBlank()) {
-            cacheKey = menuName.trim();
-        }
-        NutritionDtos.MealNutritionItemResponse cached = analyzedItemCache.computeIfAbsent(cacheKey, key -> analyzeItemTemplate(menuName));
-        return copyForMealType(cached, mealType);
     }
 
     private NutritionDtos.MealNutritionItemResponse analyzeItemTemplate(String menuName) {
@@ -187,6 +175,12 @@ public class MealNutritionService {
     }
 
     public NutritionDtos.MealNutritionResponse buildResponse(String mealType, Integer officialCalorieKcal, List<NutritionDtos.MealNutritionItemResponse> items) {
+        return buildResponse(mealType, officialCalorieKcal, items, 0.0);
+    }
+
+    public NutritionDtos.MealNutritionResponse buildResponse(String mealType, Integer officialCalorieKcal,
+                                                               List<NutritionDtos.MealNutritionItemResponse> items,
+                                                               double consumptionMultiplier) {
         int matchedItemCount = (int) items.stream().filter(item -> Boolean.TRUE.equals(item.getMatched())).count();
         int totalItemCount = items.size();
         int estimatedItemCalories = items.stream()
@@ -194,16 +188,36 @@ public class MealNutritionService {
                 .filter(java.util.Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
+        int providedRawEstimatedCalories = items.stream()
+                .filter(item -> !Boolean.TRUE.equals(item.getAddedByUser()))
+                .map(NutritionDtos.MealNutritionItemResponse::getCalorieKcal)
+                .filter(java.util.Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
         double matchedRatioRaw = totalItemCount == 0 ? 0.0 : matchedItemCount / (double) totalItemCount;
-        int displayCalories = officialCalorieKcal != null ? officialCalorieKcal : estimatedItemCalories;
-        double carbohydrate = items.stream().mapToDouble(item -> Optional.ofNullable(item.getCarbohydrateG()).orElse(0.0)).sum();
-        double protein = items.stream().mapToDouble(item -> Optional.ofNullable(item.getProteinG()).orElse(0.0)).sum();
-        double fat = items.stream().mapToDouble(item -> Optional.ofNullable(item.getFatG()).orElse(0.0)).sum();
+        double calibrationScale = calibrationScale(officialCalorieKcal, providedRawEstimatedCalories, matchedRatioRaw);
+        List<NutritionDtos.MealNutritionItemResponse> calibrated = items.stream()
+                .map(item -> Boolean.TRUE.equals(item.getAddedByUser()) ? item : scaleItem(item, calibrationScale))
+                .toList();
+        int addedCalories = calibrated.stream().filter(item -> Boolean.TRUE.equals(item.getAddedByUser()))
+                .map(NutritionDtos.MealNutritionItemResponse::getCalorieKcal).filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+        int providedEstimatedCalories = calibrated.stream().filter(item -> !Boolean.TRUE.equals(item.getAddedByUser()))
+                .map(NutritionDtos.MealNutritionItemResponse::getCalorieKcal).filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum();
+        int providedCalories = officialCalorieKcal != null ? officialCalorieKcal : providedEstimatedCalories;
+        int displayCalories = providedCalories + addedCalories;
+        double carbohydrate = calibrated.stream().mapToDouble(item -> Optional.ofNullable(item.getCarbohydrateG()).orElse(0.0)).sum();
+        double protein = calibrated.stream().mapToDouble(item -> Optional.ofNullable(item.getProteinG()).orElse(0.0)).sum();
+        double fat = calibrated.stream().mapToDouble(item -> Optional.ofNullable(item.getFatG()).orElse(0.0)).sum();
         double matchedRatio = round1(matchedRatioRaw);
 
-        List<NutritionDtos.MealNutritionItemResponse> withShare = items.stream()
+        List<NutritionDtos.MealNutritionItemResponse> withShare = calibrated.stream()
                 .map(item -> copyWithShare(item, displayCalories))
                 .toList();
+        double safeMultiplier = Math.max(0.0, Math.min(2.0, consumptionMultiplier));
+        int consumedCalories = (int) Math.round(providedCalories * safeMultiplier + addedCalories);
+        double consumedCarb = consumedMacro(calibrated, safeMultiplier, NutritionDtos.MealNutritionItemResponse::getCarbohydrateG);
+        double consumedProtein = consumedMacro(calibrated, safeMultiplier, NutritionDtos.MealNutritionItemResponse::getProteinG);
+        double consumedFat = consumedMacro(calibrated, safeMultiplier, NutritionDtos.MealNutritionItemResponse::getFatG);
 
         return NutritionDtos.MealNutritionResponse.builder()
                 .mealType(mealType)
@@ -212,6 +226,11 @@ public class MealNutritionService {
                 .matchedItemCount(matchedItemCount)
                 .totalItemCount(totalItemCount)
                 .matchedRatio(matchedRatio)
+                .consumptionMultiplier(safeMultiplier)
+                .consumedCalories(consumedCalories)
+                .consumedCarbG(round1(consumedCarb))
+                .consumedProteinG(round1(consumedProtein))
+                .consumedFatG(round1(consumedFat))
                 .items(withShare)
                 .mealLabel(toMealLabel(mealType))
                 .calories(displayCalories)
@@ -219,6 +238,35 @@ public class MealNutritionService {
                 .proteinG(round1(protein))
                 .fatG(round1(fat))
                 .build();
+    }
+
+    private double calibrationScale(Integer official, int estimated, double matchedRatio) {
+        if (official == null || estimated <= 0 || matchedRatio < 0.6) return 1.0;
+        double scale = official / (double) estimated;
+        return scale >= 0.7 && scale <= 1.3 ? scale : 1.0;
+    }
+
+    private NutritionDtos.MealNutritionItemResponse scaleItem(NutritionDtos.MealNutritionItemResponse item, double scale) {
+        if (scale == 1.0 || item.getCalorieKcal() == null) return item;
+        return NutritionDtos.MealNutritionItemResponse.builder()
+                .menuName(item.getMenuName()).normalizedName(item.getNormalizedName()).matched(item.getMatched())
+                .matchedFoodName(item.getMatchedFoodName()).displayCategory(item.getDisplayCategory())
+                .matchType(item.getMatchType()).confidence(item.getConfidence()).servingGram(item.getServingGram())
+                .calorieKcal((int) Math.round(item.getCalorieKcal() * scale))
+                .carbohydrateG(scale(item.getCarbohydrateG(), scale)).proteinG(scale(item.getProteinG(), scale)).fatG(scale(item.getFatG(), scale))
+                .foodId(item.getFoodId()).foodName(item.getFoodName()).mealType(item.getMealType()).category(item.getCategory())
+                .servingUnit(item.getServingUnit()).calories((int) Math.round(item.getCalorieKcal() * scale))
+                .carbG(scale(item.getCarbG(), scale)).addedByUser(item.getAddedByUser()).matchStatus(item.getMatchStatus()).build();
+    }
+
+    private Double scale(Double value, double multiplier) {
+        return value == null ? null : round1(value * multiplier);
+    }
+
+    private double consumedMacro(List<NutritionDtos.MealNutritionItemResponse> items, double multiplier,
+                                 java.util.function.Function<NutritionDtos.MealNutritionItemResponse, Double> getter) {
+        return items.stream().mapToDouble(item -> Optional.ofNullable(getter.apply(item)).orElse(0.0)
+                * (Boolean.TRUE.equals(item.getAddedByUser()) ? 1.0 : multiplier)).sum();
     }
 
     public List<String> parseMealItems(String rawMenu) {

@@ -95,6 +95,11 @@ public class NutritionDtos {
         private Integer matchedItemCount;
         private Integer totalItemCount;
         private Double matchedRatio;
+        private Double consumptionMultiplier;
+        private Integer consumedCalories;
+        private Double consumedProteinG;
+        private Double consumedCarbG;
+        private Double consumedFatG;
         private List<MealNutritionItemResponse> items;
 
         // 기존 프론트 호환 필드
@@ -115,6 +120,13 @@ public class NutritionDtos {
         private Double totalCarbG;
         private Double totalFatG;
         private List<MealNutritionResponse> meals;
+    }
+
+    @Getter
+    @Setter
+    public static class SaveMealConsumptionRequest {
+        private String mealType;
+        private Double portionMultiplier;
     }
 
     @Getter

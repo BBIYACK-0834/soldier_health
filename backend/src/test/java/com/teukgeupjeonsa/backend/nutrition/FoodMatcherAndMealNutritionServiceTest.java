@@ -184,6 +184,24 @@ class FoodMatcherAndMealNutritionServiceTest {
         assertThat(response.getOfficialCalorieKcal()).isEqualTo(954);
         assertThat(response.getEstimatedCalorieKcal()).isEqualTo(1120);
         assertThat(response.getCalories()).isEqualTo(954);
+        assertThat(response.getItems()).extracting(NutritionDtos.MealNutritionItemResponse::getCalorieKcal)
+                .containsExactly(426, 528);
+    }
+
+    @Test
+    void consumptionMultiplierOnlyScalesProvidedMealAndNotUserAddedFood() {
+        MealNutritionService mealService = new MealNutritionService(normalizer, matcher, servingEstimator, new NutritionCalculator(), compositeFoodEstimator, new MealMenuItemParser());
+        NutritionDtos.MealNutritionResponse response = mealService.buildResponse("lunch", 800, List.of(
+                NutritionDtos.MealNutritionItemResponse.builder().foodName("급식").matched(true)
+                        .calorieKcal(800).calories(800).carbohydrateG(100.0).proteinG(30.0).fatG(20.0).addedByUser(false).build(),
+                NutritionDtos.MealNutritionItemResponse.builder().foodName("추가 간식").matched(true)
+                        .calorieKcal(200).calories(200).carbohydrateG(20.0).proteinG(10.0).fatG(8.0).addedByUser(true).build()
+        ), 0.5);
+
+        assertThat(response.getConsumedCalories()).isEqualTo(600);
+        assertThat(response.getConsumedCarbG()).isEqualTo(70.0);
+        assertThat(response.getConsumedProteinG()).isEqualTo(25.0);
+        assertThat(response.getConsumedFatG()).isEqualTo(18.0);
     }
 
     private Food food(Long id, String name, String category, String searchName, Double kcal) {

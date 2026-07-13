@@ -25,5 +25,10 @@ public class UpdateProfileRequest {
     private Double weightKg;
 
     @PastOrPresent
+    private LocalDate birthDate;
+
+    private String gender;
+
+    @PastOrPresent
     private LocalDate enlistmentDate;
 }

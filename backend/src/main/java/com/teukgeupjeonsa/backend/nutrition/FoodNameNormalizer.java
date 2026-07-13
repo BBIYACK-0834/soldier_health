@@ -19,7 +19,7 @@ public class FoodNameNormalizer {
                 .replace('）', ')')
                 .replaceAll("\\(\\s*\\d{1,2}\\s*\\)", " ")
                 .replaceAll("[()\\[\\]{}]", " ")
-                .replaceAll("(?<![가-힣A-Za-z])\\d{1,2}(?![가-힣A-Za-z])", " ")
+                .replaceAll("(?<![0-9가-힣A-Za-z])\\d{1,2}(?![0-9가-힣A-Za-z])", " ")
                 .replaceAll("[★*•·]", " ")
                 .replace("&", "")
                 .replace("+", "")

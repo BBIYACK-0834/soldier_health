@@ -31,7 +31,7 @@ public class PublicFoodXlsxNormalizer {
             Map<String, Group> groups = new LinkedHashMap<>();
             int skipped = 0;
             int outliers = 0;
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            for (int i = findHeaderRowIndex(sheet) + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 String name = text(row, first(columns, "DESC_KOR", "food_name", "final_food_name"));
@@ -136,6 +136,17 @@ public class PublicFoodXlsxNormalizer {
             if ((columns.containsKey("DESC_KOR") && columns.containsKey("SERVING_SIZE")) || columns.containsKey("food_name")) return columns;
         }
         throw new IllegalArgumentException("DESC_KOR/SERVING_SIZE 헤더를 찾을 수 없습니다.");
+    }
+
+    private int findHeaderRowIndex(Sheet sheet) {
+        for (int r = 0; r <= Math.min(3, sheet.getLastRowNum()); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) continue;
+            Set<String> headers = new HashSet<>();
+            for (Cell cell : row) headers.add(cell.toString().trim());
+            if ((headers.contains("DESC_KOR") && headers.contains("SERVING_SIZE")) || headers.contains("food_name")) return r;
+        }
+        throw new IllegalArgumentException("식품 데이터 헤더 행을 찾을 수 없습니다.");
     }
 
     private Integer first(Map<String, Integer> columns, String... names) {

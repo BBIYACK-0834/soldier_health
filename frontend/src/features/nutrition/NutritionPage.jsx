@@ -5,7 +5,7 @@ import Card from '../../components/ui/Card';
 import ProgressBar from '../../components/ui/ProgressBar';
 import MacroBox from '../../components/ui/MacroBox';
 import { getTodayMeal } from '../../api/mealApi';
-import { getTodayMealNutritionDetails, getTodayNutrition } from '../../api/nutritionApi';
+import { getTodayMealNutritionDetails, getTodayNutrition, saveTodayMealConsumption } from '../../api/nutritionApi';
 import { getMyUnit } from '../../api/unitApi';
 import { emptyDashboardSummary, emptyMealDay } from '../../constants/defaultData';
 import styles from './DietPage.module.css';
@@ -132,6 +132,7 @@ export default function NutritionPage() {
   const [unit, setUnit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [savingMealType, setSavingMealType] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
@@ -179,7 +180,7 @@ export default function NutritionPage() {
         if (detailData) {
           setNutrition((prev) => ({
             ...prev,
-            intakeCalories: detailData.totalEstimatedCalories ?? detailData.totalCalories ?? prev.intakeCalories,
+            intakeCalories: detailData.totalCalories ?? prev.intakeCalories,
             intakeProteinG: detailData.totalProteinG ?? prev.intakeProteinG,
             intakeCarbG: detailData.totalCarbG ?? prev.intakeCarbG,
             intakeFatG: detailData.totalFatG ?? prev.intakeFatG,
@@ -209,10 +210,8 @@ export default function NutritionPage() {
   );
 
   const menuExists = hasMealMenuData(meal, mealDetails);
-  const mealTotalKcal = Number.isFinite(mealDetails?.totalEstimatedCalories)
-    ? mealDetails.totalEstimatedCalories
-    : Number.isFinite(mealDetails?.totalCalories)
-      ? mealDetails.totalCalories
+  const mealTotalKcal = Number.isFinite(mealDetails?.totalCalories)
+    ? mealDetails.totalCalories
       : [meal?.breakfastKcal, meal?.lunchKcal, meal?.dinnerKcal]
         .filter((value) => Number.isFinite(value))
         .reduce((sum, value) => sum + value, 0);
@@ -237,6 +236,21 @@ export default function NutritionPage() {
     </div>
   );
 
+  async function updateConsumption(mealType, portionMultiplier) {
+    setSavingMealType(mealType);
+    setErrorMessage('');
+    try {
+      const detailData = await saveTodayMealConsumption(mealType, portionMultiplier);
+      setMealDetails(detailData ?? { meals: [] });
+      const summaryData = await getTodayNutrition();
+      setNutrition(summaryData ? { ...emptyDashboardSummary, ...summaryData } : emptyDashboardSummary);
+    } catch (error) {
+      setErrorMessage(error?.message || '섭취량을 저장하지 못했습니다.');
+    } finally {
+      setSavingMealType('');
+    }
+  }
+
   if (loading) {
     return (
       <AppLayout title="식단 추정 기록" subtitle="군 급식 메뉴 기반 추정 영양소를 확인하세요.">
@@ -250,18 +264,18 @@ export default function NutritionPage() {
   return (
     <AppLayout title="식단 추정 기록" subtitle="군 급식 메뉴 기반 추정 영양소를 확인하세요." headerAction={headerAction}>
       <Card>
-        <p className={styles.totalTitle}>추정 칼로리 현황</p>
+        <p className={styles.totalTitle}>오늘 실제 섭취 현황</p>
         <div className={styles.calorieSummary}>
           <div>
             <span>필요 칼로리</span>
             <strong>{targetKcal.toLocaleString()} kcal</strong>
           </div>
           <div>
-            <span>추정 섭취 칼로리</span>
+            <span>기록한 섭취 칼로리</span>
             <strong>{eatenKcal.toLocaleString()} kcal</strong>
           </div>
         </div>
-        <p className={styles.base}>{menuExists ? `추정 기준으로 ${remainingKcal.toLocaleString()} kcal 정도 여유가 있어요.` : '선택 부대의 당일 식단 데이터가 아직 없습니다.'}</p>
+        <p className={styles.base}>{menuExists ? `기록 기준으로 ${remainingKcal.toLocaleString()} kcal 정도 남았어요.` : '선택 부대의 당일 식단 데이터가 아직 없습니다.'}</p>
         <div className={styles.macroGrid}>
           {macroData.map((macro) => (
             <MacroBox key={macro.label} label={macro.label} intake={macro.intake} target={macro.target} color={macro.color} tone={macro.tone} />
@@ -285,7 +299,7 @@ export default function NutritionPage() {
         const estimatedKcal = Number.isFinite(detail?.estimatedCalorieKcal) ? detail.estimatedCalorieKcal : null;
         const needsMoreMatching = items.length > 0 && (detail?.matchedItemCount ?? 0) < (detail?.totalItemCount ?? 0);
         return (
-          <Card key={section.key}>
+            <Card key={section.key}>
             <div className={styles.row}>
               <div>
                 <h3>{section.label}</h3>
@@ -297,9 +311,29 @@ export default function NutritionPage() {
               </div>
               <button type="button" onClick={() => navigate(`/diet/add?meal=${section.addKey}`)}>{section.label} 추가</button>
             </div>
+            {section.addKey !== 'snack' && (items.length > 0 || rawItems.length > 0) ? (
+              <div className={styles.portionControls}>
+                <span>실제 먹은 양</span>
+                {[
+                  [0, '안 먹음'],
+                  [0.5, '절반'],
+                  [1, '기본'],
+                  [1.5, '많이'],
+                ].map(([value, label]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    disabled={savingMealType === section.addKey}
+                    className={Number(detail?.consumptionMultiplier ?? 0) === value ? styles.portionActive : ''}
+                    onClick={() => updateConsumption(section.addKey, value)}
+                  >{label}</button>
+                ))}
+              </div>
+            ) : null}
             {items.length > 0 ? (
               <div className={styles.extraWrap}>
-                <p>{section.label} 추정 영양소 합계 · 탄 {formatGram(detail?.carbG)} · 단 {formatGram(detail?.proteinG)} · 지 {formatGram(detail?.fatG)}</p>
+                <p>{section.label} 제공 영양소 · 탄 {formatGram(detail?.carbG)} · 단 {formatGram(detail?.proteinG)} · 지 {formatGram(detail?.fatG)}</p>
+                <p>섭취 반영 · {formatKcal(detail?.consumedCalories)} · 탄 {formatGram(detail?.consumedCarbG)} · 단 {formatGram(detail?.consumedProteinG)} · 지 {formatGram(detail?.consumedFatG)}</p>
                 {items.map((item, index) => (
                   <div key={`${item.foodName}-${item.id ?? index}`} className={styles.nutritionItem}>
                     <div className={styles.itemHeader}>

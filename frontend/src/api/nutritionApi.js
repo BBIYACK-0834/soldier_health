@@ -20,6 +20,11 @@ export async function getTodayMealNutritionDetails() {
   return unwrap(response);
 }
 
+export async function saveTodayMealConsumption(mealType, portionMultiplier) {
+  const response = await httpClient.put('/api/users/me/meal-consumption/today', { mealType, portionMultiplier });
+  return unwrap(response);
+}
+
 export async function searchFoods(query) {
   const response = await httpClient.get('/api/foods/search', { params: { q: query } });
   return unwrap(response);

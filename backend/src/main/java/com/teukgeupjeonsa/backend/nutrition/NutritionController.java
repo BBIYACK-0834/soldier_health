@@ -31,6 +31,14 @@ public class NutritionController {
         return ApiResponse.ok(nutritionService.getTodayMealDetails(user.getId()));
     }
 
+    @PutMapping("/api/users/me/meal-consumption/today")
+    public ApiResponse<NutritionDtos.TodayMealNutritionResponse> saveTodayMealConsumption(
+            @AuthenticationPrincipal User user,
+            @RequestBody NutritionDtos.SaveMealConsumptionRequest request
+    ) {
+        return ApiResponse.ok(nutritionService.saveTodayMealConsumption(user.getId(), request));
+    }
+
     @GetMapping("/api/nutrition/debug/sample-meal-match")
     public ApiResponse<NutritionDtos.MealNutritionResponse> getSampleMealMatch() {
         return ApiResponse.ok(mealNutritionService.buildSampleMealNutritionResponse());

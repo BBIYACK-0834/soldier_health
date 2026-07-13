@@ -30,6 +30,7 @@ public class NutritionService {
     private final MealMenuRepository mealMenuRepository;
     private final UserOwnedFoodRepository userOwnedFoodRepository;
     private final UserMealFoodRepository userMealFoodRepository;
+    private final UserMealConsumptionRepository userMealConsumptionRepository;
     private final FoodRepository foodRepository;
     private final PxProductRepository pxProductRepository;
     private final MealNutritionService mealNutritionService;
@@ -43,7 +44,8 @@ public class NutritionService {
 
         Macro target = calculateTarget(user);
         List<UserMealFood> addedFoods = userMealFoodRepository.findByUserAndMealDate(user, LocalDate.now());
-        Macro intake = calculateTodayIntake(mealMenu, addedFoods);
+        java.util.Map<String, Double> consumption = consumptionByMeal(user);
+        Macro intake = calculateTodayIntake(mealMenu, addedFoods, consumption);
 
         return toSummary(target, intake, mealMenu.isPresent() || !addedFoods.isEmpty());
     }
@@ -135,20 +137,21 @@ public class NutritionService {
         User user = getUser(userId);
         Optional<MealMenu> mealMenu = getTodayMealMenuOptional(user);
         List<UserMealFood> addedFoods = userMealFoodRepository.findByUserAndMealDate(user, LocalDate.now());
+        java.util.Map<String, Double> consumption = consumptionByMeal(user);
 
         List<NutritionDtos.MealNutritionResponse> meals = List.of(
-                buildMealDetail("breakfast", mealMenu.map(MealMenu::getBreakfast).orElse(null), mealMenu.map(MealMenu::getBreakfastKcal).orElse(null), addedFoods),
-                buildMealDetail("lunch", mealMenu.map(MealMenu::getLunch).orElse(null), mealMenu.map(MealMenu::getLunchKcal).orElse(null), addedFoods),
-                buildMealDetail("dinner", mealMenu.map(MealMenu::getDinner).orElse(null), mealMenu.map(MealMenu::getDinnerKcal).orElse(null), addedFoods),
-                buildMealDetail("snack", null, null, addedFoods)
+                buildMealDetail("breakfast", mealMenu.map(MealMenu::getBreakfast).orElse(null), mealMenu.map(MealMenu::getBreakfastKcal).orElse(null), addedFoods, consumption.getOrDefault("breakfast", 0.0)),
+                buildMealDetail("lunch", mealMenu.map(MealMenu::getLunch).orElse(null), mealMenu.map(MealMenu::getLunchKcal).orElse(null), addedFoods, consumption.getOrDefault("lunch", 0.0)),
+                buildMealDetail("dinner", mealMenu.map(MealMenu::getDinner).orElse(null), mealMenu.map(MealMenu::getDinnerKcal).orElse(null), addedFoods, consumption.getOrDefault("dinner", 0.0)),
+                buildMealDetail("snack", null, null, addedFoods, 0.0)
         );
 
-        int totalCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getCalories()).orElse(0)).sum();
+        int totalCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getConsumedCalories()).orElse(0)).sum();
         int totalOfficialCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getOfficialCalorieKcal()).orElse(0)).sum();
         int totalEstimatedCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getEstimatedCalorieKcal()).orElse(0)).sum();
-        double totalProtein = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getProteinG()).orElse(0.0)).sum();
-        double totalCarb = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getCarbG()).orElse(0.0)).sum();
-        double totalFat = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getFatG()).orElse(0.0)).sum();
+        double totalProtein = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getConsumedProteinG()).orElse(0.0)).sum();
+        double totalCarb = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getConsumedCarbG()).orElse(0.0)).sum();
+        double totalFat = meals.stream().mapToDouble(meal -> Optional.ofNullable(meal.getConsumedFatG()).orElse(0.0)).sum();
 
         return NutritionDtos.TodayMealNutritionResponse.builder()
                 .totalCalories(totalCalories)
@@ -159,6 +162,25 @@ public class NutritionService {
                 .totalFatG(round1(totalFat))
                 .meals(meals)
                 .build();
+    }
+
+    @Transactional
+    public NutritionDtos.TodayMealNutritionResponse saveTodayMealConsumption(Long userId, NutritionDtos.SaveMealConsumptionRequest request) {
+        User user = getUser(userId);
+        String mealType = normalizeMealType(request.getMealType());
+        if ("snack".equals(mealType)) {
+            throw new IllegalArgumentException("간식은 추가한 음식 기록으로 자동 반영됩니다.");
+        }
+        double multiplier = Optional.ofNullable(request.getPortionMultiplier()).orElse(0.0);
+        if (multiplier < 0.0 || multiplier > 2.0) {
+            throw new IllegalArgumentException("portionMultiplier는 0.0~2.0 사이여야 합니다.");
+        }
+        UserMealConsumption record = userMealConsumptionRepository
+                .findByUserAndMealDateAndMealType(user, LocalDate.now(), mealType)
+                .orElseGet(() -> UserMealConsumption.builder().user(user).mealDate(LocalDate.now()).mealType(mealType).build());
+        record.setPortionMultiplier(multiplier);
+        userMealConsumptionRepository.save(record);
+        return getTodayMealDetails(userId);
     }
 
     @Transactional
@@ -223,13 +245,16 @@ public class NutritionService {
     private Macro calculateTarget(User user) {
         GoalType goal = user.getGoalType() == null ? GoalType.GENERAL_FITNESS : user.getGoalType();
 
-        double weight = Optional.ofNullable(user.getTargetWeight())
-                .or(() -> Optional.ofNullable(user.getWeightKg()))
+        double currentWeight = Optional.ofNullable(user.getWeightKg())
+                .or(() -> Optional.ofNullable(user.getTargetWeight()))
                 .orElse(70.0);
+        double macroWeight = Optional.ofNullable(user.getTargetWeight()).orElse(currentWeight);
         double height = Optional.ofNullable(user.getHeightCm()).orElse(175.0);
 
-        // 나이/성별 정보가 없어 군인 기본값(남성 22세) 기반 Mifflin-St Jeor 근사 사용
-        double bmr = 10 * weight + 6.25 * height - 5 * 22 + 5;
+        int age = user.getBirthDate() == null ? 22 : Math.max(16,
+                java.time.Period.between(user.getBirthDate(), LocalDate.now()).getYears());
+        int genderOffset = "FEMALE".equalsIgnoreCase(user.getGender()) ? -161 : 5;
+        double bmr = 10 * currentWeight + 6.25 * height - 5 * age + genderOffset;
 
         int workoutDays = Optional.ofNullable(user.getWorkoutDaysPerWeek()).orElse(0);
         int preferredMinutes = Optional.ofNullable(user.getPreferredWorkoutMinutes()).orElse(0);
@@ -262,17 +287,18 @@ public class NutritionService {
             case MAINTAIN, GENERAL_FITNESS -> 0.8;
         };
 
-        double protein = weight * proteinPerKg;
-        double fat = weight * fatPerKg;
+        double protein = macroWeight * proteinPerKg;
+        double fat = macroWeight * fatPerKg;
         double carb = Math.max(0, (targetCalories - (protein * 4 + fat * 9)) / 4);
 
         return new Macro((int) Math.round(targetCalories), protein, carb, fat);
     }
 
-    private Macro calculateTodayIntake(Optional<MealMenu> mealMenu, List<UserMealFood> addedFoods) {
+    private Macro calculateTodayIntake(Optional<MealMenu> mealMenu, List<UserMealFood> addedFoods, java.util.Map<String, Double> consumption) {
         Macro base = mealMenu.map(menu -> add(
-                add(estimateMealNutrition(menu.getBreakfast(), menu.getBreakfastKcal()), estimateMealNutrition(menu.getLunch(), menu.getLunchKcal())),
-                estimateMealNutrition(menu.getDinner(), menu.getDinnerKcal())
+                add(scale(estimateMealNutrition(menu.getBreakfast(), menu.getBreakfastKcal()), consumption.getOrDefault("breakfast", 0.0)),
+                        scale(estimateMealNutrition(menu.getLunch(), menu.getLunchKcal()), consumption.getOrDefault("lunch", 0.0))),
+                scale(estimateMealNutrition(menu.getDinner(), menu.getDinnerKcal()), consumption.getOrDefault("dinner", 0.0))
         )).orElseGet(() -> new Macro(0, 0, 0, 0));
 
         Macro added = addedFoods.stream()
@@ -281,14 +307,24 @@ public class NutritionService {
         return add(base, added);
     }
 
-    private NutritionDtos.MealNutritionResponse buildMealDetail(String mealType, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods) {
+    private NutritionDtos.MealNutritionResponse buildMealDetail(String mealType, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods, double multiplier) {
         NutritionDtos.MealNutritionResponse baseMeal = mealNutritionService.analyzeMeal(mealType, rawMenu, rawKcal);
         List<NutritionDtos.MealNutritionItemResponse> items = new ArrayList<>(baseMeal.getItems());
         addedFoods.stream()
                 .filter(food -> mealType.equals(food.getMealType()))
                 .map(food -> toAddedMealNutritionItem(food, mealType))
                 .forEach(items::add);
-        return mealNutritionService.buildResponse(mealType, rawKcal, items);
+        return mealNutritionService.buildResponse(mealType, rawKcal, items, multiplier);
+    }
+
+    private java.util.Map<String, Double> consumptionByMeal(User user) {
+        return userMealConsumptionRepository.findByUserAndMealDate(user, LocalDate.now()).stream()
+                .collect(java.util.stream.Collectors.toMap(UserMealConsumption::getMealType, UserMealConsumption::getPortionMultiplier, (a, b) -> b));
+    }
+
+    private Macro scale(Macro value, double multiplier) {
+        return new Macro((int) Math.round(value.calories * multiplier), value.protein * multiplier,
+                value.carb * multiplier, value.fat * multiplier);
     }
 
     private Macro estimateMealNutrition(String rawMenu, Integer rawKcal) {

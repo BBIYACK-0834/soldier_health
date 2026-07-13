@@ -2,7 +2,7 @@ spring:
   datasource:
     url: "${DB_URL:jdbc:mysql://localhost:3306/tg?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci}"
     username: "${DB_USERNAME:root}"
-    password: "${DB_PASSWORD:root}"
+    password: "${DB_PASSWORD}"
 
   jpa:
     hibernate:
@@ -24,7 +24,7 @@ server:
   port: "${SERVER_PORT:8080}"
 
 jwt:
-  secret: "${JWT_SECRET:change-this-secret-key-change-this-secret-key}"
+  secret: "${JWT_SECRET}"
   access-token-validity-seconds: "${JWT_ACCESS_TOKEN_VALIDITY_SECONDS:86400}"
 
 logging:

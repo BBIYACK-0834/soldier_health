@@ -46,6 +46,16 @@ public class UserService {
         if (request.getWeightKg() != null) {
             user.setWeightKg(request.getWeightKg());
         }
+        if (request.getBirthDate() != null) {
+            user.setBirthDate(request.getBirthDate());
+        }
+        if (request.getGender() != null) {
+            String gender = request.getGender().trim().toUpperCase();
+            if (!gender.equals("MALE") && !gender.equals("FEMALE")) {
+                throw new IllegalArgumentException("gender는 MALE 또는 FEMALE이어야 합니다.");
+            }
+            user.setGender(gender);
+        }
         if (request.getEnlistmentDate() != null) {
             user.setEnlistmentDate(request.getEnlistmentDate());
         }
@@ -106,6 +116,8 @@ public class UserService {
                 .heightCm(user.getHeightCm())
                 .weightKg(user.getWeightKg())
                 .targetWeight(user.getTargetWeight())
+                .birthDate(user.getBirthDate())
+                .gender(user.getGender())
                 .goalType(user.getGoalType())
                 .workoutLevel(user.getWorkoutLevel())
                 .workoutDaysPerWeek(user.getWorkoutDaysPerWeek())

@@ -37,6 +37,11 @@ public class User {
 
     private Double targetWeight;
 
+    private LocalDate birthDate;
+
+    @Column(length = 10)
+    private String gender;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
     private GoalType goalType;

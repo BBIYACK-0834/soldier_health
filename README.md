@@ -117,8 +117,8 @@ set -a; source .env; set +a
 ```env
 DB_URL=jdbc:mysql://localhost:3306/teukgeupjeonsa?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
 DB_USERNAME=root
-DB_PASSWORD=root
-JWT_SECRET=change-this-secret-key-change-this-secret-key
+DB_PASSWORD=change-me
+JWT_SECRET=replace-with-a-long-random-secret
 JWT_ACCESS_TOKEN_VALIDITY_SECONDS=86400
 SERVER_PORT=8080
 # 로그인 403(CORS) 방지를 위해 프론트 배포/포트 포워딩 Origin을 쉼표로 추가하세요.
@@ -368,7 +368,7 @@ serving_defaults 삽입 개수: 20
 
 ## 5. 개발 참고
 
-- `backend/gradle/wrapper/gradle-wrapper.jar`는 저장소에 포함되지 않습니다.
+- `backend/gradle/wrapper/gradle-wrapper.jar`를 저장소에 포함해 새 환경에서도 `./gradlew test`를 바로 실행할 수 있습니다.
 - 네트워크 제한 환경에서는 Gradle plugin 또는 배포본 다운로드가 실패할 수 있습니다.
 - UI/UX 기준 원문과 구현 라우트는 [`docs/designMe.md`](docs/designMe.md)에 정리합니다.
 - 라우트/API 요약과 DB ↔ Java/JSON 변수명 매핑은 [`docs/developMe.md`](docs/developMe.md)에 정리합니다.
@@ -410,3 +410,7 @@ serving_defaults 삽입 개수: 20
 - 홈과 식단 탭의 필요 칼로리·탄수화물·단백질·지방은 현재 몸무게가 아니라 `목표 몸무게` 기준으로 계산합니다.
 - 목표 몸무게가 없으면 영양 목표를 계산하지 않고 필수 설정 모달에서 목표 설정으로 안내합니다.
 - 칼로리와 영양소 표기는 앱 전체에서 `먹어야 될 양 / 먹은 양` 순서로 표시합니다.
+
+## 6. GPT 수정 기록
+
+영양소 표시 및 섭취 기록 구조의 수정 내용과 검증 결과는 [`gpt.md`](gpt.md)에 정리했습니다.

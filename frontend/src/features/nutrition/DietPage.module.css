@@ -13,6 +13,11 @@
 .mealKcal { display: grid; gap: 2px; font-weight: 800; color: #516045; }
 .mealKcal span { display: block; }
 .row button { border: 0; border-radius: 999px; background: #556a3b; color: #fff; padding: 7px 12px; font-weight: 700; white-space: nowrap; }
+.portionControls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+.portionControls span { width: 100%; color: #5f6958; font-size: 13px; font-weight: 900; }
+.portionControls button { border: 1px solid #d0cabd; border-radius: 999px; background: #f7f5ef; color: #414a3a; padding: 7px 11px; font-weight: 800; }
+.portionControls button:disabled { opacity: .55; }
+.portionControls .portionActive { border-color: #556a3b; background: #556a3b; color: #fff; }
 .fixed { margin: 6px 0 0; color: #2a3522; font-weight: 800; font-size: 22px; }
 .base { margin: 8px 0; color: #414a3a; font-weight: 700; }
 .extraWrap { border: 1px dashed #d0cabd; border-radius: 12px; padding: 8px; background: #f7f5ef; margin-top: 10px; }
