@@ -21,6 +21,11 @@ public class NutritionController {
         return ApiResponse.ok(nutritionService.getTodaySummary(user.getId()));
     }
 
+    @GetMapping("/api/nutrition/today/overview")
+    public ApiResponse<NutritionDtos.TodayNutritionOverviewResponse> getTodayOverview(@AuthenticationPrincipal User user) {
+        return ApiResponse.ok(nutritionService.getTodayOverview(user.getId()));
+    }
+
     @GetMapping("/api/nutrition/recommendation/today")
     public ApiResponse<NutritionDtos.RecommendationResponse> getTodayRecommendation(@AuthenticationPrincipal User user) {
         return ApiResponse.ok(nutritionService.getTodayRecommendation(user.getId()));

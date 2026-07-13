@@ -1,8 +1,21 @@
 import httpClient, { unwrap } from './httpClient';
 
+let todayOverviewRequest = null;
+
 export async function getTodayNutrition() {
   const response = await httpClient.get('/api/nutrition/today');
   return unwrap(response);
+}
+
+export async function getTodayNutritionOverview() {
+  if (!todayOverviewRequest) {
+    todayOverviewRequest = httpClient.get('/api/nutrition/today/overview')
+      .then(unwrap)
+      .finally(() => {
+        todayOverviewRequest = null;
+      });
+  }
+  return todayOverviewRequest;
 }
 
 export async function getTodayNutritionRecommendation() {

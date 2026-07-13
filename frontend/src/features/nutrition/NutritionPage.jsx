@@ -5,7 +5,7 @@ import Card from '../../components/ui/Card';
 import ProgressBar from '../../components/ui/ProgressBar';
 import MacroBox from '../../components/ui/MacroBox';
 import { getTodayMeal } from '../../api/mealApi';
-import { getTodayMealNutritionDetails, getTodayNutrition, saveTodayMealConsumption } from '../../api/nutritionApi';
+import { getTodayNutritionOverview, saveTodayMealConsumption } from '../../api/nutritionApi';
 import { getMyUnit } from '../../api/unitApi';
 import { emptyDashboardSummary, emptyMealDay } from '../../constants/defaultData';
 import styles from './DietPage.module.css';
@@ -131,29 +131,31 @@ export default function NutritionPage() {
   const [mealDetails, setMealDetails] = useState({ meals: [] });
   const [unit, setUnit] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [savingMealType, setSavingMealType] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadBasicDietData() {
+    async function loadDietData() {
       setLoading(true);
       setErrorMessage('');
 
-      const [nutritionResult, mealResult, unitResult] = await Promise.allSettled([
-        getTodayNutrition(),
+      const [overviewResult, mealResult, unitResult] = await Promise.allSettled([
+        getTodayNutritionOverview(),
         getTodayMeal(),
         getMyUnit(),
       ]);
 
       if (!mounted) return;
 
-      if (nutritionResult.status === 'fulfilled') {
-        setNutrition(nutritionResult.value ? { ...emptyDashboardSummary, ...nutritionResult.value } : emptyDashboardSummary);
+      if (overviewResult.status === 'fulfilled') {
+        const overview = overviewResult.value;
+        setNutrition({ ...emptyDashboardSummary, ...(overview?.summary ?? {}) });
+        setMealDetails(overview?.mealDetails ?? { meals: [] });
       } else {
         setNutrition(emptyDashboardSummary);
+        setMealDetails({ meals: [] });
       }
 
       if (mealResult.status === 'fulfilled') {
@@ -164,40 +166,14 @@ export default function NutritionPage() {
 
       setUnit(unitResult.status === 'fulfilled' ? unitResult.value ?? null : null);
 
-      if ([nutritionResult, mealResult, unitResult].some((result) => result.status === 'rejected')) {
+      if ([overviewResult, mealResult, unitResult].some((result) => result.status === 'rejected')) {
         setErrorMessage('일부 식단 데이터를 불러오지 못했습니다. 가능한 정보부터 먼저 표시합니다.');
       }
 
       setLoading(false);
     }
 
-    async function loadMealDetails() {
-      setDetailLoading(true);
-      try {
-        const detailData = await getTodayMealNutritionDetails();
-        if (!mounted) return;
-        setMealDetails(detailData ?? { meals: [] });
-        if (detailData) {
-          setNutrition((prev) => ({
-            ...prev,
-            intakeCalories: detailData.totalCalories ?? prev.intakeCalories,
-            intakeProteinG: detailData.totalProteinG ?? prev.intakeProteinG,
-            intakeCarbG: detailData.totalCarbG ?? prev.intakeCarbG,
-            intakeFatG: detailData.totalFatG ?? prev.intakeFatG,
-          }));
-        }
-      } catch (error) {
-        if (!mounted) return;
-        setMealDetails({ meals: [] });
-        setErrorMessage('음식별 영양소 추정이 지연되고 있습니다. 잠시 후 식단 화면을 다시 열어주세요.');
-      } finally {
-        if (mounted) setDetailLoading(false);
-      }
-    }
-
-    loadBasicDietData().then(() => {
-      if (mounted) loadMealDetails();
-    });
+    loadDietData();
 
     return () => {
       mounted = false;
@@ -242,8 +218,13 @@ export default function NutritionPage() {
     try {
       const detailData = await saveTodayMealConsumption(mealType, portionMultiplier);
       setMealDetails(detailData ?? { meals: [] });
-      const summaryData = await getTodayNutrition();
-      setNutrition(summaryData ? { ...emptyDashboardSummary, ...summaryData } : emptyDashboardSummary);
+      setNutrition((prev) => ({
+        ...prev,
+        intakeCalories: detailData?.totalCalories ?? prev.intakeCalories,
+        intakeProteinG: detailData?.totalProteinG ?? prev.intakeProteinG,
+        intakeCarbG: detailData?.totalCarbG ?? prev.intakeCarbG,
+        intakeFatG: detailData?.totalFatG ?? prev.intakeFatG,
+      }));
     } catch (error) {
       setErrorMessage(error?.message || '섭취량을 저장하지 못했습니다.');
     } finally {
@@ -357,7 +338,7 @@ export default function NutritionPage() {
               </div>
             ) : rawItems.length > 0 ? (
               <div className={styles.extraWrap}>
-                <p>{detailLoading ? '음식별 영양소 추정 전 부대 식단을 먼저 표시합니다.' : '부대 식단'}</p>
+                <p>부대 식단</p>
                 {rawItems.map((item, index) => (
                   <div key={`${section.key}-${item}-${index}`} className={styles.item}>
                     <span>{item}</span>
@@ -371,7 +352,6 @@ export default function NutritionPage() {
         );
       })}
 
-      {detailLoading ? <p className={styles.base}>음식별 영양소를 추정하는 중입니다...</p> : null}
       {errorMessage ? <p className={styles.base}>{errorMessage}</p> : null}
     </AppLayout>
   );

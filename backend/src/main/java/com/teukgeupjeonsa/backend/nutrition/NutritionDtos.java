@@ -123,6 +123,13 @@ public class NutritionDtos {
     }
 
     @Getter
+    @Builder
+    public static class TodayNutritionOverviewResponse {
+        private NutritionSummaryResponse summary;
+        private TodayMealNutritionResponse mealDetails;
+    }
+
+    @Getter
     @Setter
     public static class SaveMealConsumptionRequest {
         private String mealType;

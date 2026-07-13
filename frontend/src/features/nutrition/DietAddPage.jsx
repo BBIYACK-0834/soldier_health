@@ -51,7 +51,7 @@ export default function DietAddPage() {
       } finally {
         setLoading(false);
       }
-    }, 250);
+    }, 400);
 
     return () => window.clearTimeout(timer);
   }, [keyword]);
@@ -94,7 +94,7 @@ export default function DietAddPage() {
       setSaving(true);
       const servingGramByFoodId = Object.fromEntries(selected.map((food) => [food.foodMasterId ?? food.id, food.servingGram ?? food.defaultServingGram ?? 100]));
       await addMealFoods(mealType, selected.map((food) => food.foodMasterId ?? food.id), servingGramByFoodId);
-      navigate('/diet');
+      navigate('/diet', { replace: true, state: { mealUpdatedAt: Date.now(), mealType } });
     } catch {
       setMessage('선택한 음식을 식단에 추가하지 못했습니다. 다시 시도해주세요.');
     } finally {
@@ -103,7 +103,12 @@ export default function DietAddPage() {
   };
 
   return (
-    <AppLayout title={`${selectedMeal} 음식 추가`} subtitle="엑셀 식품 DB에서 검색한 음식의 칼로리·탄단지를 식단에 반영하세요." showBottomNav={false}>
+    <AppLayout
+      title={`${selectedMeal} 음식 추가`}
+      subtitle="음식을 선택한 뒤 아래 완료 버튼을 누르면 식단에 바로 반영됩니다."
+      showBottomNav={false}
+      headerAction={<button type="button" className={styles.closeButton} onClick={() => navigate('/diet', { replace: true })}>닫기</button>}
+    >
       <span className={styles.mealContext}>{selectedMeal}에 추가할 음식을 검색해주세요.</span>
       <input className={screen.input} placeholder="예: 짜장면, 닭가슴살, 우유" value={keyword} onChange={(e) => setKeyword(e.target.value)} autoFocus />
 
@@ -129,7 +134,11 @@ export default function DietAddPage() {
                 <p>100g당 {food.kcalPer100g ?? food.calories ?? 0} kcal · 탄 {formatGram(food.carbohydratePer100g ?? food.carbG)} · 단 {formatGram(food.proteinPer100g ?? food.proteinG)} · 지 {formatGram(food.fatPer100g ?? food.fatG)}</p>
                 <small>{food.displayCategory ?? food.category ?? '분류 없음'} · 기본 {formatGram(food.defaultServingGram ?? 100)} · 하위 원본 데이터 {food.matchedAliasCount ?? 1}개 기반</small>
               </div>
-              <button type="button" onClick={() => toggleFood(food)}>{selectedIds.has(food.foodMasterId ?? food.id) ? '✓' : '+'}</button>
+              <button
+                type="button"
+                aria-label={`${food.representativeName ?? food.foodName} ${selectedIds.has(food.foodMasterId ?? food.id) ? '선택 해제' : '선택'}`}
+                onClick={() => toggleFood(food)}
+              >{selectedIds.has(food.foodMasterId ?? food.id) ? '선택됨' : '선택'}</button>
             </div>
             {selectedIds.has(food.foodMasterId ?? food.id) ? (
               <div className={styles.servingEditor}>
@@ -147,9 +156,12 @@ export default function DietAddPage() {
         ))}
       </div>
 
-      <button type="button" className={screen.primaryButton} onClick={saveSelected} disabled={!selected.length || saving}>
-        {saving ? '추가 중...' : `${selectedMeal}에 선택한 음식 ${selected.length}개 추가`}
-      </button>
+      <div className={styles.addFooter}>
+        <button type="button" className={screen.secondaryButton} onClick={() => navigate('/diet', { replace: true })} disabled={saving}>취소</button>
+        <button type="button" className={screen.primaryButton} onClick={saveSelected} disabled={!selected.length || saving}>
+          {saving ? '식단에 반영 중...' : selected.length ? `${selected.length}개 추가하고 식단으로 돌아가기` : '추가할 음식을 선택해주세요'}
+        </button>
+      </div>
     </AppLayout>
   );
 }

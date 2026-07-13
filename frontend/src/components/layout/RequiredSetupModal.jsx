@@ -6,6 +6,26 @@ import { getMyEquipments } from '../../api/equipmentApi';
 import styles from './RequiredSetupModal.module.css';
 
 const setupRoutes = ['/guide', '/mypage/goal', '/mypage/settings', '/setup/equipment', '/setup/profile', '/unit/setup', '/unit/search', '/unit/select', '/unit/complete'];
+const SETUP_CACHE_MILLIS = 10_000;
+let setupCache = { data: null, expiresAt: 0, promise: null };
+
+function loadSetupData() {
+  const now = Date.now();
+  if (setupCache.data && setupCache.expiresAt > now) return Promise.resolve(setupCache.data);
+  if (setupCache.promise) return setupCache.promise;
+  setupCache.promise = Promise.allSettled([getMyProfile(), getMyUnit(), getMyEquipments()])
+    .then(([profileResult, unitResult, equipmentsResult]) => ({
+      loading: false,
+      profile: profileResult.status === 'fulfilled' ? profileResult.value : null,
+      unit: unitResult.status === 'fulfilled' ? unitResult.value : null,
+      equipments: equipmentsResult.status === 'fulfilled' ? equipmentsResult.value ?? [] : [],
+    }))
+    .then((data) => {
+      setupCache = { data, expiresAt: Date.now() + SETUP_CACHE_MILLIS, promise: null };
+      return data;
+    });
+  return setupCache.promise;
+}
 
 function isSetupRoute(pathname) {
   return setupRoutes.some((route) => pathname.startsWith(route));
@@ -32,15 +52,10 @@ export default function RequiredSetupModal() {
 
   useEffect(() => {
     let mounted = true;
-    Promise.allSettled([getMyProfile(), getMyUnit(), getMyEquipments()])
-      .then(([profileResult, unitResult, equipmentsResult]) => {
+    loadSetupData()
+      .then((data) => {
         if (!mounted) return;
-        setState({
-          loading: false,
-          profile: profileResult.status === 'fulfilled' ? profileResult.value : null,
-          unit: unitResult.status === 'fulfilled' ? unitResult.value : null,
-          equipments: equipmentsResult.status === 'fulfilled' ? equipmentsResult.value ?? [] : [],
-        });
+        setState(data);
       });
     return () => {
       mounted = false;

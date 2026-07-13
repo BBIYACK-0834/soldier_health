@@ -23,6 +23,8 @@ public class FoodMatcher {
     private static final Set<String> RICE_NAMES = Set.of("밥", "쌀밥", "백미밥", "잡곡밥", "흰밥", "현미밥", "멥쌀밥");
     private static final List<String> DESSERT_KEYWORDS = List.of("아이스크림", "빙수", "음료", "주스", "쥬스", "라떼", "푸딩", "젤리", "케이크", "쿠키", "초코", "디저트");
     private static final double SIMILARITY_THRESHOLD = 0.72;
+    private static final int MAX_TOKEN_SEARCHES = 3;
+    private static final int MAX_SIMILARITY_PREFIX_SEARCHES = 2;
 
     private final FoodRepository foodRepository;
     private final FoodAliasRepository foodAliasRepository;
@@ -142,12 +144,14 @@ public class FoodMatcher {
         }
 
         Set<Food> candidates = new HashSet<>();
-        for (int end = Math.min(searchName.length(), 5); end >= 2; end--) {
+        int searchedPrefixes = 0;
+        for (int end = Math.min(searchName.length(), 5); end >= 2 && searchedPrefixes < MAX_SIMILARITY_PREFIX_SEARCHES; end--) {
             String token = searchName.substring(0, end);
             candidates.addAll(safeFoods(foodRepository.searchContains(token, PageRequest.of(0, 30))));
             safeAliases(foodAliasRepository.searchContains(token, PageRequest.of(0, 30))).stream()
                     .map(FoodAlias::getFood)
                     .forEach(candidates::add);
+            searchedPrefixes++;
         }
 
         return candidates.stream()
@@ -214,7 +218,9 @@ public class FoodMatcher {
                 }
             }
         }
-        return tokens.stream().distinct().toList();
+        // Each token performs two DB searches. Keep the most meaningful tokens first
+        // so a long military menu name cannot fan out into dozens of queries.
+        return tokens.stream().distinct().limit(MAX_TOKEN_SEARCHES).toList();
     }
 
     private double tokenScore(String searchName, String token, Food food) {

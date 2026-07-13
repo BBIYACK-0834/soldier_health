@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import Card from '../../components/ui/Card';
 import ProgressBar from '../../components/ui/ProgressBar';
-import { getTodayMealNutritionDetails, getTodayNutrition } from '../../api/nutritionApi';
+import { getTodayNutritionOverview } from '../../api/nutritionApi';
 import { emptyDashboardSummary, emptyUser } from '../../constants/defaultData';
 import { getWeeklyWorkoutSummary } from '../../utils/workoutStorage';
 import { useAppContext } from '../../app/AppContext';
@@ -22,28 +22,9 @@ export default function HomePage() {
     async function load() {
       try {
         setLoading(true);
-        const [summaryResult, detailResult] = await Promise.allSettled([
-          getTodayNutrition(),
-          getTodayMealNutritionDetails(),
-        ]);
+        const overviewResult = await getTodayNutritionOverview();
         if (!mounted) return;
-
-        const baseSummary = summaryResult.status === 'fulfilled' && summaryResult.value
-          ? { ...emptyDashboardSummary, ...summaryResult.value }
-          : emptyDashboardSummary;
-        const detail = detailResult.status === 'fulfilled' ? detailResult.value : null;
-
-        setSummary(detail ? {
-          ...baseSummary,
-          intakeCalories: detail.totalCalories ?? baseSummary.intakeCalories,
-          intakeProteinG: detail.totalProteinG ?? baseSummary.intakeProteinG,
-          intakeCarbG: detail.totalCarbG ?? baseSummary.intakeCarbG,
-          intakeFatG: detail.totalFatG ?? baseSummary.intakeFatG,
-        } : baseSummary);
-
-        if (summaryResult.status === 'rejected' || detailResult.status === 'rejected') {
-          setErrorMessage('일부 건강 데이터 동기화가 지연되어 가능한 수치부터 표시합니다.');
-        }
+        setSummary({ ...emptyDashboardSummary, ...(overviewResult?.summary ?? {}) });
       } catch (error) {
         if (!mounted) return;
         setSummary(emptyDashboardSummary);

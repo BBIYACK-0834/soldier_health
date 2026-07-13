@@ -39,15 +39,25 @@ public class NutritionService {
 
     @Transactional(readOnly = true)
     public NutritionDtos.NutritionSummaryResponse getTodaySummary(Long userId) {
+        return getTodayOverview(userId).getSummary();
+    }
+
+    @Transactional(readOnly = true)
+    public NutritionDtos.TodayNutritionOverviewResponse getTodayOverview(Long userId) {
         User user = getUser(userId);
-        Optional<MealMenu> mealMenu = getTodayMealMenuOptional(user);
-
+        NutritionDtos.TodayMealNutritionResponse details = getTodayMealDetails(userId);
         Macro target = calculateTarget(user);
-        List<UserMealFood> addedFoods = userMealFoodRepository.findByUserAndMealDate(user, LocalDate.now());
-        java.util.Map<String, Double> consumption = consumptionByMeal(user);
-        Macro intake = calculateTodayIntake(mealMenu, addedFoods, consumption);
-
-        return toSummary(target, intake, mealMenu.isPresent() || !addedFoods.isEmpty());
+        Macro intake = new Macro(
+                Optional.ofNullable(details.getTotalCalories()).orElse(0),
+                Optional.ofNullable(details.getTotalProteinG()).orElse(0.0),
+                Optional.ofNullable(details.getTotalCarbG()).orElse(0.0),
+                Optional.ofNullable(details.getTotalFatG()).orElse(0.0)
+        );
+        boolean hasMealData = details.getMeals().stream().anyMatch(meal -> meal.getTotalItemCount() != null && meal.getTotalItemCount() > 0);
+        return NutritionDtos.TodayNutritionOverviewResponse.builder()
+                .summary(toSummary(target, intake, hasMealData))
+                .mealDetails(details)
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -294,19 +304,6 @@ public class NutritionService {
         return new Macro((int) Math.round(targetCalories), protein, carb, fat);
     }
 
-    private Macro calculateTodayIntake(Optional<MealMenu> mealMenu, List<UserMealFood> addedFoods, java.util.Map<String, Double> consumption) {
-        Macro base = mealMenu.map(menu -> add(
-                add(scale(estimateMealNutrition(menu.getBreakfast(), menu.getBreakfastKcal()), consumption.getOrDefault("breakfast", 0.0)),
-                        scale(estimateMealNutrition(menu.getLunch(), menu.getLunchKcal()), consumption.getOrDefault("lunch", 0.0))),
-                scale(estimateMealNutrition(menu.getDinner(), menu.getDinnerKcal()), consumption.getOrDefault("dinner", 0.0))
-        )).orElseGet(() -> new Macro(0, 0, 0, 0));
-
-        Macro added = addedFoods.stream()
-                .map(food -> new Macro(Optional.ofNullable(food.getCalories()).orElse(0), nvl(food.getProteinG()), nvl(food.getCarbG()), nvl(food.getFatG())))
-                .reduce(new Macro(0, 0, 0, 0), this::add);
-        return add(base, added);
-    }
-
     private NutritionDtos.MealNutritionResponse buildMealDetail(String mealType, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods, double multiplier) {
         NutritionDtos.MealNutritionResponse baseMeal = mealNutritionService.analyzeMeal(mealType, rawMenu, rawKcal);
         List<NutritionDtos.MealNutritionItemResponse> items = new ArrayList<>(baseMeal.getItems());
@@ -320,19 +317,6 @@ public class NutritionService {
     private java.util.Map<String, Double> consumptionByMeal(User user) {
         return userMealConsumptionRepository.findByUserAndMealDate(user, LocalDate.now()).stream()
                 .collect(java.util.stream.Collectors.toMap(UserMealConsumption::getMealType, UserMealConsumption::getPortionMultiplier, (a, b) -> b));
-    }
-
-    private Macro scale(Macro value, double multiplier) {
-        return new Macro((int) Math.round(value.calories * multiplier), value.protein * multiplier,
-                value.carb * multiplier, value.fat * multiplier);
-    }
-
-    private Macro estimateMealNutrition(String rawMenu, Integer rawKcal) {
-        NutritionDtos.MealNutritionResponse meal = mealNutritionService.analyzeMeal("", rawMenu, rawKcal);
-        Macro calculated = meal.getItems().stream()
-                .map(item -> new Macro(Optional.ofNullable(item.getCalorieKcal()).orElse(0), nvl(item.getProteinG()), nvl(item.getCarbohydrateG()), nvl(item.getFatG())))
-                .reduce(new Macro(0, 0, 0, 0), this::add);
-        return new Macro(Optional.ofNullable(rawKcal).orElse(calculated.calories), calculated.protein, calculated.carb, calculated.fat);
     }
 
     private NutritionDtos.NutritionSummaryResponse toSummary(Macro target, Macro intake, boolean hasMealData) {
@@ -451,10 +435,6 @@ public class NutritionService {
             case "snack", "간식" -> "snack";
             default -> throw new IllegalArgumentException("mealType은 breakfast/lunch/dinner/snack 중 하나여야 합니다.");
         };
-    }
-
-    private Macro add(Macro first, Macro second) {
-        return new Macro(first.calories + second.calories, first.protein + second.protein, first.carb + second.carb, first.fat + second.fat);
     }
 
     private int toInt(Double value) {

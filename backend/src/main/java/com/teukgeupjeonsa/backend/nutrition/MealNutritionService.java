@@ -7,10 +7,14 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 @RequiredArgsConstructor
 public class MealNutritionService {
+
+    private static final long ITEM_CACHE_TTL_MILLIS = 10 * 60 * 1000L;
 
     private static final List<String> SAMPLE_MENUS = List.of(
             "밥",
@@ -28,6 +32,7 @@ public class MealNutritionService {
     private final NutritionCalculator nutritionCalculator;
     private final CompositeFoodEstimator compositeFoodEstimator;
     private final MealMenuItemParser mealMenuItemParser;
+    private final ConcurrentMap<String, CachedItem> analyzedItemCache = new ConcurrentHashMap<>();
 
     public NutritionDtos.MealNutritionResponse analyzeMeal(String mealType, String rawMenu, Integer officialCalorieKcal) {
         return analyzeMeal(mealType, mealMenuItemParser.parse(rawMenu), officialCalorieKcal);
@@ -39,9 +44,25 @@ public class MealNutritionService {
             if (menuName == null || menuName.isBlank()) {
                 continue;
             }
-            items.add(copyForMealType(analyzeItemTemplate(menuName), mealType));
+            items.add(copyForMealType(analyzeItemCached(menuName), mealType));
         }
         return buildResponse(mealType, officialCalorieKcal, items);
+    }
+
+    private NutritionDtos.MealNutritionItemResponse analyzeItemCached(String menuName) {
+        String key = foodNameNormalizer.toSearchName(menuName);
+        long now = System.currentTimeMillis();
+        CachedItem cached = analyzedItemCache.get(key);
+        if (cached != null && now - cached.createdAtMillis() < ITEM_CACHE_TTL_MILLIS) {
+            return cached.item();
+        }
+        NutritionDtos.MealNutritionItemResponse analyzed = analyzeItemTemplate(menuName);
+        analyzedItemCache.put(key, new CachedItem(analyzed, now));
+        return analyzed;
+    }
+
+    public void clearAnalysisCache() {
+        analyzedItemCache.clear();
     }
 
     public NutritionDtos.MealNutritionResponse buildSampleMealNutritionResponse() {
@@ -322,5 +343,8 @@ public class MealNutritionService {
 
     private double round1(double value) {
         return Math.round(value * 10.0) / 10.0;
+    }
+
+    private record CachedItem(NutritionDtos.MealNutritionItemResponse item, long createdAtMillis) {
     }
 }
