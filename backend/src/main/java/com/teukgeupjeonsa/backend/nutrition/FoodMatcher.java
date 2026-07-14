@@ -186,7 +186,7 @@ public class FoodMatcher {
         String foodName = toComparableName(food);
         String category = Optional.ofNullable(food.getCategory()).orElse("");
         if (isRiceMenu(searchName)) {
-            return (containsAny(foodName, "밥", "쌀", "백미", "잡곡", "현미", "멥쌀") || containsAny(category, "밥", "곡류"))
+            return isPlausiblePlainRiceFood(food)
                     && !containsAny(foodName + category, DESSERT_KEYWORDS.toArray(String[]::new));
         }
         if (containsAny(searchName, "소스") && containsAny(category, "면", "라면")) {
