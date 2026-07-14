@@ -173,6 +173,7 @@ public class MealNutritionService {
         Double carb;
         Double protein;
         Double fat;
+        boolean useCategoryFallback = false;
         if (useRiceReference) {
             RiceNutritionReference.Macros rice = RiceNutritionReference.estimate(profile.calorieKcal());
             carb = rice.carbohydrateG();
@@ -182,6 +183,18 @@ public class MealNutritionService {
             carb = usableMacros ? scale(estimatedBase.getCarbohydrateG(), macroScale) : null;
             protein = usableMacros ? scale(estimatedBase.getProteinG(), macroScale) : null;
             fat = usableMacros ? scale(estimatedBase.getFatG(), macroScale) : null;
+            if (carb == null || protein == null || fat == null) {
+                Optional<MenuMacroFallbackEstimator.Estimate> fallback =
+                        MenuMacroFallbackEstimator.estimate(
+                                foodNameNormalizer.toSearchName(menuName), profile.calorieKcal());
+                if (fallback.isPresent()) {
+                    MenuMacroFallbackEstimator.Estimate estimate = fallback.get();
+                    carb = estimate.carbohydrateG();
+                    protein = estimate.proteinG();
+                    fat = estimate.fatG();
+                    useCategoryFallback = true;
+                }
+            }
         }
         boolean macroAvailable = carb != null && protein != null && fat != null;
 
@@ -196,8 +209,10 @@ public class MealNutritionService {
                 .calorieSource(profile.matchType())
                 .calorieConfidence(profile.confidence())
                 .macroSource(useRiceReference ? "STANDARD_RICE_REFERENCE"
+                        : useCategoryFallback ? "OFFICIAL_CALORIE_CATEGORY_ESTIMATE"
                         : macroAvailable ? estimatedBase.getMatchType() : "UNAVAILABLE")
                 .macroConfidence(useRiceReference ? MatchConfidence.MEDIUM
+                        : useCategoryFallback ? MatchConfidence.LOW
                         : macroAvailable ? estimatedBase.getConfidence() : MatchConfidence.NONE)
                 .servingGram(estimatedBase.getServingGram())
                 .calorieKcal(calorie)
