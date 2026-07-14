@@ -279,7 +279,7 @@ export default function NutritionPage() {
         <ProgressBar value={eatenKcal} max={targetKcal || 1} />
         <small>
           {menuExists
-            ? '군 급식 메뉴와 식품 DB 기반 추정값입니다. 실제 배식량과 조리 방식에 따라 차이가 있을 수 있어 일상적인 체중 관리와 영양 균형 확인에 활용하세요.'
+            ? '칼로리는 군 급식 공식값이며, 탄수화물·단백질·지방은 식품 DB 기반 추정값입니다. 실제 배식량과 조리 방식에 따라 영양소는 달라질 수 있습니다.'
             : '당일 식단 데이터가 없어 추정 섭취 칼로리는 0으로 표시됩니다.'}
         </small>
       </Card>
@@ -291,17 +291,13 @@ export default function NutritionPage() {
         const officialKcal = Number.isFinite(detail?.officialCalorieKcal)
           ? detail.officialCalorieKcal
           : section.key === 'snackRaw' ? null : meal?.[`${section.key.replace('Raw', 'Kcal')}`];
-        const estimatedKcal = Number.isFinite(detail?.estimatedCalorieKcal) ? detail.estimatedCalorieKcal : null;
-        const needsMoreMatching = items.length > 0 && (detail?.matchedItemCount ?? 0) < (detail?.totalItemCount ?? 0);
         return (
             <Card key={section.key}>
             <div className={styles.row}>
               <div>
                 <h3>{section.label}</h3>
                 <div className={styles.mealKcal}>
-                  {Number.isFinite(officialKcal) ? <span>공식 칼로리 {formatKcal(officialKcal)}</span> : null}
-                  {Number.isFinite(estimatedKcal) ? <span>음식별 추정 {formatKcal(estimatedKcal)}{needsMoreMatching ? ' · 일부 메뉴 매칭 필요' : ''}</span> : null}
-                  {!Number.isFinite(officialKcal) && !Number.isFinite(estimatedKcal) ? <span>칼로리 정보 없음</span> : null}
+                  {Number.isFinite(officialKcal) ? <span>공식 칼로리 {formatKcal(officialKcal)}</span> : <span>칼로리 정보 없음</span>}
                 </div>
               </div>
               <button type="button" onClick={() => navigate(`/diet/add?meal=${section.addKey}`)}>{section.label} 추가</button>
@@ -333,7 +329,7 @@ export default function NutritionPage() {
                   <div key={`${item.foodName}-${item.id ?? index}`} className={styles.nutritionItem}>
                     <div className={styles.itemHeader}>
                       <strong>{item.foodName}</strong>
-                      <span>{item.matched === false ? '영양정보 매칭 필요' : `${formatKcal(item.calories)} · ${item.calorieSharePct ?? 0}%`}</span>
+                      <span>{Number.isFinite(item.calories) ? formatKcal(item.calories) : '공식 칼로리 정보 없음'}</span>
                     </div>
 {item.matchedFoodName && item.matchedFoodName !== item.foodName ? <small>DB 매칭: {item.matchedFoodName}</small> : null}
                     {item.calorieSource ? (
