@@ -52,5 +52,32 @@ tasks.register('importFoods', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.teukgeupjeonsa.foodimport.FoodImportApplication'
 
-    args "--app.food-import.file=${project.findProperty('foodFile') ?: '../food_data/foods_refined_for_military_meal_matching.xlsx'}"
+    if (project.hasProperty('foodFile')) {
+        args "--app.food-import.file=${project.property('foodFile')}"
+    }
+}
+
+tasks.register('importMilitaryMenus', JavaExec) {
+    group = 'application'
+    description = 'Import aggregated military menu nutrition profiles from an xlsx file into the database.'
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.teukgeupjeonsa.menuimport.MilitaryMenuImportApplication'
+
+    if (project.hasProperty('militaryMenuFile')) {
+        args "--app.military-menu-import.file=${project.property('militaryMenuFile')}"
+    }
+    if (project.hasProperty('militaryMenuDailyFile')) {
+        args "--app.military-menu-import.daily-file=${project.property('militaryMenuDailyFile')}"
+    }
+}
+
+tasks.named('importMilitaryMenus') {
+    mustRunAfter tasks.named('importFoods')
+}
+
+tasks.register('importNutritionData') {
+    group = 'application'
+    description = 'Import general food data and military menu data in the required order.'
+    dependsOn tasks.named('importFoods'), tasks.named('importMilitaryMenus')
 }

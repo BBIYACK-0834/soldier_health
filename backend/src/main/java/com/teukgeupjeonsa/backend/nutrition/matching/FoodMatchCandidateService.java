@@ -25,6 +25,7 @@ public class FoodMatchCandidateService {
     private final ManualFoodOverrideRepository manualFoodOverrideRepository;
     private final FoodMatcher foodMatcher;
     private final CompositeFoodEstimator compositeFoodEstimator;
+    private final MealNutritionService mealNutritionService;
 
     @Transactional
     public RebuildResult rebuildCandidates() {
@@ -44,6 +45,7 @@ public class FoodMatchCandidateService {
                 needsReview++;
             }
         }
+        if (autoApproved > 0) mealNutritionService.clearAnalysisCache();
         return RebuildResult.builder().processedOccurrences(saved.size()).autoApproved(autoApproved).needsReview(needsReview).build();
     }
 
@@ -59,6 +61,7 @@ public class FoodMatchCandidateService {
         if (candidate.getFood() == null) throw new IllegalArgumentException("승인할 식품 후보가 없습니다.");
         candidate.setStatus(FoodMatchEnums.CandidateStatus.APPROVED);
         saveOverride(candidate, "review approved");
+        mealNutritionService.clearAnalysisCache();
         return candidate;
     }
 

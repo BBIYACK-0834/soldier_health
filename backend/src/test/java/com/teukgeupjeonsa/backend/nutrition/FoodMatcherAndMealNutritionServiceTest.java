@@ -1,6 +1,8 @@
 package com.teukgeupjeonsa.backend.nutrition;
 
 import com.teukgeupjeonsa.backend.food.*;
+import com.teukgeupjeonsa.backend.nutrition.menu.MilitaryMenuNutritionMatch;
+import com.teukgeupjeonsa.backend.nutrition.menu.MilitaryMenuNutritionProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 
@@ -73,6 +75,7 @@ class FoodMatcherAndMealNutritionServiceTest {
         assertThat(noMatch.getCarbohydrateG()).isNull();
         assertThat(noMatch.getProteinG()).isNull();
         assertThat(noMatch.getFatG()).isNull();
+        assertThat(response.getItems().get(0).getCalorieSharePct()).isEqualTo(33.3);
     }
 
     @Test
@@ -90,6 +93,34 @@ class FoodMatcherAndMealNutritionServiceTest {
         assertThat(result.isMatched()).isTrue();
         assertThat(result.getMatchedFoodName()).isEqualTo("김치");
         assertThat(result.getMatchType()).isEqualTo("TOKEN_CONTAINS");
+    }
+
+    @Test
+    void compoundSashimiDoesNotMatchUnrelatedSnackAlias() {
+        Food biscuit = food(11L, "비스킷", "간식", "비스킷", 145.0);
+        when(overrideProvider.findOverride("파프리카오징어숙회")).thenReturn(Optional.empty());
+        when(aliasRepository.findFirstBySearchNameOrderByFood_SourceCountDesc("파프리카오징어숙회")).thenReturn(Optional.empty());
+        when(foodRepository.findFirstBySearchNameOrderBySourceCountDesc("파프리카오징어숙회")).thenReturn(Optional.empty());
+        when(aliasRepository.searchContains(anyString(), any(Pageable.class)))
+                .thenReturn(List.of(alias(biscuit, "파프리카 어니언 비스킷")));
+
+        FoodMatchResult result = matcher.match("파프리카&오징어숙회");
+
+        assertThat(result.isMatched()).isFalse();
+    }
+
+    @Test
+    void reviewQualityFoodIsNotUsedForFuzzyMatch() {
+        Food friedRice = food(12L, "볶음밥", "밥/분식", "볶음밥", 169.0);
+        friedRice.setQualityFlag("review");
+        when(overrideProvider.findOverride("깍두기반찬")).thenReturn(Optional.empty());
+        when(aliasRepository.findFirstBySearchNameOrderByFood_SourceCountDesc("깍두기반찬")).thenReturn(Optional.empty());
+        when(foodRepository.findFirstBySearchNameOrderBySourceCountDesc("깍두기반찬")).thenReturn(Optional.empty());
+        when(foodRepository.searchContains(anyString(), any(Pageable.class))).thenReturn(List.of(friedRice));
+
+        FoodMatchResult result = matcher.match("깍두기 반찬");
+
+        assertThat(result.isMatched()).isFalse();
     }
 
 
@@ -123,6 +154,31 @@ class FoodMatcherAndMealNutritionServiceTest {
         assertThat(result.get().getProteinG()).isNotNull().isPositive();
         assertThat(result.get().getFatG()).isNotNull().isPositive();
         assertThat(result.get().getIngredients()).hasSize(2);
+    }
+
+    @Test
+    void compositeEstimatorPrefersRawPotatoOverSnackWithHigherSourceCount() {
+        Food potatoChip = food(30L, "감자칩", "간식", "감자칩", 249.0);
+        potatoChip.setSourceCount(34);
+        potatoChip.setCarbohydrate(19.8);
+        potatoChip.setProtein(1.8);
+        potatoChip.setFat(11.1);
+        Food boiledPotato = food(31L, "감자수미삶은것", "감자 및 전분류", "감자수미삶은것", 76.0);
+        boiledPotato.setCarbohydrate(17.4);
+        boiledPotato.setProtein(2.0);
+        boiledPotato.setFat(0.0);
+
+        when(servingDefaultRepository.findFirstByCategory(anyString())).thenReturn(Optional.empty());
+        when(foodRepository.findFirstBySearchNameOrderBySourceCountDesc("감자")).thenReturn(Optional.empty());
+        when(foodRepository.findFirstByNameOrderBySourceCountDesc("감자")).thenReturn(Optional.empty());
+        when(foodRepository.searchContains(eq("감자"), any(Pageable.class))).thenReturn(List.of(potatoChip, boiledPotato));
+        when(aliasRepository.findBySearchName(anyString())).thenReturn(List.of());
+        when(aliasRepository.searchContains(anyString(), any(Pageable.class))).thenReturn(List.of());
+
+        CompositeFoodEstimator estimator = new CompositeFoodEstimator(foodRepository, aliasRepository, normalizer, servingDefaultRepository);
+        CompositeFoodEstimateResult result = estimator.estimate("감자짜글이").orElseThrow();
+
+        assertThat(result.getMatchedDisplayName()).contains("감자수미삶은것").doesNotContain("감자칩");
     }
 
     @Test
@@ -189,6 +245,27 @@ class FoodMatcherAndMealNutritionServiceTest {
     }
 
     @Test
+    void officialCaloriesReconcileItemsAndMacrosForModerateUnderestimate() {
+        MealNutritionService mealService = new MealNutritionService(normalizer, matcher, servingEstimator, new NutritionCalculator(), compositeFoodEstimator, new MealMenuItemParser());
+        List<NutritionDtos.MealNutritionItemResponse> items = new java.util.ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            items.add(NutritionDtos.MealNutritionItemResponse.builder()
+                    .foodName("메뉴" + i).matched(true).calorieKcal(i == 0 ? 297 : 100).calories(i == 0 ? 297 : 100)
+                    .carbohydrateG(10.0).proteinG(5.0).fatG(2.0).addedByUser(false).build());
+        }
+        items.add(NutritionDtos.MealNutritionItemResponse.builder().foodName("미매칭").matched(false).addedByUser(false).build());
+
+        NutritionDtos.MealNutritionResponse response = mealService.buildResponse("lunch", 1083, items);
+
+        assertThat(response.getEstimatedCalorieKcal()).isEqualTo(797);
+        assertThat(response.getItems().stream().map(NutritionDtos.MealNutritionItemResponse::getCalorieKcal)
+                .filter(java.util.Objects::nonNull).mapToInt(Integer::intValue).sum()).isEqualTo(1083);
+        assertThat(response.getItems().stream().map(NutritionDtos.MealNutritionItemResponse::getCalorieSharePct)
+                .filter(java.util.Objects::nonNull).mapToDouble(Double::doubleValue).sum()).isBetween(99.9, 100.1);
+        assertThat(response.getCarbG()).isGreaterThan(60.0);
+    }
+
+    @Test
     void consumptionMultiplierOnlyScalesProvidedMealAndNotUserAddedFood() {
         MealNutritionService mealService = new MealNutritionService(normalizer, matcher, servingEstimator, new NutritionCalculator(), compositeFoodEstimator, new MealMenuItemParser());
         NutritionDtos.MealNutritionResponse response = mealService.buildResponse("lunch", 800, List.of(
@@ -202,6 +279,53 @@ class FoodMatcherAndMealNutritionServiceTest {
         assertThat(response.getConsumedCarbG()).isEqualTo(70.0);
         assertThat(response.getConsumedProteinG()).isEqualTo(25.0);
         assertThat(response.getConsumedFatG()).isEqualTo(18.0);
+    }
+
+    @Test
+    void calorieRoundingDifferenceIsDistributedAcrossItems() {
+        MealNutritionService mealService = new MealNutritionService(normalizer, matcher, servingEstimator,
+                new NutritionCalculator(), compositeFoodEstimator, new MealMenuItemParser());
+        List<NutritionDtos.MealNutritionItemResponse> items = java.util.stream.IntStream.range(0, 4)
+                .mapToObj(index -> NutritionDtos.MealNutritionItemResponse.builder()
+                        .foodName("메뉴" + index).matched(true).calorieKcal(1).calories(1)
+                        .carbohydrateG(1.0).proteinG(1.0).fatG(1.0).addedByUser(false).build())
+                .toList();
+
+        NutritionDtos.MealNutritionResponse response = mealService.buildResponse("dinner", 6, items);
+
+        assertThat(response.getItems()).extracting(NutritionDtos.MealNutritionItemResponse::getCalorieKcal)
+                .containsExactly(1, 1, 2, 2);
+        assertThat(response.getItems().stream().mapToInt(NutritionDtos.MealNutritionItemResponse::getCalorieKcal).sum())
+                .isEqualTo(6);
+    }
+
+    @Test
+    void unitMenuProfileTakesPriorityAndNormalizesContractLabels() {
+        FoodMatcher noMatchMatcher = mock(FoodMatcher.class);
+        when(noMatchMatcher.match(anyString())).thenAnswer(invocation -> {
+            String name = invocation.getArgument(0);
+            return FoodMatchResult.noMatch(name, normalizer.normalize(name));
+        });
+        when(compositeFoodEstimator.estimate(anyString())).thenReturn(Optional.empty());
+        MilitaryMenuNutritionProvider menuProvider = (serviceCode, mealDate, mealType, rawMenuName) ->
+                "DS_TB_MNDT_DATEBYMLSVC_7296".equals(serviceCode)
+                        && "깍두기".equals(normalizer.toSearchName(rawMenuName))
+                        ? Optional.of(new MilitaryMenuNutritionMatch(
+                                "깍두기", "김치류", 15.2, MatchConfidence.MEDIUM,
+                                "UNIT_MENU_PROFILE", 112, "7296"))
+                        : Optional.empty();
+        MealNutritionService mealService = new MealNutritionService(
+                normalizer, noMatchMatcher, servingEstimator, new NutritionCalculator(),
+                compositeFoodEstimator, new MealMenuItemParser(), menuProvider);
+
+        NutritionDtos.MealNutritionResponse response = mealService.analyzeMeal(
+                "DS_TB_MNDT_DATEBYMLSVC_7296", "dinner", List.of("깍두기(수의계약)"), null);
+
+        NutritionDtos.MealNutritionItemResponse item = response.getItems().get(0);
+        assertThat(item.getMatched()).isTrue();
+        assertThat(item.getMatchedFoodName()).isEqualTo("깍두기");
+        assertThat(item.getMatchType()).isEqualTo("UNIT_MENU_PROFILE");
+        assertThat(item.getCalorieKcal()).isEqualTo(15);
     }
 
     private Food food(Long id, String name, String category, String searchName, Double kcal) {

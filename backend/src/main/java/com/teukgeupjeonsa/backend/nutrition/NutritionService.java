@@ -146,14 +146,16 @@ public class NutritionService {
     public NutritionDtos.TodayMealNutritionResponse getTodayMealDetails(Long userId) {
         User user = getUser(userId);
         Optional<MealMenu> mealMenu = getTodayMealMenuOptional(user);
+        String serviceCode = mealMenu.map(MealMenu::getServiceCode).orElse(null);
+        LocalDate mealDate = mealMenu.map(MealMenu::getMealDate).orElse(LocalDate.now());
         List<UserMealFood> addedFoods = userMealFoodRepository.findByUserAndMealDate(user, LocalDate.now());
         java.util.Map<String, Double> consumption = consumptionByMeal(user);
 
         List<NutritionDtos.MealNutritionResponse> meals = List.of(
-                buildMealDetail("breakfast", mealMenu.map(MealMenu::getBreakfast).orElse(null), mealMenu.map(MealMenu::getBreakfastKcal).orElse(null), addedFoods, consumption.getOrDefault("breakfast", 0.0)),
-                buildMealDetail("lunch", mealMenu.map(MealMenu::getLunch).orElse(null), mealMenu.map(MealMenu::getLunchKcal).orElse(null), addedFoods, consumption.getOrDefault("lunch", 0.0)),
-                buildMealDetail("dinner", mealMenu.map(MealMenu::getDinner).orElse(null), mealMenu.map(MealMenu::getDinnerKcal).orElse(null), addedFoods, consumption.getOrDefault("dinner", 0.0)),
-                buildMealDetail("snack", null, null, addedFoods, 0.0)
+                buildMealDetail(serviceCode, mealDate, "breakfast", mealMenu.map(MealMenu::getBreakfast).orElse(null), mealMenu.map(MealMenu::getBreakfastKcal).orElse(null), addedFoods, consumption.getOrDefault("breakfast", 0.0)),
+                buildMealDetail(serviceCode, mealDate, "lunch", mealMenu.map(MealMenu::getLunch).orElse(null), mealMenu.map(MealMenu::getLunchKcal).orElse(null), addedFoods, consumption.getOrDefault("lunch", 0.0)),
+                buildMealDetail(serviceCode, mealDate, "dinner", mealMenu.map(MealMenu::getDinner).orElse(null), mealMenu.map(MealMenu::getDinnerKcal).orElse(null), addedFoods, consumption.getOrDefault("dinner", 0.0)),
+                buildMealDetail(serviceCode, mealDate, "snack", null, null, addedFoods, 0.0)
         );
 
         int totalCalories = meals.stream().mapToInt(meal -> Optional.ofNullable(meal.getConsumedCalories()).orElse(0)).sum();
@@ -304,8 +306,8 @@ public class NutritionService {
         return new Macro((int) Math.round(targetCalories), protein, carb, fat);
     }
 
-    private NutritionDtos.MealNutritionResponse buildMealDetail(String mealType, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods, double multiplier) {
-        NutritionDtos.MealNutritionResponse baseMeal = mealNutritionService.analyzeMeal(mealType, rawMenu, rawKcal);
+    private NutritionDtos.MealNutritionResponse buildMealDetail(String serviceCode, LocalDate mealDate, String mealType, String rawMenu, Integer rawKcal, List<UserMealFood> addedFoods, double multiplier) {
+        NutritionDtos.MealNutritionResponse baseMeal = mealNutritionService.analyzeMeal(serviceCode, mealDate, mealType, rawMenu, rawKcal);
         List<NutritionDtos.MealNutritionItemResponse> items = new ArrayList<>(baseMeal.getItems());
         addedFoods.stream()
                 .filter(food -> mealType.equals(food.getMealType()))
@@ -371,6 +373,8 @@ public class NutritionService {
                 .matchedFoodName(food.getFoodName())
                 .matchType("USER_ADDED")
                 .confidence(MatchConfidence.HIGH)
+                .calorieSource("USER_ADDED").calorieConfidence(MatchConfidence.HIGH)
+                .macroSource("USER_ADDED").macroConfidence(MatchConfidence.HIGH)
                 .servingGram(null)
                 .calorieKcal(calories)
                 .carbohydrateG(carb)

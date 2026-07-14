@@ -3,10 +3,12 @@ package com.teukgeupjeonsa.backend.food.importer;
 import com.teukgeupjeonsa.backend.food.*;
 import com.teukgeupjeonsa.backend.nutrition.FoodNameNormalizer;
 import com.teukgeupjeonsa.backend.nutrition.MatchConfidence;
+import com.teukgeupjeonsa.backend.nutrition.MealNutritionService;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
@@ -33,6 +35,7 @@ public class FoodXlsxImporter {
     private final FoodNameNormalizer foodNameNormalizer;
     private final EntityManager entityManager;
     private final DataSource dataSource;
+    private final ObjectProvider<MealNutritionService> mealNutritionServiceProvider;
 
     @Transactional
     public FoodImportResult importXlsx(Path xlsxPath) {
@@ -64,6 +67,7 @@ public class FoodXlsxImporter {
             int servingDefaultCount = importServingDefaults(workbook);
             int overrideCount = importManualOverrides(workbook, foodLookup);
 
+            mealNutritionServiceProvider.ifAvailable(MealNutritionService::clearAnalysisCache);
             return new FoodImportResult(savedFoods.size(), aliasReadResult.aliases().size(),
                     foodReadResult.skippedCount(), aliasReadResult.skippedCount(), overrideCount, servingDefaultCount);
         } catch (IOException e) {
@@ -84,7 +88,7 @@ public class FoodXlsxImporter {
         Integer fatCol = requiredColumn(columns, sheet.getSheetName(), "fat_100g", "fat_100g", "fat_per_100g", "fat_g");
         Integer matchKeyCol = firstColumn(columns, "match_key", "search_name", "normalized_name");
         Integer sourceCountCol = firstColumn(columns, "source_count", "alias_count");
-        Integer qualityFlagCol = firstColumn(columns, "quality_flag");
+        Integer qualityFlagCol = firstColumn(columns, "quality_flag", "confidence");
 
         Map<String, FoodRow> rowsByNameKey = new LinkedHashMap<>();
         Map<String, String> externalFoodIdToDedupeKey = new LinkedHashMap<>();
@@ -186,6 +190,7 @@ public class FoodXlsxImporter {
         Integer representativeNameCol = firstColumn(columns, "representative_name", "matched_food_name", "food_name", "final_food_name");
         Integer normalizedRawNameCol = firstColumn(columns, "normalized_raw_name", "search_name");
         Integer categoryCol = firstColumn(columns, "display_category", "category", "raw_group");
+        Integer mergeMethodCol = firstColumn(columns, "merge_method");
 
         List<FoodAlias> aliases = new ArrayList<>();
         Set<String> seen = new HashSet<>();
@@ -196,6 +201,11 @@ public class FoodXlsxImporter {
 
             String aliasName = maxLength(text(row, aliasNameCol), 300);
             if (aliasName == null || aliasName.isBlank()) {
+                skippedCount++;
+                continue;
+            }
+            String mergeMethod = Optional.ofNullable(text(row, mergeMethodCol)).orElse("").trim().toLowerCase(Locale.ROOT);
+            if (mergeMethod.contains("keyword_similarity") || mergeMethod.contains("review") || mergeMethod.contains("rejected")) {
                 skippedCount++;
                 continue;
             }

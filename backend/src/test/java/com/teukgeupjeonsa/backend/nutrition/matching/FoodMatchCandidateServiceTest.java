@@ -23,6 +23,7 @@ class FoodMatchCandidateServiceTest {
     @Mock ManualFoodOverrideRepository manualFoodOverrideRepository;
     @Mock FoodMatcher foodMatcher;
     @Mock CompositeFoodEstimator compositeFoodEstimator;
+    @Mock MealNutritionService mealNutritionService;
 
     @Test
     void classifiesHighScoreSafeMenuAsAutoApprovedButShortRiskyAsReview() {
@@ -85,6 +86,7 @@ class FoodMatchCandidateServiceTest {
         assertThat(approved.getStatus()).isEqualTo(FoodMatchEnums.CandidateStatus.APPROVED);
         ArgumentCaptor<ManualFoodOverride> captor = ArgumentCaptor.forClass(ManualFoodOverride.class);
         verify(manualFoodOverrideRepository).save(captor.capture());
+        verify(mealNutritionService).clearAnalysisCache();
         assertThat(captor.getValue().getRawMenuName()).isEqualTo("돈육김치두루치기");
         assertThat(captor.getValue().getFood()).isEqualTo(food);
         assertThat(captor.getValue().getConfidence()).isEqualTo(MatchConfidence.HIGH);
@@ -92,6 +94,6 @@ class FoodMatchCandidateServiceTest {
     }
 
     private FoodMatchCandidateService service() {
-        return new FoodMatchCandidateService(occurrenceRepository, candidateRepository, manualFoodOverrideRepository, foodMatcher, compositeFoodEstimator);
+        return new FoodMatchCandidateService(occurrenceRepository, candidateRepository, manualFoodOverrideRepository, foodMatcher, compositeFoodEstimator, mealNutritionService);
     }
 }

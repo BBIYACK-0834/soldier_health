@@ -40,6 +40,20 @@ function formatGram(value) {
   return `${(Number(value) || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}g`;
 }
 
+function nutritionSourceLabel(source) {
+  return ({
+    DAILY_UNIT_MENU: '해당 날짜 부대 식단',
+    UNIT_MENU_PROFILE: '부대 식단 중앙값',
+    GLOBAL_MENU_PROFILE: '전체 부대 중앙값',
+    OVERRIDE_EXACT: '검증 식품 DB',
+    FOOD_EXACT: '식품 DB',
+    ALIAS_EXACT: '식품 DB 별칭',
+    COMPOSITE_ESTIMATE: '재료 기반 추정',
+    USER_ADDED: '직접 추가',
+    UNAVAILABLE: '정보 없음',
+  })[source] || source || '정보 없음';
+}
+
 const unitOnlyPattern = /^(?:\d+(?:\.\d+)?\s*)?(?:ml|mL|ML|g|kg|캔|팩|병|개|봉)$|^\d+(?:\.\d+)?$/i;
 const softDrinkProducts = ['코카콜라', '콜라', '칠성사이다', '사이다', '환타', '펩시'];
 
@@ -322,6 +336,11 @@ export default function NutritionPage() {
                       <span>{item.matched === false ? '영양정보 매칭 필요' : `${formatKcal(item.calories)} · ${item.calorieSharePct ?? 0}%`}</span>
                     </div>
 {item.matchedFoodName && item.matchedFoodName !== item.foodName ? <small>DB 매칭: {item.matchedFoodName}</small> : null}
+                    {item.calorieSource ? (
+                      <small className={styles.sourceLine}>
+                        칼로리: {nutritionSourceLabel(item.calorieSource)} · 탄단지: {nutritionSourceLabel(item.macroSource)}
+                      </small>
+                    ) : null}
                     {item.matchType === 'COMPOSITE_ESTIMATE' || item.matchStatus === 'COMPOSITE_ESTIMATE' ? <small>복합 음식 추정</small> : null}
                     {item.confidence === 'LOW' ? <small>추정 낮음</small> : null}
                     {item.confidence === 'NONE' || item.matched === false ? <small>NO_MATCH · 매칭 필요</small> : null}

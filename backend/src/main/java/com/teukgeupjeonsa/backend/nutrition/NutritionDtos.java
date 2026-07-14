@@ -67,6 +67,10 @@ public class NutritionDtos {
         private String displayCategory;
         private String matchType;
         private MatchConfidence confidence;
+        private String calorieSource;
+        private MatchConfidence calorieConfidence;
+        private String macroSource;
+        private MatchConfidence macroConfidence;
         private Double servingGram;
         private Integer calorieKcal;
         private Double carbohydrateG;

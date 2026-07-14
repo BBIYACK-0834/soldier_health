@@ -33,19 +33,37 @@ public class CompositeFoodEstimator {
             Map.entry("닭순살", List.of("닭고기")),
             Map.entry("계육채", List.of("닭고기")),
             Map.entry("닭고기", List.of("닭고기")),
+            Map.entry("닭", List.of("닭고기")),
+            Map.entry("닭다리", List.of("닭고기")),
             Map.entry("우육", List.of("소고기")),
             Map.entry("소고기", List.of("소고기")),
-            Map.entry("스테이크", List.of("소고기", "돼지고기")),
+            Map.entry("쇠고기", List.of("소고기")),
+            Map.entry("차돌", List.of("소고기")),
             Map.entry("쭈꾸미", List.of("주꾸미", "쭈꾸미")),
             Map.entry("주꾸미", List.of("주꾸미", "쭈꾸미")),
             Map.entry("삼겹살", List.of("삼겹살")),
             Map.entry("오징어", List.of("오징어")),
+            Map.entry("연어", List.of("연어")),
             Map.entry("오징어채", List.of("오징어")),
             Map.entry("어묵", List.of("어묵")),
             Map.entry("비엔나", List.of("소시지")),
             Map.entry("햄", List.of("햄")),
             Map.entry("두부", List.of("두부")),
             Map.entry("김치", List.of("배추김치", "김치")),
+            Map.entry("단무지", List.of("단무지")),
+            Map.entry("파프리카", List.of("파프리카")),
+            Map.entry("감자", List.of("감자")),
+            Map.entry("버섯", List.of("버섯")),
+            Map.entry("오이", List.of("오이")),
+            Map.entry("양파", List.of("양파")),
+            Map.entry("크리미양파드레싱", List.of("사우전아일랜드드레싱", "샐러드드레싱사우전드아일랜드", "시저드레싱")),
+            Map.entry("드레싱", List.of("사우전아일랜드드레싱", "샐러드드레싱사우전드아일랜드", "시저드레싱")),
+            Map.entry("부추", List.of("부추")),
+            Map.entry("분모자", List.of("중국당면", "당면")),
+            Map.entry("마라", List.of("마라소스", "고추기름")),
+            Map.entry("무나물", List.of("무")),
+            Map.entry("들깨", List.of("들깨")),
+            Map.entry("떡볶이", List.of("떡볶이", "가래떡", "떡")),
             Map.entry("콩나물", List.of("콩나물")),
             Map.entry("숙주", List.of("숙주나물", "숙주")),
             Map.entry("야채", List.of("채소", "야채", "혼합채소")),
@@ -57,7 +75,7 @@ public class CompositeFoodEstimator {
 
     private static final List<String> COOKING_KEYWORDS = List.of(
             "두루치기", "불고기", "스테이크", "볶음", "조림", "구이", "튀김", "까스", "가스",
-            "찌개", "국", "탕", "무침", "찜", "카레", "덮밥"
+            "찌개", "국", "탕", "무침", "찜", "카레", "덮밥", "숙회", "떡볶이", "주먹밥", "겉절이", "짜글이"
     );
 
     private static final List<String> COMPOSED_FOOD_KEYWORDS = List.of(
@@ -166,6 +184,11 @@ public class CompositeFoodEstimator {
         if (name.contains("찜")) return "찜";
         if (name.contains("카레")) return "카레";
         if (name.contains("덮밥")) return "덮밥";
+        if (name.contains("숙회")) return "숙회";
+        if (name.contains("떡볶이")) return "떡볶이";
+        if (name.contains("주먹밥")) return "주먹밥";
+        if (name.contains("겉절이")) return "무침";
+        if (name.contains("짜글이")) return "국탕찌개";
         return "일반";
     }
 
@@ -200,7 +223,7 @@ public class CompositeFoodEstimator {
     private String removeCookingKeywords(String normalizedName) {
         String result = normalizedName;
         for (String keyword : COOKING_KEYWORDS) {
-            if ("카레".equals(keyword) || "스테이크".equals(keyword)) {
+            if ("카레".equals(keyword) || "스테이크".equals(keyword) || "떡볶이".equals(keyword)) {
                 continue;
             }
             result = result.replace(keyword, "");
@@ -222,21 +245,21 @@ public class CompositeFoodEstimator {
             if (searchName.isBlank()) continue;
 
             optionalFood(foodRepository.findFirstBySearchNameOrderBySourceCountDesc(searchName))
-                    .ifPresent(food -> putBest(candidates, food, token.aliasName(), 120));
+                    .ifPresent(food -> putBest(candidates, food, token, 120));
 
             for (FoodAlias alias : safeAliases(foodAliasRepository.findBySearchName(searchName))) {
-                putBest(candidates, alias.getFood(), token.aliasName(), 115);
+                putBest(candidates, alias.getFood(), token, 115);
             }
 
             optionalFood(foodRepository.findFirstByNameOrderBySourceCountDesc(targetName))
-                    .ifPresent(food -> putBest(candidates, food, token.aliasName(), 110));
+                    .ifPresent(food -> putBest(candidates, food, token, 110));
 
             for (Food food : safeFoods(foodRepository.searchContains(searchName, PageRequest.of(0, 30)))) {
-                putBest(candidates, food, token.aliasName(), 80 + containsScore(searchName, comparableName(food)));
+                putBest(candidates, food, token, 80 + containsScore(searchName, comparableName(food)));
             }
 
             for (FoodAlias alias : safeAliases(foodAliasRepository.searchContains(searchName, PageRequest.of(0, 30)))) {
-                putBest(candidates, alias.getFood(), token.aliasName(), 75 + containsScore(searchName, aliasComparableName(alias)));
+                putBest(candidates, alias.getFood(), token, 75 + containsScore(searchName, aliasComparableName(alias)));
             }
         }
 
@@ -262,11 +285,11 @@ public class CompositeFoodEstimator {
         return aliases == null ? List.of() : aliases;
     }
 
-    private void putBest(Map<Long, Candidate> candidates, Food food, String sourceAlias, int score) {
+    private void putBest(Map<Long, Candidate> candidates, Food food, IngredientToken token, int score) {
         if (food == null || food.getId() == null) return;
-        int adjustedScore = score - composedFoodPenalty(food);
+        int adjustedScore = score - composedFoodPenalty(food) + ingredientSuitabilityScore(token, food);
         Candidate current = candidates.get(food.getId());
-        Candidate next = new Candidate(sourceAlias, food, adjustedScore);
+        Candidate next = new Candidate(token.aliasName(), food, adjustedScore);
         if (current == null || next.score() > current.score()) {
             candidates.put(food.getId(), next);
         }
@@ -287,6 +310,36 @@ public class CompositeFoodEstimator {
             penalty -= 10;
         }
         return penalty;
+    }
+
+    private int ingredientSuitabilityScore(IngredientToken token, Food food) {
+        String category = Optional.ofNullable(food.getCategory()).orElse("");
+        String name = comparableName(food);
+        String target = String.join("", token.targetNames());
+        int score = nutritionCompletenessScore(food);
+
+        if (containsAny(target, "감자") && containsAny(category, "감자 및 전분류", "채소류")) score += 35;
+        if (containsAny(target, "양파", "오이", "부추", "버섯", "파프리카", "채소", "야채")
+                && containsAny(category, "채소류", "버섯류")) score += 35;
+        if (containsAny(target, "연어", "오징어", "주꾸미") && containsAny(category, "어류", "어패류", "수산물")) score += 35;
+        if (containsAny(target, "소고기", "돼지고기", "닭고기") && containsAny(category, "육류", "식육")) score += 30;
+        if (containsAny(target, "드레싱", "소스") && containsAny(category, "조미식품", "조미료", "소스", "장류")) score += 35;
+
+        if (containsAny(category, "과자류", "빵류", "간식", "음료류")
+                && !containsAny(target, "드레싱", "소스")) score -= 55;
+        if (containsAny(name, "칩", "깡", "스낵", "과자", "주스", "즙")
+                && !containsAny(target, "칩", "깡", "스낵", "주스", "즙")) score -= 45;
+        return score;
+    }
+
+    private int nutritionCompletenessScore(Food food) {
+        int populated = 0;
+        if (food.getCalorie() != null) populated++;
+        if (food.getCarbohydrate() != null) populated++;
+        if (food.getProtein() != null) populated++;
+        if (food.getFat() != null) populated++;
+        if (food.getCalorie() == null) return -60 + populated * 4;
+        return populated * 5;
     }
 
     private boolean hasAnyNutrition(Food food) {

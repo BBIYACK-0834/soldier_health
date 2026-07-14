@@ -52,7 +52,7 @@ public class FoodImportApplication {
             Environment environment = context.getEnvironment();
             String file = environment.getProperty(
                     "app.food-import.file",
-                    "../food_data/foods_refined_for_military_meal_matching.xlsx"
+                    "src/main/resources/food_data/food_data_7_13.xlsx"
             );
 
             FoodImportResult result = context.getBean(FoodXlsxImporter.class).importXlsx(Path.of(file));

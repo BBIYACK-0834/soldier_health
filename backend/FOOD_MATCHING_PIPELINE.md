@@ -2,6 +2,8 @@
 
 군 급식 OpenAPI 메뉴명과 공공데이터포털 식품영양 엑셀을 1:1로 수동 매칭하지 않기 위한 백엔드 파이프라인입니다.
 
+런타임에서는 군 식단 이력에서 만든 부대별 메뉴 프로필을 먼저 확인하고, 없으면 전체 군 메뉴 중앙값, 마지막으로 아래 일반 식품 매칭 파이프라인을 사용합니다. 군 식단 프로필은 `./gradlew importMilitaryMenus`로 `military_menu_data.xlsx`에서 별도 적재합니다.
+
 ## Flow
 
 ```text
@@ -143,4 +145,4 @@ POST /api/admin/foods/matching/candidates/{id}/reject
 
 ## 5. Official kcal calibration
 
-`MealNutritionService`는 official kcal이 있고, 매칭 비율이 `0.6` 이상이며, `official / calculated` scale이 `0.7~1.3` 사이일 때만 음식별 kcal/탄수화물/단백질/지방을 같은 비율로 보정합니다.
+`MealNutritionService`는 official kcal이 있고, 매칭 비율이 `0.6` 이상이며, `official / calculated` scale이 `0.6~1.6` 사이일 때 음식별 kcal/탄수화물/단백질/지방을 같은 비율로 보정합니다. 정수 반올림 후 남는 kcal 오차와 음식별 비율 오차는 마지막 유효 항목에서 보정해 합계가 각각 official kcal과 100%가 되도록 합니다.

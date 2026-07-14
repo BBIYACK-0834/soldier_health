@@ -39,4 +39,11 @@ class MealMenuItemParserTest {
     void preservesUsefulParenthesisTextAndRemovesAllergyCode() {
         assertThat(parser.parse("가공우유(바나나맛)(02)")).containsExactly("가공우유 바나나맛");
     }
+
+    @Test
+    void mergesBrandProductAndSlashPackageUnit() {
+        String raw = "농심\n웰치제로 그레이프맛\n355mL/캔";
+
+        assertThat(parser.parse(raw)).containsExactly("농심 웰치제로 그레이프맛 355mL/캔");
+    }
 }

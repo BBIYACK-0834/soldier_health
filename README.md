@@ -223,13 +223,13 @@ curl -X POST "http://localhost:8080/api/admin/collect/meals/openapi/service/DS_T
 
 ### 3.8 정제 식품 영양성분 xlsx 수동 import
 
-정제된 식품 영양성분 xlsx는 앱 요청마다 직접 읽지 않고, 필요할 때 Gradle 태스크로 한 번 DB에 적재합니다. 기본 파일 경로는 저장소 루트 기준 `food_data/foods_final_user_friendly_100g.xlsx`이며, `backend/.env`의 `FOOD_IMPORT_FILE` 또는 Gradle의 `-PfoodFile`로 변경할 수 있습니다.
+정제된 식품 영양성분 xlsx는 앱 요청마다 직접 읽지 않고, 필요할 때 Gradle 태스크로 한 번 DB에 적재합니다. 기본 파일은 군 급식 안전 매칭 규칙과 검수 시트를 추가한 `backend/src/main/resources/food_data/food_data_7_13.xlsx`이며, `backend/.env`의 `FOOD_IMPORT_FILE` 또는 Gradle의 `-PfoodFile`로 변경할 수 있습니다.
 
 #### import 전에 확인할 것
 
 1. MySQL이 실행 중이어야 합니다.
 2. `backend/.env`의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`가 실제 DB와 맞아야 합니다. `DB_URL`은 Spring datasource URL로 직접 사용됩니다.
-3. 정제 xlsx 파일이 기본 경로인 `food_data/foods_final_user_friendly_100g.xlsx`에 있거나, 사용할 파일 경로가 `FOOD_IMPORT_FILE` 또는 `-PfoodFile`로 지정되어 있어야 합니다.
+3. 정제 xlsx 파일이 기본 경로인 `src/main/resources/food_data/food_data_7_13.xlsx`에 있거나, 사용할 파일 경로가 `FOOD_IMPORT_FILE` 또는 `-PfoodFile`로 지정되어 있어야 합니다.
 4. import는 재실행 가능하도록 기존 `manual_food_overrides`, `serving_defaults`, `food_aliases`, `foods` 데이터를 지운 뒤 xlsx 기준으로 다시 넣습니다. 운영 DB에서 실행하기 전에는 백업 여부를 먼저 확인하세요.
 5. 기존 식단 기록(`user_meal_foods`)이 `foods`를 참조하고 있으면 import 전에 `food_id`를 `null`로 분리해서 FK 삭제 오류를 피합니다.
 
@@ -247,10 +247,10 @@ set -a; source .env; set +a
 
 ```env
 FOOD_IMPORT_AUTO=false
-FOOD_IMPORT_FILE=../food_data/foods_final_user_friendly_100g.xlsx
+FOOD_IMPORT_FILE=src/main/resources/food_data/food_data_7_13.xlsx
 ```
 
-`cd backend` 상태에서 실행하기 때문에 `../food_data/...`는 저장소 루트의 `food_data/...`를 가리킵니다. 즉 저장소 전체 경로가 `/workspace/soldier_health`라면 기본으로 `/workspace/soldier_health/food_data/foods_final_user_friendly_100g.xlsx` 파일을 읽습니다.
+`cd backend` 상태에서 실행하므로 기본 상대 경로는 `/workspace/soldier_health/backend/src/main/resources/food_data/food_data_7_13.xlsx`를 가리킵니다. 이 파일은 안전 alias, 제외 alias, 수동 군 급식 매칭, 1회 제공량 기준을 각각 별도 시트로 보존합니다.
 
 #### 파일 경로를 직접 지정해서 실행하기
 
@@ -259,7 +259,7 @@ FOOD_IMPORT_FILE=../food_data/foods_final_user_friendly_100g.xlsx
 ```bash
 cd backend
 set -a; source .env; set +a
-./gradlew importFoods -PfoodFile="/workspace/soldier_health/food_data/foods_final_user_friendly_100g.xlsx"
+./gradlew importFoods -PfoodFile="/workspace/soldier_health/backend/src/main/resources/food_data/food_data_7_13.xlsx"
 ```
 
 Codespaces처럼 저장소가 `/workspaces/soldier_health`에 있는 환경에서는 아래처럼 지정합니다.
@@ -267,7 +267,7 @@ Codespaces처럼 저장소가 `/workspaces/soldier_health`에 있는 환경에�
 ```bash
 cd backend
 set -a; source .env; set +a
-./gradlew importFoods -PfoodFile="/workspaces/soldier_health/food_data/foods_final_user_friendly_100g.xlsx"
+./gradlew importFoods -PfoodFile="/workspaces/soldier_health/backend/src/main/resources/food_data/food_data_7_13.xlsx"
 ```
 
 #### import 전용 실행 범위
@@ -321,6 +321,40 @@ food_aliases 삽입 개수: 5678
 manual_overrides 삽입 개수: 34
 serving_defaults 삽입 개수: 20
 ```
+
+### 3.9 군 급식 이력 프로필 xlsx import
+
+26개 부대 식단표에서 만든 `backend/src/main/resources/food_data/military_menu_data.xlsx`를 DB에 한 번 적재하면, 영양 분석은 다음 순서로 메뉴별 칼로리를 결정합니다.
+
+1. 부대·날짜·끼니·메뉴가 모두 일치하는 `military_menu_daily_profiles`
+2. 사용자의 부대 코드와 메뉴가 일치하는 `military_menu_unit_profiles`
+3. 전체 부대 통계인 `military_menu_profiles`
+4. 기존 식품 DB의 수동 매칭·정확 매칭·복합 재료 추정
+
+빈 값과 일반 음식의 `0 kcal`은 실제 0으로 사용하지 않으며, 관측값의 평균보다 이상치에 덜 민감한 중앙값을 대표값으로 사용합니다. 원본 식단표에는 탄수화물·단백질·지방 및 재료 중량이 없으므로, 이 파일은 메뉴별 칼로리를 보강하고 탄단지는 기존 식품 DB 매칭이 가능한 경우에만 함께 보완합니다.
+
+```bash
+cd backend
+set -a; source .env; set +a
+./gradlew importFoods
+./gradlew importMilitaryMenus
+```
+
+두 명령을 순서대로 한 번에 실행하려면 다음 통합 태스크를 사용할 수 있습니다.
+
+```bash
+./gradlew importNutritionData
+```
+
+다른 군 식단 프로필 파일을 사용할 때는 `.env`의 `MILITARY_MENU_IMPORT_FILE`, `MILITARY_MENU_DAILY_FILE`을 바꾸거나 실행 시 파일 경로를 지정합니다.
+
+```bash
+./gradlew importMilitaryMenus \
+  -PmilitaryMenuFile="/workspaces/soldier_health/backend/src/main/resources/food_data/military_menu_data.xlsx" \
+  -PmilitaryMenuDailyFile="/workspaces/soldier_health/backend/src/main/resources/food_data/military_menu_daily_profiles.csv.gz"
+```
+
+저장소의 경량 런타임 xlsx는 DB 적재에 필요한 `military_menu_master`, `unit_profiles` 두 시트만 포함합니다. 이 파일과 날짜별 압축 CSV를 하나의 트랜잭션으로 적재하며, 한 파일이라도 검증 또는 적재에 실패하면 전체 변경을 되돌립니다. 전체 분석 산출물의 `military_menu_aliases`, `review_needed`, `data_quality`, `matching_guide` 시트는 데이터 감사와 수동 검수용이며 런타임 파일에서는 제외했습니다. 재실행하면 기존 군 식단 프로필 테이블을 새 파일 기준으로 교체합니다.
 
 
 ## 4. 기능 설명

@@ -11,10 +11,11 @@ import java.util.regex.Pattern;
 public class MealMenuItemParser {
 
     private static final Pattern ALLERGY_CODE = Pattern.compile("\\(\\s*\\d{1,2}\\s*\\)");
-    private static final Pattern UNIT_ONLY = Pattern.compile("(?i)^(?:\\d+(?:\\.\\d+)?\\s*)?(?:ml|mL|ML|g|kg|캔|팩|병|개|봉)$|^\\d+(?:\\.\\d+)?$");
+    private static final Pattern UNIT_ONLY = Pattern.compile("(?i)^(?:\\d+(?:\\.\\d+)?\\s*)?(?:ml|g|kg|캔|팩|병|개|봉)(?:\\s*/\\s*(?:캔|팩|병|개|봉))?$|^\\d+(?:\\.\\d+)?$");
     private static final Pattern TRAILING_FRAGMENT = Pattern.compile("^[^가-힣A-Za-z0-9]*[가-힣A-Za-z0-9\\s]*(?:\\)+)$");
     private static final List<String> ATTACH_WORDS = List.of("연간", "부대계약", "부대 계약");
     private static final List<String> SOFT_DRINK_PRODUCTS = List.of("코카콜라", "콜라", "칠성사이다", "사이다", "환타", "펩시");
+    private static final List<String> BRAND_ONLY = List.of("농심", "롯데", "동원", "빙그레", "오뚜기", "서울우유", "매일유업", "남양유업");
 
     public List<String> parse(String rawMenu) {
         if (rawMenu == null || rawMenu.isBlank()) {
@@ -66,6 +67,9 @@ public class MealMenuItemParser {
             return true;
         }
         if (isGenericSoftDrink(current) && isSoftDrinkProduct(line)) {
+            return true;
+        }
+        if (isBrandOnly(current) && !isStandaloneUnit(line)) {
             return true;
         }
         return false;
@@ -151,6 +155,11 @@ public class MealMenuItemParser {
     private boolean isSoftDrinkProduct(String value) {
         String normalized = compact(value);
         return SOFT_DRINK_PRODUCTS.stream().anyMatch(normalized::contains) || normalized.toLowerCase(Locale.ROOT).contains("cola");
+    }
+
+    private boolean isBrandOnly(String value) {
+        String normalized = compact(value);
+        return BRAND_ONLY.stream().anyMatch(normalized::equals);
     }
 
     private String compact(String value) {
