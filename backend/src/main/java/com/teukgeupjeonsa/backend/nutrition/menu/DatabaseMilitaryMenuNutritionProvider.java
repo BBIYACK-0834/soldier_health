@@ -28,8 +28,8 @@ public class DatabaseMilitaryMenuNutritionProvider implements MilitaryMenuNutrit
         if (searchName.isBlank()) return Optional.empty();
         String unitCode = extractUnitCode(serviceCode);
         if (unitCode != null && mealDate != null && mealType != null && !mealType.isBlank()) {
-            Optional<MilitaryMenuDailyProfile> daily = dailyProfileRepository
-                    .findFirstByUnitCodeAndMealDateAndMealTypeAndSearchName(unitCode, mealDate, mealType, searchName);
+            Optional<MilitaryMenuDailyProfile> daily = findDailyProfile(
+                    unitCode, mealDate, mealType, searchName);
             if (daily.isPresent()) {
                 MilitaryMenuDailyProfile value = daily.get();
                 return Optional.of(new MilitaryMenuNutritionMatch(
@@ -57,6 +57,22 @@ public class DatabaseMilitaryMenuNutritionProvider implements MilitaryMenuNutrit
                 profile.getCanonicalName(), profile.getCategory(), profile.getMedianKcal(),
                 Optional.ofNullable(profile.getConfidence()).orElse(MatchConfidence.LOW),
                 "GLOBAL_MENU_PROFILE", Optional.ofNullable(profile.getValidKcalCount()).orElse(0), null));
+    }
+
+    private Optional<MilitaryMenuDailyProfile> findDailyProfile(
+            String unitCode, LocalDate mealDate, String mealType, String searchName) {
+        Optional<MilitaryMenuDailyProfile> exact = dailyProfileRepository
+                .findFirstByUnitCodeAndMealDateAndMealTypeAndSearchName(
+                        unitCode, mealDate, mealType, searchName);
+        if (exact.isPresent()) return exact;
+
+        // 원본 API는 "우유(백색우유(200ML,연간))"를 우유백색우유로 저장하지만
+        // 화면 메뉴 파서는 백색우유로 정규화하므로 날짜별 공식 칼로리를 한 번 더 찾는다.
+        if ("백색우유".equals(searchName)) {
+            return dailyProfileRepository.findFirstByUnitCodeAndMealDateAndMealTypeAndSearchName(
+                    unitCode, mealDate, mealType, "우유백색우유");
+        }
+        return Optional.empty();
     }
 
     private String extractUnitCode(String serviceCode) {
