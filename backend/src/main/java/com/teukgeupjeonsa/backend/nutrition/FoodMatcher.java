@@ -94,7 +94,10 @@ public class FoodMatcher {
     private Optional<Food> findRiceContains(String searchName) {
         return safeFoods(foodRepository.findByNameContainingIgnoreCaseOrSearchNameContainingIgnoreCase("밥", "밥", PageRequest.of(0, 50))).stream()
                 .filter(food -> isCompatible(searchName, food))
-                .max(Comparator.comparingInt(food -> Optional.ofNullable(food.getSourceCount()).orElse(0)));
+                .filter(this::isPlausiblePlainRiceFood)
+                .max(Comparator
+                        .comparingInt((Food food) -> RICE_NAMES.contains(toComparableName(food)) ? 1 : 0)
+                        .thenComparingInt(food -> Optional.ofNullable(food.getSourceCount()).orElse(0)));
     }
 
     private Optional<FoodScore> findContains(String searchName) {
@@ -205,6 +208,21 @@ public class FoodMatcher {
 
     private boolean isRiceMenu(String searchName) {
         return RICE_NAMES.contains(searchName);
+    }
+
+    private boolean isPlausiblePlainRiceFood(Food food) {
+        if (food == null || !RICE_NAMES.contains(toComparableName(food))) return false;
+        Double kcal = food.getCalorie();
+        Double carbohydrate = food.getCarbohydrate();
+        Double protein = food.getProtein();
+        Double fat = food.getFat();
+        if (kcal == null || carbohydrate == null || protein == null || fat == null) return false;
+
+        // foods 테이블은 100g 기준이다. 볶음밥·덮밥·오염 행을 일반 밥 fallback에서 제외한다.
+        return kcal >= 100.0 && kcal <= 220.0
+                && carbohydrate >= 20.0 && carbohydrate <= 50.0
+                && protein >= 1.0 && protein <= 7.0
+                && fat >= 0.0 && fat <= 3.0;
     }
 
     private boolean isCompositeLikeMenu(String searchName) {
