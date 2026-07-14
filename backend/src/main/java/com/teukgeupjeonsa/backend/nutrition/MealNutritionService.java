@@ -165,12 +165,37 @@ public class MealNutritionService {
             String menuName, MilitaryMenuNutritionMatch profile,
             NutritionDtos.MealNutritionItemResponse estimatedBase) {
         int calorie = (int) Math.round(profile.calorieKcal());
+        boolean useRiceReference = RiceNutritionReference.supports(
+                foodNameNormalizer.toSearchName(menuName));
         double macroScale = estimatedBase.getCalorieKcal() == null || estimatedBase.getCalorieKcal() <= 0
                 ? 0.0 : profile.calorieKcal() / estimatedBase.getCalorieKcal();
         boolean usableMacros = macroScale >= 0.5 && macroScale <= 2.0;
-        Double carb = usableMacros ? scale(estimatedBase.getCarbohydrateG(), macroScale) : null;
-        Double protein = usableMacros ? scale(estimatedBase.getProteinG(), macroScale) : null;
-        Double fat = usableMacros ? scale(estimatedBase.getFatG(), macroScale) : null;
+        Double carb;
+        Double protein;
+        Double fat;
+        boolean useCategoryFallback = false;
+        if (useRiceReference) {
+            RiceNutritionReference.Macros rice = RiceNutritionReference.estimate(profile.calorieKcal());
+            carb = rice.carbohydrateG();
+            protein = rice.proteinG();
+            fat = rice.fatG();
+        } else {
+            carb = usableMacros ? scale(estimatedBase.getCarbohydrateG(), macroScale) : null;
+            protein = usableMacros ? scale(estimatedBase.getProteinG(), macroScale) : null;
+            fat = usableMacros ? scale(estimatedBase.getFatG(), macroScale) : null;
+            if (carb == null || protein == null || fat == null) {
+                Optional<MenuMacroFallbackEstimator.Estimate> fallback =
+                        MenuMacroFallbackEstimator.estimate(
+                                foodNameNormalizer.toSearchName(menuName), profile.calorieKcal());
+                if (fallback.isPresent()) {
+                    MenuMacroFallbackEstimator.Estimate estimate = fallback.get();
+                    carb = estimate.carbohydrateG();
+                    protein = estimate.proteinG();
+                    fat = estimate.fatG();
+                    useCategoryFallback = true;
+                }
+            }
+        }
         boolean macroAvailable = carb != null && protein != null && fat != null;
 
         return NutritionDtos.MealNutritionItemResponse.builder()
@@ -183,8 +208,12 @@ public class MealNutritionService {
                 .confidence(profile.confidence())
                 .calorieSource(profile.matchType())
                 .calorieConfidence(profile.confidence())
-                .macroSource(macroAvailable ? estimatedBase.getMatchType() : "UNAVAILABLE")
-                .macroConfidence(macroAvailable ? estimatedBase.getConfidence() : MatchConfidence.NONE)
+                .macroSource(useRiceReference ? "STANDARD_RICE_REFERENCE"
+                        : useCategoryFallback ? "OFFICIAL_CALORIE_CATEGORY_ESTIMATE"
+                        : macroAvailable ? estimatedBase.getMatchType() : "UNAVAILABLE")
+                .macroConfidence(useRiceReference ? MatchConfidence.MEDIUM
+                        : useCategoryFallback ? MatchConfidence.LOW
+                        : macroAvailable ? estimatedBase.getConfidence() : MatchConfidence.NONE)
                 .servingGram(estimatedBase.getServingGram())
                 .calorieKcal(calorie)
                 .carbohydrateG(carb)
