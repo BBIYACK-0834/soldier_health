@@ -50,6 +50,7 @@ function nutritionSourceLabel(source) {
     ALIAS_EXACT: '식품 DB 별칭',
     COMPOSITE_ESTIMATE: '재료 기반 추정',
     STANDARD_RICE_REFERENCE: '표준 백미밥 기준',
+    OFFICIAL_CALORIE_CATEGORY_ESTIMATE: '공식 칼로리 기반 음식군 추정',
     USER_ADDED: '직접 추가',
     UNAVAILABLE: '정보 없음',
   })[source] || source || '정보 없음';
@@ -339,7 +340,7 @@ export default function NutritionPage() {
                       </small>
                     ) : null}
                     {item.matchType === 'COMPOSITE_ESTIMATE' || item.matchStatus === 'COMPOSITE_ESTIMATE' ? <small>복합 음식 추정</small> : null}
-                    {item.confidence === 'LOW' ? <small>추정 낮음</small> : null}
+                    {item.macroConfidence === 'LOW' ? <small>탄단지는 음식군 기준 추정값</small> : null}
                     {item.confidence === 'NONE' || item.matched === false ? <small>NO_MATCH · 매칭 필요</small> : null}
                     <div className={styles.nutrientLine}>
                       {item.matched === false ? null : (<>
