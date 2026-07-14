@@ -25,6 +25,9 @@ public class MndMealResponseParser {
     private static final List<String> DINNER_KEYS = List.of("DINNER", "석식", "dinner", "석식메뉴", "dinr");
     private static final List<String> UNIT_NAME_KEYS = List.of("UNIT_NM", "UNIT_NAME", "unitName", "부대명");
     private static final List<String> REGION_KEYS = List.of("AREA_NM", "AREA_NAME", "region", "지역");
+    private static final List<String> DAILY_TOTAL_CALORIE_KEYS = List.of(
+            "sum_cal", "total_cal", "tot_cal", "total_kcal", "day_cal", "daily_cal",
+            "일일총칼로리", "총칼로리", "합계칼로리");
 
     public List<ParsedMealRow> parseRows(String serviceName, Map<String, Object> responseBody) {
         if (responseBody == null || responseBody.isEmpty()) return List.of();
@@ -52,6 +55,7 @@ public class MndMealResponseParser {
             Double brstCal = parseCalValue(firstText(row, List.of("brst_cal", "BREAKFAST_CAL")));
             Double luncCal = parseCalValue(firstText(row, List.of("lunc_cal", "LUNCH_CAL")));
             Double dinrCal = parseCalValue(firstText(row, List.of("dinr_cal", "DINNER_CAL")));
+            Double dailyTotalCal = parseCalValue(firstText(row, DAILY_TOTAL_CALORIE_KEYS));
 
             String unitName = blankToNull(firstText(row, UNIT_NAME_KEYS));
             String region = blankToNull(firstText(row, REGION_KEYS));
@@ -63,6 +67,7 @@ public class MndMealResponseParser {
             combinedData.addBreakfast(mealMenuTextCleaner.cleanMealText(brst), brstCal);
             combinedData.addLunch(mealMenuTextCleaner.cleanMealText(lunc), luncCal);
             combinedData.addDinner(mealMenuTextCleaner.cleanMealText(dinr), dinrCal);
+            combinedData.setDailyTotalCalorie(dailyTotalCal);
         }
 
         // 💡 묶은 데이터를 최종 Entity 변환용 DTO 리스트로 변환
@@ -74,7 +79,10 @@ public class MndMealResponseParser {
             Integer bKcal = cd.getBreakfastKcal();
             Integer lKcal = cd.getLunchKcal();
             Integer dKcal = cd.getDinnerKcal();
-            Integer tKcal = sum(bKcal, lKcal, dKcal);
+            Integer tKcal = cd.getDailyTotalKcal();
+            if (tKcal == null) {
+                tKcal = sum(bKcal, lKcal, dKcal);
+            }
 
             result.add(new ParsedMealRow(
                     serviceName, date,
@@ -93,9 +101,10 @@ public class MndMealResponseParser {
         List<String> breakfastList = new ArrayList<>();
         List<String> lunchList = new ArrayList<>();
         List<String> dinnerList = new ArrayList<>();
-        Set<Integer> breakfastCalories = new LinkedHashSet<>();
-        Set<Integer> lunchCalories = new LinkedHashSet<>();
-        Set<Integer> dinnerCalories = new LinkedHashSet<>();
+        Map<String, Integer> breakfastCalories = new LinkedHashMap<>();
+        Map<String, Integer> lunchCalories = new LinkedHashMap<>();
+        Map<String, Integer> dinnerCalories = new LinkedHashMap<>();
+        Integer dailyTotalKcal;
         String unitName;
         String regionName;
 
@@ -105,35 +114,42 @@ public class MndMealResponseParser {
         }
 
         void addBreakfast(String menu, Double cal) {
-            if (menu != null && !breakfastList.contains(menu)) breakfastList.add(menu);
-            addCalorie(breakfastCalories, cal);
+            addMenuWithCalorie(breakfastList, breakfastCalories, menu, cal);
         }
         void addLunch(String menu, Double cal) {
-            if (menu != null && !lunchList.contains(menu)) lunchList.add(menu);
-            addCalorie(lunchCalories, cal);
+            addMenuWithCalorie(lunchList, lunchCalories, menu, cal);
         }
         void addDinner(String menu, Double cal) {
-            if (menu != null && !dinnerList.contains(menu)) dinnerList.add(menu);
-            addCalorie(dinnerCalories, cal);
+            addMenuWithCalorie(dinnerList, dinnerCalories, menu, cal);
+        }
+
+        void setDailyTotalCalorie(Double value) {
+            if (value == null || value <= 0) return;
+            int rounded = (int) Math.round(value);
+            if (dailyTotalKcal == null || rounded > dailyTotalKcal) dailyTotalKcal = rounded;
         }
 
         String getBreakfastStr() { return breakfastList.isEmpty() ? null : String.join(", ", breakfastList); }
         String getLunchStr() { return lunchList.isEmpty() ? null : String.join(", ", lunchList); }
         String getDinnerStr() { return dinnerList.isEmpty() ? null : String.join(", ", dinnerList); }
 
-        Integer getBreakfastKcal() { return maxOrNull(breakfastCalories); }
-        Integer getLunchKcal() { return maxOrNull(lunchCalories); }
-        Integer getDinnerKcal() { return maxOrNull(dinnerCalories); }
+        Integer getBreakfastKcal() { return sumOrNull(breakfastCalories); }
+        Integer getLunchKcal() { return sumOrNull(lunchCalories); }
+        Integer getDinnerKcal() { return sumOrNull(dinnerCalories); }
+        Integer getDailyTotalKcal() { return dailyTotalKcal; }
 
-        private void addCalorie(Set<Integer> calories, Double value) {
-            if (value == null || value <= 0) {
-                return;
+        private void addMenuWithCalorie(List<String> menus, Map<String, Integer> calories,
+                                        String menu, Double calorie) {
+            if (menu == null || menu.isBlank()) return;
+            if (!menus.contains(menu)) menus.add(menu);
+            if (calorie != null && calorie > 0) {
+                calories.putIfAbsent(menu, (int) Math.round(calorie));
             }
-            calories.add((int) Math.round(value));
         }
 
-        private Integer maxOrNull(Set<Integer> calories) {
-            return calories.stream().max(Integer::compareTo).orElse(null);
+        private Integer sumOrNull(Map<String, Integer> calories) {
+            if (calories.isEmpty()) return null;
+            return calories.values().stream().mapToInt(Integer::intValue).sum();
         }
     }
 
