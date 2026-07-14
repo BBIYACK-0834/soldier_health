@@ -2,7 +2,7 @@ spring:
   datasource:
     url: "${DB_URL:jdbc:mysql://localhost:3306/tg?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci}"
     username: "${DB_USERNAME:root}"
-    password: "${DB_PASSWORD:root}"
+    password: "${DB_PASSWORD}"
 
   jpa:
     hibernate:
@@ -24,7 +24,7 @@ server:
   port: "${SERVER_PORT:8080}"
 
 jwt:
-  secret: "${JWT_SECRET:change-this-secret-key-change-this-secret-key}"
+  secret: "${JWT_SECRET}"
   access-token-validity-seconds: "${JWT_ACCESS_TOKEN_VALIDITY_SECONDS:86400}"
 
 logging:
@@ -55,6 +55,9 @@ app:
     allowed-origin-patterns: "${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://localhost:*,https://*.app.github.dev,https://*.github.dev,https://*.vercel.app,https://*.netlify.app}"
   food-import:
     auto: "${FOOD_IMPORT_AUTO:false}"
-    file: "${FOOD_IMPORT_FILE:../food_data/foods_final_user_friendly_100g.xlsx}"
+    file: "${FOOD_IMPORT_FILE:src/main/resources/food_data/food_data_7_13.xlsx}"
+  military-menu-import:
+    file: "${MILITARY_MENU_IMPORT_FILE:src/main/resources/food_data/military_menu_data.xlsx}"
+    daily-file: "${MILITARY_MENU_DAILY_FILE:src/main/resources/food_data/military_menu_daily_profiles.csv.gz}"
   startup-seed:
     fail-on-error: "${STARTUP_SEED_FAIL_ON_ERROR:false}"
