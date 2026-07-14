@@ -49,6 +49,7 @@ function nutritionSourceLabel(source) {
     FOOD_EXACT: '식품 DB',
     ALIAS_EXACT: '식품 DB 별칭',
     COMPOSITE_ESTIMATE: '재료 기반 추정',
+    STANDARD_RICE_REFERENCE: '표준 백미밥 기준',
     USER_ADDED: '직접 추가',
     UNAVAILABLE: '정보 없음',
   })[source] || source || '정보 없음';
